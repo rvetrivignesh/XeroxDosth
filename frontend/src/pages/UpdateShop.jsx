@@ -144,27 +144,25 @@ export const UpdateShop = () => {
                 </div>
 
                 <form onSubmit={handleSubmit} className="shop-form">
-                    <div className="form-row" style={{ marginBottom: '1.5rem', backgroundColor: 'var(--bg-input)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
-                        <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: 600 }}>
-                                <input
-                                    type="checkbox"
-                                    checked={isDeliveryAvailable}
-                                    onChange={(e) => setIsDeliveryAvailable(e.target.checked)}
-                                    style={{ width: 'auto', margin: 0 }}
-                                />
-                                <span>Deliver to locations? (Enable home delivery)</span>
-                            </label>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: 600 }}>
-                                <input
-                                    type="checkbox"
-                                    checked={isCodAvailable}
-                                    onChange={(e) => setIsCodAvailable(e.target.checked)}
-                                    style={{ width: 'auto', margin: 0 }}
-                                />
-                                <span>COD available? (Cash on Delivery)</span>
-                            </label>
-                        </div>
+                    <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '1.5rem', backgroundColor: 'var(--bg-input)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', flexWrap: 'wrap' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: 600, flex: '1 1 auto', minWidth: '220px' }}>
+                            <input
+                                type="checkbox"
+                                checked={isDeliveryAvailable}
+                                onChange={(e) => setIsDeliveryAvailable(e.target.checked)}
+                                style={{ width: 'auto', margin: 0 }}
+                            />
+                            <span>Deliver to locations? (Enable home delivery)</span>
+                        </label>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: 600, flex: '1 1 auto', minWidth: '220px' }}>
+                            <input
+                                type="checkbox"
+                                checked={isCodAvailable}
+                                onChange={(e) => setIsCodAvailable(e.target.checked)}
+                                style={{ width: 'auto', margin: 0 }}
+                            />
+                            <span>COD available? (Cash on Delivery)</span>
+                        </label>
                     </div>
 
                     <div className="form-row">
