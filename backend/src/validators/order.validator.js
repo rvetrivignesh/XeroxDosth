@@ -1,0 +1,130 @@
+import { body, param } from 'express-validator';
+
+const VALID_PRINT_SIDES = ['SINGLE_SIDE', 'DOUBLE_SIDE'];
+const VALID_BINDINGS = ['NONE', 'SPIRAL', 'BOOK'];
+const VALID_PAYMENT_METHODS = ['ONLINE', 'COD'];
+
+export const createOrderValidator = [
+    body('shop')
+        .notEmpty().withMessage('Shop ID is required')
+        .isMongoId().withMessage('Invalid Shop ID format'),
+
+    body('documents')
+        .isArray({ min: 1, max: 10 }).withMessage('Documents must be an array containing between 1 and 10 items')
+        .custom((documents) => {
+            if (!Array.isArray(documents)) return false;
+            for (let i = 0; i < documents.length; i++) {
+                const doc = documents[i];
+                if (!doc || typeof doc !== 'object') {
+                    throw new Error(`Document at index ${i} must be an object`);
+                }
+                if (!doc.publicId || typeof doc.publicId !== 'string' || doc.publicId.trim() === '') {
+                    throw new Error(`Document at index ${i} must have a valid non-empty publicId`);
+                }
+                if (!doc.url || typeof doc.url !== 'string' || doc.url.trim() === '') {
+                    throw new Error(`Document at index ${i} must have a valid url`);
+                }
+                if (!doc.originalName || typeof doc.originalName !== 'string' || doc.originalName.trim() === '') {
+                    throw new Error(`Document at index ${i} must have a valid originalName`);
+                }
+                if (typeof doc.size !== 'number' || doc.size <= 0) {
+                    throw new Error(`Document at index ${i} must have a valid numeric size`);
+                }
+                if (!doc.mimeType || typeof doc.mimeType !== 'string' || doc.mimeType.trim() === '') {
+                    throw new Error(`Document at index ${i} must have a valid mimeType`);
+                }
+                try {
+                    new URL(doc.url);
+                } catch {
+                    throw new Error(`Document at index ${i} has an invalid URL format in url`);
+                }
+            }
+            return true;
+        }),
+
+    body('bwPages')
+        .optional()
+        .isInt({ min: 0 }).withMessage('Black & white pages must be an integer greater than or equal to 0'),
+
+    body('colorPages')
+        .optional()
+        .isInt({ min: 0 }).withMessage('Color pages must be an integer greater than or equal to 0'),
+
+    body('totalPages')
+        .custom((val, { req }) => {
+            const bw = req.body.bwPages !== undefined ? Number(req.body.bwPages) : 0;
+            const color = req.body.colorPages !== undefined ? Number(req.body.colorPages) : 0;
+            const total = bw + color;
+            if (total < 1) {
+                throw new Error('Order must contain at least 1 page (sum of black & white and color pages must be > 0)');
+            }
+            if (val !== undefined && Number(val) !== total) {
+                throw new Error(`totalPages (${val}) does not match the sum of bwPages (${bw}) and colorPages (${color})`);
+            }
+            return true;
+        }),
+
+    body('copies')
+        .optional()
+        .isInt({ min: 1 }).withMessage('Copies must be an integer greater than or equal to 1'),
+
+    body('printSide')
+        .trim()
+        .notEmpty().withMessage('Print side is required')
+        .isIn(VALID_PRINT_SIDES).withMessage(`Print side must be one of: ${VALID_PRINT_SIDES.join(', ')}`),
+
+    body('binding')
+        .trim()
+        .notEmpty().withMessage('Binding is required')
+        .isIn(VALID_BINDINGS).withMessage(`Binding must be one of: ${VALID_BINDINGS.join(', ')}`),
+
+    body('requiredBy')
+        .notEmpty().withMessage('Required by date is required')
+        .isISO8601().withMessage('Required by must be a valid ISO date string')
+        .custom((value) => {
+            const reqDate = new Date(value);
+            if (isNaN(reqDate.getTime())) {
+                throw new Error('Invalid date format for requiredBy');
+            }
+            if (reqDate <= new Date()) {
+                throw new Error('requiredBy date must be a future date and time');
+            }
+            return true;
+        }),
+
+    body('paymentMethod')
+        .trim()
+        .notEmpty().withMessage('Payment method is required')
+        .isIn(VALID_PAYMENT_METHODS).withMessage(`Payment method must be one of: ${VALID_PAYMENT_METHODS.join(', ')}`),
+
+    body('instructions')
+        .optional()
+        .trim()
+        .isString().withMessage('Instructions must be a string'),
+
+    body('fulfillmentType')
+        .optional()
+        .trim()
+        .isIn(['PICKUP', 'DELIVERY']).withMessage('Fulfillment type must be PICKUP or DELIVERY'),
+
+    body('deliveryAddress')
+        .if(body('fulfillmentType').equals('DELIVERY'))
+        .trim()
+        .notEmpty().withMessage('Delivery address is required when delivery is selected'),
+
+    // Ensure status and paymentStatus cannot be provided by the client
+    body(['status', 'paymentStatus'])
+        .custom((val, { req, path }) => {
+            if (req.body[path] !== undefined) {
+                throw new Error(`Field '${path}' cannot be specified directly when placing an order`);
+            }
+            return true;
+        })
+];
+
+
+export const getOrderByIdValidator = [
+    param('id')
+        .notEmpty().withMessage('Order ID parameter is required')
+        .isMongoId().withMessage('Invalid Order ID format')
+];
