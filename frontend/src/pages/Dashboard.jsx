@@ -108,6 +108,12 @@ export const Dashboard = () => {
                             <h3>Application Status</h3>
                             <p>Check the status of your shop and admin role applications.</p>
                         </Link>
+
+                        <Link to="/shops" className="action-card card card-hover">
+                            <div className="action-icon">🏬</div>
+                            <h3>Shops</h3>
+                            <p>View all approved available shops and order from them.</p>
+                        </Link>
                     </>
                 )}
 
@@ -137,6 +143,12 @@ export const Dashboard = () => {
                             <h3>Update Shop Details</h3>
                             <p>Edit shop information, operating hours, address, and pricing rates.</p>
                         </Link>
+
+                        <Link to="/shops" className="action-card card card-hover">
+                            <div className="action-icon">🏬</div>
+                            <h3>Shops</h3>
+                            <p>View all approved available shops and order from them.</p>
+                        </Link>
                     </>
                 )}
 
@@ -161,10 +173,16 @@ export const Dashboard = () => {
                             <p>View platform administrators list and demote privileges if needed.</p>
                         </Link>
 
-                        <Link to="/admin/shops" className="action-card card card-hover">
-                            <div className="action-icon">🏬</div>
+                        <Link to="/admin/manage-shops" className="action-card card card-hover">
+                            <div className="action-icon">⚙️</div>
                             <h3>Manage Shops</h3>
                             <p>Manage all registered xerox shops and partner statuses.</p>
+                        </Link>
+
+                        <Link to="/shops" className="action-card card card-hover">
+                            <div className="action-icon">🏬</div>
+                            <h3>Shops</h3>
+                            <p>View all approved available shops and order from them.</p>
                         </Link>
                     </>
                 )}

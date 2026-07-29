@@ -108,6 +108,11 @@ export const createOrderValidator = [
         .trim()
         .isString().withMessage('Instructions must be a string'),
 
+    body('customerContact')
+        .trim()
+        .notEmpty().withMessage('Customer contact details are required')
+        .isString().withMessage('Customer contact details must be a string'),
+
     body('fulfillmentType')
         .optional()
         .trim()

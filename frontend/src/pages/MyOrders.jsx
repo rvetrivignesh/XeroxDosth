@@ -129,6 +129,11 @@ export const MyOrders = () => {
                             <div>
                                 <h4 style={{ fontSize: '1.2rem', color: 'var(--text-primary)' }}>{selectedOrder.shop?.shopName || 'Print Shop'}</h4>
                                 <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>ID: {selectedOrder._id}</span>
+                                {selectedOrder.shop && (
+                                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+                                        📞 {selectedOrder.shop.phone} | ✉️ {selectedOrder.shop.email}
+                                    </div>
+                                )}
                             </div>
                             <span className={`badge badge-${selectedOrder.status.toLowerCase()}`}>
                                 {selectedOrder.status}

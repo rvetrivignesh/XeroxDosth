@@ -23,7 +23,8 @@ export const UpdateShop = () => {
     const [description, setDescription] = useState('');
     const [address, setAddress] = useState('');
     const [googleMapsLink, setGoogleMapsLink] = useState('');
-    const [imagesInput, setImagesInput] = useState('');
+    const [isDeliveryAvailable, setIsDeliveryAvailable] = useState(false);
+    const [isCodAvailable, setIsCodAvailable] = useState(false);
     const [openTime, setOpenTime] = useState('09:00 AM');
     const [closeTime, setCloseTime] = useState('08:00 PM');
     const [openDays, setOpenDays] = useState([]);
@@ -48,7 +49,8 @@ export const UpdateShop = () => {
                 setDescription(shop.description || '');
                 setAddress(shop.location?.address || '');
                 setGoogleMapsLink(shop.location?.googleMapsLink || '');
-                setImagesInput((shop.images || []).join(', '));
+                setIsDeliveryAvailable(!!shop.isDeliveryAvailable);
+                setIsCodAvailable(!!shop.isCodAvailable);
                 setOpenTime(shop.openTiming?.open || '09:00 AM');
                 setCloseTime(shop.openTiming?.close || '08:00 PM');
                 setOpenDays(shop.openDays || []);
@@ -87,16 +89,6 @@ export const UpdateShop = () => {
             return;
         }
 
-        const imagesArr = imagesInput
-            .split(',')
-            .map((img) => img.trim())
-            .filter((img) => img.length > 0);
-
-        if (imagesArr.length > 5) {
-            showToast('Maximum of 5 image URLs allowed', 'error');
-            return;
-        }
-
         setSubmitting(true);
         try {
             const payload = {
@@ -109,7 +101,9 @@ export const UpdateShop = () => {
                     address,
                     googleMapsLink
                 },
-                images: imagesArr,
+                images: [],
+                isDeliveryAvailable,
+                isCodAvailable,
                 openTiming: {
                     open: openTime,
                     close: closeTime
@@ -150,6 +144,29 @@ export const UpdateShop = () => {
                 </div>
 
                 <form onSubmit={handleSubmit} className="shop-form">
+                    <div className="form-row" style={{ marginBottom: '1.5rem', backgroundColor: 'var(--bg-input)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+                        <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: 600 }}>
+                                <input
+                                    type="checkbox"
+                                    checked={isDeliveryAvailable}
+                                    onChange={(e) => setIsDeliveryAvailable(e.target.checked)}
+                                    style={{ width: 'auto', margin: 0 }}
+                                />
+                                <span>Deliver to locations? (Enable home delivery)</span>
+                            </label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: 600 }}>
+                                <input
+                                    type="checkbox"
+                                    checked={isCodAvailable}
+                                    onChange={(e) => setIsCodAvailable(e.target.checked)}
+                                    style={{ width: 'auto', margin: 0 }}
+                                />
+                                <span>COD available? (Cash on Delivery)</span>
+                            </label>
+                        </div>
+                    </div>
+
                     <div className="form-row">
                         <div className="form-group">
                             <label htmlFor="shopName">Shop Name *</label>
@@ -292,15 +309,7 @@ export const UpdateShop = () => {
                         </div>
                     </div>
 
-                    <div className="form-group">
-                        <label htmlFor="imagesInput">Image URLs (comma-separated, max 5)</label>
-                        <input
-                            id="imagesInput"
-                            type="text"
-                            value={imagesInput}
-                            onChange={(e) => setImagesInput(e.target.value)}
-                        />
-                    </div>
+
 
                     <div className="form-row">
                         <div className="form-group">

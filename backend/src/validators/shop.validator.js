@@ -65,6 +65,12 @@ export const applyShopValidator = [
     body('pricing.bookBinding')
         .optional()
         .isFloat({ min: 0 }).withMessage('Book binding cost must be a non-negative number'),
+    body('isDeliveryAvailable')
+        .optional()
+        .isBoolean().withMessage('Delivery availability must be a boolean'),
+    body('isCodAvailable')
+        .optional()
+        .isBoolean().withMessage('COD availability must be a boolean'),
     // Ensure protected fields are stripped / rejected if passed
     body(['status', 'reviewedBy', 'reviewedAt', 'rejectionReason'])
         .custom((val, { req, path }) => {

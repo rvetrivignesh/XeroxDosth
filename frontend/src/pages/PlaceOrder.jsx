@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import API from '../services/api';
 import { useToast } from '../context/ToastContext';
 import './Order.css';
@@ -7,6 +7,7 @@ import './Order.css';
 export const PlaceOrder = () => {
     const { showToast } = useToast();
     const navigate = useNavigate();
+    const location = useLocation();
 
     const [shops, setShops] = useState([]);
     const [selectedShop, setSelectedShop] = useState(null);
@@ -23,6 +24,7 @@ export const PlaceOrder = () => {
     
     const [fulfillmentType, setFulfillmentType] = useState('PICKUP');
     const [deliveryAddress, setDeliveryAddress] = useState('');
+    const [customerContact, setCustomerContact] = useState('');
 
     // Default deadline: tomorrow at current time
     const [requiredBy, setRequiredBy] = useState(() => {
@@ -46,7 +48,15 @@ export const PlaceOrder = () => {
                 const res = await API.get('/shops/approved');
                 const list = res.data?.data || [];
                 setShops(list);
-                if (list.length > 0) {
+                
+                const searchParams = new URLSearchParams(location.search);
+                const queryShopId = searchParams.get('shopId') || location.state?.shopId;
+
+                if (queryShopId && list.some(s => s._id === queryShopId)) {
+                    setShopId(queryShopId);
+                    const found = list.find((s) => s._id === queryShopId);
+                    setSelectedShop(found || null);
+                } else if (list.length > 0) {
                     setShopId(list[0]._id);
                     setSelectedShop(list[0]);
                 }
@@ -57,7 +67,18 @@ export const PlaceOrder = () => {
             }
         };
         fetchShops();
-    }, []);
+    }, [location]);
+
+    useEffect(() => {
+        if (selectedShop) {
+            if (!selectedShop.isCodAvailable && paymentMethod === 'COD') {
+                setPaymentMethod('ONLINE');
+            }
+            if (!selectedShop.isDeliveryAvailable && fulfillmentType === 'DELIVERY') {
+                setFulfillmentType('PICKUP');
+            }
+        }
+    }, [selectedShop, paymentMethod, fulfillmentType]);
 
     const handleShopSelect = (id) => {
         setShopId(id);
@@ -218,6 +239,11 @@ export const PlaceOrder = () => {
             return;
         }
 
+        if (!customerContact.trim()) {
+            showToast('Please fill in your contact phone number for the order', 'error');
+            return;
+        }
+
         if (fulfillmentType === 'DELIVERY' && !deliveryAddress.trim()) {
             showToast('Please provide a delivery address for home delivery', 'error');
             return;
@@ -263,6 +289,7 @@ export const PlaceOrder = () => {
                 requiredBy: new Date(requiredBy).toISOString(),
                 paymentMethod,
                 transactionId: paymentMethod === 'ONLINE' ? transactionId.trim() : '',
+                customerContact: customerContact.trim(),
                 instructions
             };
 
@@ -320,6 +347,19 @@ export const PlaceOrder = () => {
                         )}
                     </div>
 
+                    {/* Customer Contact Information */}
+                    <div className="form-group">
+                        <label htmlFor="customerContact">Your Contact Phone Number *</label>
+                        <input
+                            id="customerContact"
+                            type="tel"
+                            placeholder="Enter your phone number for updates/delivery"
+                            value={customerContact}
+                            onChange={(e) => setCustomerContact(e.target.value)}
+                            required
+                        />
+                    </div>
+
                     {/* Fulfillment Option (Pickup vs Delivery) */}
                     <div className="form-group" style={{ padding: '1rem', backgroundColor: 'var(--bg-input)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
                         <label style={{ fontWeight: 600, marginBottom: '0.75rem', display: 'block' }}>Order Fulfillment Option *</label>
@@ -334,16 +374,18 @@ export const PlaceOrder = () => {
                                 />
                                 <span>Pickup</span>
                             </label>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                                <input
-                                    type="radio"
-                                    name="fulfillmentType"
-                                    value="DELIVERY"
-                                    checked={fulfillmentType === 'DELIVERY'}
-                                    onChange={(e) => setFulfillmentType(e.target.value)}
-                                />
-                                <span>Delivery</span>
-                            </label>
+                            {(!selectedShop || selectedShop.isDeliveryAvailable) && (
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                                    <input
+                                        type="radio"
+                                        name="fulfillmentType"
+                                        value="DELIVERY"
+                                        checked={fulfillmentType === 'DELIVERY'}
+                                        onChange={(e) => setFulfillmentType(e.target.value)}
+                                    />
+                                    <span>Delivery</span>
+                                </label>
+                            )}
                         </div>
 
                         {fulfillmentType === 'DELIVERY' && (
@@ -577,7 +619,9 @@ export const PlaceOrder = () => {
                                 onChange={(e) => setPaymentMethod(e.target.value)}
                             >
                                 <option value="ONLINE">Online Payment</option>
-                                <option value="COD">Cash on Delivery (COD)</option>
+                                {(!selectedShop || selectedShop.isCodAvailable) && (
+                                    <option value="COD">Cash on Delivery (COD)</option>
+                                )}
                             </select>
                         </div>
                     </div>

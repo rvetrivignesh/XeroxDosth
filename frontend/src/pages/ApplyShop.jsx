@@ -41,7 +41,8 @@ export const ApplyShop = () => {
     const [description, setDescription] = useState('');
     const [address, setAddress] = useState('');
     const [googleMapsLink, setGoogleMapsLink] = useState('');
-    const [imagesInput, setImagesInput] = useState('');
+    const [isDeliveryAvailable, setIsDeliveryAvailable] = useState(false);
+    const [isCodAvailable, setIsCodAvailable] = useState(false);
     const [openTime, setOpenTime] = useState('09:00 AM');
     const [closeTime, setCloseTime] = useState('08:00 PM');
     const [openDays, setOpenDays] = useState(['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']);
@@ -70,17 +71,6 @@ export const ApplyShop = () => {
             return;
         }
 
-        // Parse images from comma-separated string
-        const imagesArr = imagesInput
-            .split(',')
-            .map((img) => img.trim())
-            .filter((img) => img.length > 0);
-
-        if (imagesArr.length > 5) {
-            showToast('Maximum of 5 image URLs allowed', 'error');
-            return;
-        }
-
         setLoading(true);
         try {
             const payload = {
@@ -93,7 +83,9 @@ export const ApplyShop = () => {
                     address: address.trim(),
                     googleMapsLink: googleMapsLink.trim()
                 },
-                images: imagesArr,
+                images: [],
+                isDeliveryAvailable,
+                isCodAvailable,
                 openTiming: {
                     open: openTime,
                     close: closeTime
@@ -126,6 +118,29 @@ export const ApplyShop = () => {
                 </div>
 
                 <form onSubmit={handleSubmit} className="shop-form">
+                    <div className="form-row" style={{ marginBottom: '1.5rem', backgroundColor: 'var(--bg-input)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+                        <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: 600 }}>
+                                <input
+                                    type="checkbox"
+                                    checked={isDeliveryAvailable}
+                                    onChange={(e) => setIsDeliveryAvailable(e.target.checked)}
+                                    style={{ width: 'auto', margin: 0 }}
+                                />
+                                <span>Deliver to locations? (Enable home delivery)</span>
+                            </label>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: 600 }}>
+                                <input
+                                    type="checkbox"
+                                    checked={isCodAvailable}
+                                    onChange={(e) => setIsCodAvailable(e.target.checked)}
+                                    style={{ width: 'auto', margin: 0 }}
+                                />
+                                <span>COD available? (Cash on Delivery)</span>
+                            </label>
+                        </div>
+                    </div>
+
                     <div className="form-row">
                         <div className="form-group">
                             <label htmlFor="shopName">Shop Name *</label>
@@ -280,16 +295,7 @@ export const ApplyShop = () => {
                         </div>
                     </div>
 
-                    <div className="form-group">
-                        <label htmlFor="imagesInput">Image URLs (Optional, comma-separated, max 5)</label>
-                        <input
-                            id="imagesInput"
-                            type="text"
-                            placeholder="https://example.com/img1.jpg, https://example.com/img2.jpg"
-                            value={imagesInput}
-                            onChange={(e) => setImagesInput(e.target.value)}
-                        />
-                    </div>
+
 
                     <div className="form-row">
                         <div className="form-group">

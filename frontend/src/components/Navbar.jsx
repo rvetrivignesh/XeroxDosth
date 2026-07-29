@@ -92,6 +92,7 @@ export const Navbar = () => {
                                 {/* Common / Role-specific links */}
                                 <Link to="/place-order" className="mobile-link" onClick={closeMenu}>Place Order</Link>
                                 <Link to="/my-orders" className="mobile-link" onClick={closeMenu}>My Orders</Link>
+                                <Link to="/shops" className="mobile-link" onClick={closeMenu}>Shops</Link>
                                 
                                 {user.role === 'USER' && (
                                     <Link to="/apply-shop" className="mobile-link" onClick={closeMenu}>Apply for Shop</Link>

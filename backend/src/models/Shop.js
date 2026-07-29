@@ -125,6 +125,14 @@ const shopSchema = new mongoose.Schema(
             type: String,
             default: null
         },
+        isDeliveryAvailable: {
+            type: Boolean,
+            default: false
+        },
+        isCodAvailable: {
+            type: Boolean,
+            default: false
+        },
         upiId: {
             type: String,
             required: [true, "UPI ID is required"],

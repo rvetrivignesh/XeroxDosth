@@ -144,6 +144,11 @@ const orderSchema = new mongoose.Schema(
             type: String,
             trim: true,
             default: ''
+        },
+        customerContact: {
+            type: String,
+            required: [true, 'Customer contact number is required'],
+            trim: true
         }
     },
     {

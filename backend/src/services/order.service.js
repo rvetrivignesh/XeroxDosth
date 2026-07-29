@@ -35,6 +35,7 @@ export const createOrder = async (userId, orderData) => {
         paymentStatus: 'UNPAID',
         instructions: orderData.instructions || '',
         transactionId: orderData.transactionId || '',
+        customerContact: orderData.customerContact || '',
         status: 'PENDING'
     });
 

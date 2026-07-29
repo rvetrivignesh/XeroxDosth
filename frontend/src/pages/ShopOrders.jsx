@@ -96,9 +96,14 @@ export const ShopOrders = () => {
                                     <h3 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text-primary)' }}>
                                         Order #{order._id.slice(-6).toUpperCase()}
                                     </h3>
-                                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                                        Customer: {order.customer?.name || 'User'} ({order.customer?.email || 'N/A'}, {order.customer?.phone || 'N/A'})
+                                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block' }}>
+                                        Customer: {order.customer?.name || 'User'} ({order.customer?.email || 'N/A'})
                                     </span>
+                                    {order.customerContact && (
+                                        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'block', marginTop: '0.2rem' }}>
+                                            📞 Contact: <strong>{order.customerContact}</strong>
+                                        </span>
+                                    )}
                                 </div>
 
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>

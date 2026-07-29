@@ -32,7 +32,9 @@ export const applyForShop = async (userId, shopData) => {
         openTiming,
         openDays,
         pricing,
-        upiId
+        upiId,
+        isDeliveryAvailable,
+        isCodAvailable
     } = shopData;
 
     const shop = await Shop.create({
@@ -57,6 +59,8 @@ export const applyForShop = async (userId, shopData) => {
             spiralBinding: pricing?.spiralBinding !== undefined ? Number(pricing.spiralBinding) : 30,
             bookBinding: pricing?.bookBinding !== undefined ? Number(pricing.bookBinding) : 50
         },
+        isDeliveryAvailable: !!isDeliveryAvailable,
+        isCodAvailable: !!isCodAvailable,
         upiId,
         status: 'PENDING'
     });
@@ -80,6 +84,8 @@ export const updateMyShopDetails = async (userId, updateData) => {
     if (updateData.phone) shop.phone = updateData.phone;
     if (updateData.description) shop.description = updateData.description;
     if (updateData.upiId) shop.upiId = updateData.upiId;
+    if (updateData.isDeliveryAvailable !== undefined) shop.isDeliveryAvailable = !!updateData.isDeliveryAvailable;
+    if (updateData.isCodAvailable !== undefined) shop.isCodAvailable = !!updateData.isCodAvailable;
     if (updateData.location) {
         if (updateData.location.address) shop.location.address = updateData.location.address;
         if (updateData.location.googleMapsLink !== undefined) shop.location.googleMapsLink = updateData.location.googleMapsLink;
