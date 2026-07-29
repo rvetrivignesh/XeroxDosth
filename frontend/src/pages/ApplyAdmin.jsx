@@ -62,7 +62,7 @@ export const ApplyAdmin = () => {
             <div className="form-card card">
                 <div className="form-header">
                     <h2>Apply for Admin Role</h2>
-                    <p>Provide details on why you should be granted administrator privileges on XeroxDhost.</p>
+                    <p>Provide details on why you should be granted administrator privileges on XeroxDosth.</p>
                 </div>
 
                 <form onSubmit={handleSubmit} className="shop-form">

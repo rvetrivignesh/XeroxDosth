@@ -94,7 +94,7 @@ export const Dashboard = () => {
                         <Link to="/apply-shop" className="action-card card card-hover">
                             <div className="action-icon">🏪</div>
                             <h3>Apply for Shop</h3>
-                            <p>Submit your shop details & rates to join XeroxDhost network.</p>
+                            <p>Submit your shop details & rates to join XeroxDosth network.</p>
                         </Link>
 
                         <Link to="/apply-admin" className="action-card card card-hover">

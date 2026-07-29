@@ -67,7 +67,7 @@ export const Home = () => {
 
             {/* Feature Highlights Grid */}
             <section className="features-section">
-                <h2 className="section-title">Why XeroxDhost?</h2>
+                <h2 className="section-title">Why XeroxDosth?</h2>
                 <div className="features-grid">
                     <div className="feature-card card">
                         <div className="feature-icon">🚀</div>

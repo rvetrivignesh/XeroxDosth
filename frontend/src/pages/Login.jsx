@@ -123,7 +123,7 @@ export const Login = () => {
             <div className="auth-card card">
                 <div className="auth-header">
                     <h2>Welcome Back</h2>
-                    <p>Sign in to your XeroxDhost account</p>
+                    <p>Sign in to your XeroxDosth account</p>
                 </div>
 
                 <form onSubmit={handleSubmit} className="auth-form">
