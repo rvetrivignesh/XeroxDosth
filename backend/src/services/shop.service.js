@@ -1,0 +1,134 @@
+import Shop from '../models/Shop.js';
+import User from '../models/users/user.model.js';
+import ApiError from '../utils/ApiError.js';
+
+export const applyForShop = async (userId, shopData) => {
+    const user = await User.findById(userId);
+    if (!user) {
+        throw new ApiError(404, "User not found");
+    }
+
+    if (user.role !== 'USER') {
+        throw new ApiError(400, `Only users with USER role can apply for a shop (current role: ${user.role})`);
+    }
+
+    // Check if user already has a pending shop application
+    const existingPending = await Shop.findOne({
+        owner: userId,
+        status: 'PENDING'
+    });
+
+    if (existingPending) {
+        throw new ApiError(400, "You already have a pending shop application");
+    }
+
+    const {
+        shopName,
+        email,
+        phone,
+        description,
+        location,
+        images,
+        openTiming,
+        openDays,
+        pricing
+    } = shopData;
+
+    const shop = await Shop.create({
+        owner: userId,
+        shopName,
+        email,
+        phone,
+        description,
+        location: {
+            address: location.address,
+            googleMapsLink: location.googleMapsLink || ""
+        },
+        images: images || [],
+        openTiming: {
+            open: openTiming.open,
+            close: openTiming.close
+        },
+        openDays,
+        pricing: {
+            bwPerPage: pricing?.bwPerPage !== undefined ? Number(pricing.bwPerPage) : 1,
+            colorPerPage: pricing?.colorPerPage !== undefined ? Number(pricing.colorPerPage) : 5,
+            spiralBinding: pricing?.spiralBinding !== undefined ? Number(pricing.spiralBinding) : 30,
+            bookBinding: pricing?.bookBinding !== undefined ? Number(pricing.bookBinding) : 50
+        },
+        status: 'PENDING'
+    });
+
+    return shop;
+};
+
+export const getMyShopApplication = async (userId) => {
+    const shop = await Shop.findOne({ owner: userId }).sort({ createdAt: -1 });
+    return shop;
+};
+
+export const updateMyShopDetails = async (userId, updateData) => {
+    const shop = await Shop.findOne({ owner: userId });
+    if (!shop) {
+        throw new ApiError(404, "Shop not found for this user");
+    }
+
+    if (updateData.shopName) shop.shopName = updateData.shopName;
+    if (updateData.email) shop.email = updateData.email;
+    if (updateData.phone) shop.phone = updateData.phone;
+    if (updateData.description) shop.description = updateData.description;
+    if (updateData.location) {
+        if (updateData.location.address) shop.location.address = updateData.location.address;
+        if (updateData.location.googleMapsLink !== undefined) shop.location.googleMapsLink = updateData.location.googleMapsLink;
+    }
+    if (updateData.images) shop.images = updateData.images;
+    if (updateData.openTiming) {
+        if (updateData.openTiming.open) shop.openTiming.open = updateData.openTiming.open;
+        if (updateData.openTiming.close) shop.openTiming.close = updateData.openTiming.close;
+    }
+    if (updateData.openDays) shop.openDays = updateData.openDays;
+    if (updateData.pricing) {
+        if (updateData.pricing.bwPerPage !== undefined) shop.pricing.bwPerPage = Number(updateData.pricing.bwPerPage);
+        if (updateData.pricing.colorPerPage !== undefined) shop.pricing.colorPerPage = Number(updateData.pricing.colorPerPage);
+        if (updateData.pricing.spiralBinding !== undefined) shop.pricing.spiralBinding = Number(updateData.pricing.spiralBinding);
+        if (updateData.pricing.bookBinding !== undefined) shop.pricing.bookBinding = Number(updateData.pricing.bookBinding);
+    }
+
+    await shop.save();
+    return shop;
+};
+
+export const getAllShops = async () => {
+    const shops = await Shop.find().populate('owner', 'name email phone role').sort({ createdAt: -1 });
+    return shops;
+};
+
+export const getAllApprovedShops = async () => {
+    const shops = await Shop.find({ status: 'APPROVED' }).sort({ createdAt: -1 });
+    return shops;
+};
+
+export const updateShopStatus = async (adminId, shopId, status, rejectionReason) => {
+    const shop = await Shop.findById(shopId);
+    if (!shop) {
+        throw new ApiError(404, "Shop not found");
+    }
+
+    shop.status = status;
+    shop.reviewedBy = adminId;
+    shop.reviewedAt = new Date();
+    if (rejectionReason) shop.rejectionReason = rejectionReason;
+
+    // If approved, update owner's role to SHOP
+    if (status === 'APPROVED') {
+        const owner = await User.findById(shop.owner);
+        if (owner && owner.role === 'USER') {
+            owner.role = 'SHOP';
+            await owner.save();
+        }
+    }
+
+    await shop.save();
+    return shop;
+};
+
