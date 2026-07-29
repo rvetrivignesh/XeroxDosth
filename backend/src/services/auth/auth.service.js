@@ -1,4 +1,5 @@
 import User from '../../models/users/user.model.js';
+import Shop from '../../models/Shop.js';
 import ApiError from '../../utils/ApiError.js';
 import generateToken from '../../utils/generateToken.js';
 
@@ -76,8 +77,17 @@ export const resignRole = async (userId) => {
         throw new ApiError(400, "You are already a standard user");
     }
 
+    const oldRole = user.role;
     user.role = 'USER';
     await user.save();
+
+    if (oldRole === 'SHOP') {
+        await Shop.updateMany(
+            { owner: userId, status: 'APPROVED' },
+            { status: 'REJECTED', rejectionReason: 'User resigned from Shop role' }
+        );
+    }
+
     return user;
 };
 

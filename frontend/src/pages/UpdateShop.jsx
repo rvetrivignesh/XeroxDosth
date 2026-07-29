@@ -17,6 +17,7 @@ export const UpdateShop = () => {
     const { showToast } = useToast();
 
     const [shopName, setShopName] = useState('');
+    const [upiId, setUpiId] = useState('');
     const [email, setEmail] = useState('');
     const [phone, setPhone] = useState('');
     const [description, setDescription] = useState('');
@@ -41,6 +42,7 @@ export const UpdateShop = () => {
             const shop = res.data?.data;
             if (shop) {
                 setShopName(shop.shopName || '');
+                setUpiId(shop.upiId || '');
                 setEmail(shop.email || '');
                 setPhone(shop.phone || '');
                 setDescription(shop.description || '');
@@ -75,7 +77,7 @@ export const UpdateShop = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        if (!shopName.trim() || !email.trim() || !phone.trim() || !description.trim() || !address.trim()) {
+        if (!shopName.trim() || !upiId.trim() || !email.trim() || !phone.trim() || !description.trim() || !address.trim()) {
             showToast('Please fill out all required fields', 'error');
             return;
         }
@@ -99,9 +101,10 @@ export const UpdateShop = () => {
         try {
             const payload = {
                 shopName,
-                email,
-                phone,
-                description,
+                upiId: upiId.trim(),
+                email: email.trim(),
+                phone: phone.trim(),
+                description: description.trim(),
                 location: {
                     address,
                     googleMapsLink
@@ -160,6 +163,19 @@ export const UpdateShop = () => {
                         </div>
 
                         <div className="form-group">
+                            <label htmlFor="upiId">UPI ID (for payments) *</label>
+                            <input
+                                id="upiId"
+                                type="text"
+                                value={upiId}
+                                onChange={(e) => setUpiId(e.target.value)}
+                                required
+                            />
+                        </div>
+                    </div>
+
+                    <div className="form-row">
+                        <div className="form-group">
                             <label htmlFor="email">Contact Email *</label>
                             <input
                                 id="email"
@@ -169,9 +185,7 @@ export const UpdateShop = () => {
                                 required
                             />
                         </div>
-                    </div>
 
-                    <div className="form-row">
                         <div className="form-group">
                             <label htmlFor="phone">Phone Number *</label>
                             <input
@@ -182,7 +196,9 @@ export const UpdateShop = () => {
                                 required
                             />
                         </div>
+                    </div>
 
+                    <div className="form-row">
                         <div className="form-group">
                             <label htmlFor="googleMapsLink">Google Maps Link</label>
                             <input

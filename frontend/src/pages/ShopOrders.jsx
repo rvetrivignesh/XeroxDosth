@@ -42,6 +42,21 @@ export const ShopOrders = () => {
         }
     };
 
+    const handlePaymentStatusChange = async (orderId, newPaymentStatus) => {
+        setUpdatingId(orderId);
+        try {
+            await API.patch(`/orders/${orderId}/status`, { paymentStatus: newPaymentStatus });
+            showToast(`Payment status updated to ${newPaymentStatus}`, 'success');
+            setOrders((prev) =>
+                prev.map((o) => (o._id === orderId ? { ...o, paymentStatus: newPaymentStatus } : o))
+            );
+        } catch (err) {
+            showToast(err.response?.data?.message || 'Failed to update payment status', 'error');
+        } finally {
+            setUpdatingId(null);
+        }
+    };
+
     if (loading) {
         return (
             <div className="page-loading">
@@ -86,34 +101,60 @@ export const ShopOrders = () => {
                                     </span>
                                 </div>
 
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                                        Status:
-                                    </label>
-                                    <select
-                                        value={order.status}
-                                        onChange={(e) => handleStatusChange(order._id, e.target.value)}
-                                        disabled={updatingId === order._id}
-                                        style={{
-                                            padding: '0.35rem 0.65rem',
-                                            borderRadius: 'var(--radius-sm)',
-                                            border: '1px solid var(--border-color)',
-                                            fontWeight: 600,
-                                            fontSize: '0.85rem',
-                                            backgroundColor: 'var(--bg-input)',
-                                            color: 'var(--text-primary)'
-                                        }}
-                                    >
-                                        {ORDER_STATUSES.map((st) => (
-                                            <option key={st} value={st}>
-                                                {st}
-                                            </option>
-                                        ))}
-                                    </select>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                                            Status:
+                                        </label>
+                                        <select
+                                            value={order.status}
+                                            onChange={(e) => handleStatusChange(order._id, e.target.value)}
+                                            disabled={updatingId === order._id}
+                                            style={{
+                                                padding: '0.35rem 0.65rem',
+                                                borderRadius: 'var(--radius-sm)',
+                                                border: '1px solid var(--border-color)',
+                                                fontWeight: 600,
+                                                fontSize: '0.85rem',
+                                                backgroundColor: 'var(--bg-input)',
+                                                color: 'var(--text-primary)'
+                                            }}
+                                        >
+                                            {ORDER_STATUSES.map((st) => (
+                                                <option key={st} value={st}>
+                                                    {st}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                                            Payment:
+                                        </label>
+                                        <select
+                                            value={order.paymentStatus}
+                                            onChange={(e) => handlePaymentStatusChange(order._id, e.target.value)}
+                                            disabled={updatingId === order._id}
+                                            style={{
+                                                padding: '0.35rem 0.65rem',
+                                                borderRadius: 'var(--radius-sm)',
+                                                border: '1px solid var(--border-color)',
+                                                fontWeight: 600,
+                                                fontSize: '0.85rem',
+                                                backgroundColor: 'var(--bg-input)',
+                                                color: 'var(--text-primary)'
+                                            }}
+                                        >
+                                            <option value="UNPAID">UNPAID</option>
+                                            <option value="PAID">PAID</option>
+                                            <option value="REFUNDED">REFUNDED</option>
+                                        </select>
+                                    </div>
                                 </div>
                             </div>
 
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
                                 <div>
                                     <small style={{ color: 'var(--text-muted)' }}>Fulfillment</small>
                                     <div style={{ fontWeight: 600 }}>
@@ -145,6 +186,18 @@ export const ShopOrders = () => {
                                     <div style={{ fontWeight: 500 }}>
                                         {new Date(order.requiredBy).toLocaleString()}
                                     </div>
+                                </div>
+
+                                <div>
+                                    <small style={{ color: 'var(--text-muted)' }}>Payment Details</small>
+                                    <div style={{ fontWeight: 600 }}>
+                                        {order.paymentMethod}
+                                    </div>
+                                    {order.paymentMethod === 'ONLINE' && order.transactionId && (
+                                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.25rem', overflowWrap: 'anywhere' }}>
+                                            Txn Ref: <strong style={{ color: 'var(--text-primary)' }}>{order.transactionId}</strong>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 

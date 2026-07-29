@@ -10,6 +10,20 @@ export const ApplyAdmin = () => {
     const { showToast } = useToast();
     const navigate = useNavigate();
 
+    if (user?.role === 'ADMIN') {
+        return (
+            <div className="page-container">
+                <div className="empty-state card" style={{ maxWidth: '600px', margin: '2rem auto', textAlign: 'center', padding: '2.5rem' }}>
+                    <h3>Already an Admin</h3>
+                    <p style={{ marginBottom: '1.5rem', color: 'var(--text-secondary)' }}>You already have platform administrator privileges.</p>
+                    <button className="btn btn-primary" onClick={() => navigate('/dashboard')}>
+                        Go to Dashboard
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
     const [email, setEmail] = useState(user?.email || '');
     const [phone, setPhone] = useState('');
     const [description, setDescription] = useState('');

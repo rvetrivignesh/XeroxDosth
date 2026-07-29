@@ -24,11 +24,11 @@ export const getShopOrders = asyncHandler(async (req, res) => {
 });
 
 export const updateOrderStatus = asyncHandler(async (req, res) => {
-    const { status } = req.body;
-    const order = await orderService.updateOrderStatus(req.user._id, req.params.id, status);
+    const { status, paymentStatus } = req.body;
+    const order = await orderService.updateOrderStatus(req.user._id, req.params.id, status, paymentStatus);
     return res
         .status(200)
-        .json(new ApiResponse(200, order, `Order status updated to ${status}`));
+        .json(new ApiResponse(200, order, `Order updated successfully`));
 });
 
 export const getOrderById = asyncHandler(async (req, res) => {

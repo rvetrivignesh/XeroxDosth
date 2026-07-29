@@ -34,6 +34,7 @@ export const createOrder = async (userId, orderData) => {
         paymentMethod: orderData.paymentMethod,
         paymentStatus: 'UNPAID',
         instructions: orderData.instructions || '',
+        transactionId: orderData.transactionId || '',
         status: 'PENDING'
     });
 
@@ -43,7 +44,7 @@ export const createOrder = async (userId, orderData) => {
 export const getUserOrders = async (userId) => {
     const orders = await Order.find({ customer: userId })
         .sort({ createdAt: -1 })
-        .populate('shop', 'shopName location phone email');
+        .populate('shop', 'shopName location phone email upiId');
 
     return orders;
 };
@@ -62,7 +63,7 @@ export const getShopOrders = async (userId) => {
     return orders;
 };
 
-export const updateOrderStatus = async (userId, orderId, status) => {
+export const updateOrderStatus = async (userId, orderId, status, paymentStatus) => {
     const shop = await Shop.findOne({ owner: userId });
     if (!shop) {
         throw new ApiError(404, 'No shop registered for this user');
@@ -73,7 +74,8 @@ export const updateOrderStatus = async (userId, orderId, status) => {
         throw new ApiError(404, 'Order not found for your shop');
     }
 
-    order.status = status;
+    if (status) order.status = status;
+    if (paymentStatus) order.paymentStatus = paymentStatus;
     await order.save();
     return order;
 };

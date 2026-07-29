@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import API from '../services/api';
 import { useToast } from '../context/ToastContext';
 
 export const ApplicationStatus = () => {
+    const { user } = useAuth();
     const { showToast } = useToast();
     const [shopApp, setShopApp] = useState(null);
     const [roleApps, setRoleApps] = useState([]);
@@ -86,12 +88,16 @@ export const ApplicationStatus = () => {
                     <h3>No Active Applications</h3>
                     <p style={{ marginBottom: '1.5rem', color: 'var(--text-secondary)' }}>You haven't submitted any shop partnering or admin role applications yet.</p>
                     <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-                        <Link to="/apply-shop" className="btn btn-primary">
-                            Apply for Shop
-                        </Link>
-                        <Link to="/apply-admin" className="btn btn-secondary">
-                            Apply for Admin Role
-                        </Link>
+                        {user?.role === 'USER' && (
+                            <Link to="/apply-shop" className="btn btn-primary">
+                                Apply for Shop
+                            </Link>
+                        )}
+                        {(user?.role === 'USER' || user?.role === 'SHOP') && (
+                            <Link to="/apply-admin" className="btn btn-secondary">
+                                Apply for Admin Role
+                            </Link>
+                        )}
                     </div>
                 </div>
             ) : (

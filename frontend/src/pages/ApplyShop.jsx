@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import API from '../services/api';
 import { useToast } from '../context/ToastContext';
 import './ShopForm.css';
@@ -15,11 +16,27 @@ const DAYS_OF_WEEK = [
 ];
 
 export const ApplyShop = () => {
+    const { user } = useAuth();
     const { showToast } = useToast();
     const navigate = useNavigate();
 
+    if (user?.role === 'SHOP' || user?.role === 'ADMIN') {
+        return (
+            <div className="page-container">
+                <div className="empty-state card" style={{ maxWidth: '600px', margin: '2rem auto', textAlign: 'center', padding: '2.5rem' }}>
+                    <h3>Access Restricted</h3>
+                    <p style={{ marginBottom: '1.5rem', color: 'var(--text-secondary)' }}>You cannot apply for a shop partnering application because you are already a shop partner or administrator.</p>
+                    <button className="btn btn-primary" onClick={() => navigate('/dashboard')}>
+                        Go to Dashboard
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
     const [shopName, setShopName] = useState('');
-    const [email, setEmail] = useState('');
+    const [upiId, setUpiId] = useState('');
+    const [email, setEmail] = useState(user?.email || '');
     const [phone, setPhone] = useState('');
     const [description, setDescription] = useState('');
     const [address, setAddress] = useState('');
@@ -43,7 +60,7 @@ export const ApplyShop = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        if (!shopName.trim() || !email.trim() || !phone.trim() || !description.trim() || !address.trim()) {
+        if (!shopName.trim() || !upiId.trim() || !email.trim() || !phone.trim() || !description.trim() || !address.trim()) {
             showToast('Please fill out all required fields', 'error');
             return;
         }
@@ -68,12 +85,13 @@ export const ApplyShop = () => {
         try {
             const payload = {
                 shopName,
-                email,
-                phone,
-                description,
+                upiId: upiId.trim(),
+                email: email.trim(),
+                phone: phone.trim(),
+                description: description.trim(),
                 location: {
-                    address,
-                    googleMapsLink
+                    address: address.trim(),
+                    googleMapsLink: googleMapsLink.trim()
                 },
                 images: imagesArr,
                 openTiming: {
@@ -122,6 +140,20 @@ export const ApplyShop = () => {
                         </div>
 
                         <div className="form-group">
+                            <label htmlFor="upiId">UPI ID (for payments) *</label>
+                            <input
+                                id="upiId"
+                                type="text"
+                                placeholder="e.g. shopname@upi"
+                                value={upiId}
+                                onChange={(e) => setUpiId(e.target.value)}
+                                required
+                            />
+                        </div>
+                    </div>
+
+                    <div className="form-row">
+                        <div className="form-group">
                             <label htmlFor="email">Contact Email *</label>
                             <input
                                 id="email"
@@ -132,9 +164,7 @@ export const ApplyShop = () => {
                                 required
                             />
                         </div>
-                    </div>
 
-                    <div className="form-row">
                         <div className="form-group">
                             <label htmlFor="phone">Phone Number *</label>
                             <input
@@ -146,7 +176,9 @@ export const ApplyShop = () => {
                                 required
                             />
                         </div>
+                    </div>
 
+                    <div className="form-row">
                         <div className="form-group">
                             <label htmlFor="googleMapsLink">Google Maps Link (Optional)</label>
                             <input

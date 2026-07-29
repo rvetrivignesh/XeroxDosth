@@ -144,6 +144,9 @@ export const MyOrders = () => {
                             <div><strong>Binding:</strong> {selectedOrder.binding}</div>
                             <div><strong>Payment Method:</strong> {selectedOrder.paymentMethod}</div>
                             <div><strong>Payment Status:</strong> {selectedOrder.paymentStatus}</div>
+                            {selectedOrder.paymentMethod === 'ONLINE' && (
+                                <div><strong>Transaction ID:</strong> {selectedOrder.transactionId || 'N/A'}</div>
+                            )}
                         </div>
 
                         <div>

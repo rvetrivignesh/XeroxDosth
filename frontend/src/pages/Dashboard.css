@@ -34,16 +34,19 @@
 }
 
 .action-icon {
+    margin: auto;
     font-size: 2rem;
 }
 
 .action-card h3 {
+    margin: auto;
     font-size: 1.1rem;
     font-weight: 600;
     color: var(--text-primary);
 }
 
 .action-card p {
+    text-align: center;
     font-size: 0.85rem;
     color: var(--text-secondary);
 }

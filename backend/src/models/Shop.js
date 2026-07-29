@@ -124,6 +124,11 @@ const shopSchema = new mongoose.Schema(
         rejectionReason: {
             type: String,
             default: null
+        },
+        upiId: {
+            type: String,
+            required: [true, "UPI ID is required"],
+            trim: true
         }
     },
     {

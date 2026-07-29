@@ -31,7 +31,8 @@ export const applyForShop = async (userId, shopData) => {
         images,
         openTiming,
         openDays,
-        pricing
+        pricing,
+        upiId
     } = shopData;
 
     const shop = await Shop.create({
@@ -56,6 +57,7 @@ export const applyForShop = async (userId, shopData) => {
             spiralBinding: pricing?.spiralBinding !== undefined ? Number(pricing.spiralBinding) : 30,
             bookBinding: pricing?.bookBinding !== undefined ? Number(pricing.bookBinding) : 50
         },
+        upiId,
         status: 'PENDING'
     });
 
@@ -77,6 +79,7 @@ export const updateMyShopDetails = async (userId, updateData) => {
     if (updateData.email) shop.email = updateData.email;
     if (updateData.phone) shop.phone = updateData.phone;
     if (updateData.description) shop.description = updateData.description;
+    if (updateData.upiId) shop.upiId = updateData.upiId;
     if (updateData.location) {
         if (updateData.location.address) shop.location.address = updateData.location.address;
         if (updateData.location.googleMapsLink !== undefined) shop.location.googleMapsLink = updateData.location.googleMapsLink;
@@ -119,11 +122,17 @@ export const updateShopStatus = async (adminId, shopId, status, rejectionReason)
     shop.reviewedAt = new Date();
     if (rejectionReason) shop.rejectionReason = rejectionReason;
 
-    // If approved, update owner's role to SHOP
+    // If approved, update owner's role to SHOP. If rejected/demoted, update owner's role to USER.
     if (status === 'APPROVED') {
         const owner = await User.findById(shop.owner);
         if (owner && owner.role === 'USER') {
             owner.role = 'SHOP';
+            await owner.save();
+        }
+    } else if (status === 'REJECTED') {
+        const owner = await User.findById(shop.owner);
+        if (owner && owner.role === 'SHOP') {
+            owner.role = 'USER';
             await owner.save();
         }
     }

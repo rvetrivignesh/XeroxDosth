@@ -52,12 +52,15 @@ export const Dashboard = () => {
                 <div className="banner-info">
                     <h2>Welcome back, {user?.name}!</h2>
                     <p>
-                        Role: <strong style={{ textTransform: 'uppercase' }}>{user?.role}</strong> | Account Status: <span className="badge badge-approved">{user?.accountStatus}</span>
+                        Role: <strong style={{ textTransform: 'uppercase' }}>{user?.role}</strong> 
+                    </p>
+                    <p>
+                        Account Status: <span className="badge badge-approved">{user?.accountStatus}</span>
                     </p>
                 </div>
                 <div className="banner-actions" style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
                     <Link to="/place-order" className="btn btn-primary">
-                        + Place Order
+                        Place Order
                     </Link>
                     {(user?.role === 'ADMIN' || user?.role === 'SHOP') && (
                         <button

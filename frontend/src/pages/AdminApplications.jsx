@@ -111,7 +111,7 @@ export const AdminApplications = () => {
                                 <p style={{ margin: '0.25rem 0 0 0', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{app.description}</p>
                             </div>
 
-                            {app.status === 'PENDING' && (
+                            {app.status === 'PENDING' ? (
                                 <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap', marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
                                     <button
                                         className="btn btn-primary btn-sm"
@@ -136,6 +136,24 @@ export const AdminApplications = () => {
                                     >
                                         Reject
                                     </button>
+                                </div>
+                            ) : (
+                                <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                                    {app.reviewedBy && (
+                                        <div>
+                                            <strong style={{ color: 'var(--text-primary)' }}>Reviewed By:</strong> {app.reviewedBy.name || app.reviewedBy}
+                                        </div>
+                                    )}
+                                    {app.reviewedAt && (
+                                        <div>
+                                            <strong style={{ color: 'var(--text-primary)' }}>Reviewed At:</strong> {new Date(app.reviewedAt).toLocaleString()}
+                                        </div>
+                                    )}
+                                    {app.rejectionReason && (
+                                        <div style={{ gridColumn: '1 / -1' }}>
+                                            <strong style={{ color: 'var(--error-text)' }}>Rejection Reason:</strong> {app.rejectionReason}
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>

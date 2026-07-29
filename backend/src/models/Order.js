@@ -139,6 +139,11 @@ const orderSchema = new mongoose.Schema(
                 message: 'Invalid order status'
             },
             default: 'PENDING'
+        },
+        transactionId: {
+            type: String,
+            trim: true,
+            default: ''
         }
     },
     {

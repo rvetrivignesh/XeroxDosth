@@ -6,6 +6,9 @@ export const applyShopValidator = [
     body('shopName')
         .trim()
         .notEmpty().withMessage('Shop name is required'),
+    body('upiId')
+        .trim()
+        .notEmpty().withMessage('UPI ID is required'),
     body('email')
         .trim()
         .notEmpty().withMessage('Email is required')

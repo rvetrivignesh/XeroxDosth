@@ -32,6 +32,7 @@ export const PlaceOrder = () => {
     });
 
     const [paymentMethod, setPaymentMethod] = useState('ONLINE');
+    const [transactionId, setTransactionId] = useState('');
     const [instructions, setInstructions] = useState('');
     const [loading, setLoading] = useState(false);
     const [loadingShops, setLoadingShops] = useState(true);
@@ -204,7 +205,6 @@ export const PlaceOrder = () => {
     const handleRetryUpload = (fileObj) => {
         uploadSingleFile(fileObj);
     };
-
     const handleSubmit = async (e) => {
         e.preventDefault();
 
@@ -220,6 +220,11 @@ export const PlaceOrder = () => {
 
         if (fulfillmentType === 'DELIVERY' && !deliveryAddress.trim()) {
             showToast('Please provide a delivery address for home delivery', 'error');
+            return;
+        }
+
+        if (paymentMethod === 'ONLINE' && !transactionId.trim()) {
+            showToast('Please fill in the UPI transaction ID for online payment', 'error');
             return;
         }
 
@@ -257,6 +262,7 @@ export const PlaceOrder = () => {
                 deliveryAddress: fulfillmentType === 'DELIVERY' ? deliveryAddress.trim() : '',
                 requiredBy: new Date(requiredBy).toISOString(),
                 paymentMethod,
+                transactionId: paymentMethod === 'ONLINE' ? transactionId.trim() : '',
                 instructions
             };
 
@@ -575,6 +581,28 @@ export const PlaceOrder = () => {
                             </select>
                         </div>
                     </div>
+
+                    {paymentMethod === 'ONLINE' && selectedShop && (
+                        <div className="form-group" style={{ padding: '1rem', backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', marginBottom: '1.25rem' }}>
+                            <div style={{ marginBottom: '0.75rem' }}>
+                                <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Shop UPI ID for Payment</span>
+                                <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--accent-color)' }}>
+                                    {selectedShop.upiId || 'Not configured by shop'}
+                                </div>
+                            </div>
+                            <div>
+                                <label htmlFor="transactionId" style={{ fontWeight: 600, display: 'block', marginBottom: '0.5rem' }}>UPI Transaction ID / Ref No. *</label>
+                                <input
+                                    id="transactionId"
+                                    type="text"
+                                    placeholder="Enter the 12-digit transaction reference number"
+                                    value={transactionId}
+                                    onChange={(e) => setTransactionId(e.target.value)}
+                                    required
+                                />
+                            </div>
+                        </div>
+                    )}
 
                     {/* Additional Instructions */}
                     <div className="form-group">

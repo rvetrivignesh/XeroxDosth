@@ -97,6 +97,12 @@ export const createOrderValidator = [
         .notEmpty().withMessage('Payment method is required')
         .isIn(VALID_PAYMENT_METHODS).withMessage(`Payment method must be one of: ${VALID_PAYMENT_METHODS.join(', ')}`),
 
+    body('transactionId')
+        .if(body('paymentMethod').equals('ONLINE'))
+        .trim()
+        .notEmpty().withMessage('Transaction ID is required for online payments')
+        .isString().withMessage('Transaction ID must be a string'),
+
     body('instructions')
         .optional()
         .trim()

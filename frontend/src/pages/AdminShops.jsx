@@ -9,6 +9,8 @@ export const AdminShops = () => {
     const [rejectionMap, setRejectionMap] = useState({});
     const [actionId, setActionId] = useState(null);
 
+    const isManageView = window.location.pathname.includes('manage-shops');
+
     const fetchShops = async () => {
         setLoading(true);
         try {
@@ -25,17 +27,24 @@ export const AdminShops = () => {
         fetchShops();
     }, []);
 
-    const handleUpdateStatus = async (id, status) => {
-        const rejectionReason = rejectionMap[id] || '';
-        if (status === 'REJECTED' && !rejectionReason.trim()) {
+    const handleUpdateStatus = async (id, status, customReason = '') => {
+        const rejectionReason = customReason || rejectionMap[id] || '';
+        if (status === 'REJECTED' && !rejectionReason.trim() && !isManageView) {
             showToast('Please enter a rejection reason', 'error');
             return;
         }
 
+        if (isManageView && status === 'REJECTED') {
+            if (!window.confirm('Are you sure you want to demote this shop to a regular User? This will remove their shop partnering privileges.')) {
+                return;
+            }
+        }
+
         setActionId(id);
         try {
-            await API.patch(`/shops/admin/${id}/status`, { status, rejectionReason });
-            showToast(`Shop status updated to ${status}`, 'success');
+            const finalReason = isManageView && status === 'REJECTED' ? 'Demoted by administrator' : rejectionReason;
+            await API.patch(`/shops/admin/${id}/status`, { status, rejectionReason: finalReason });
+            showToast(isManageView ? 'Shop owner demoted to standard user' : `Shop status updated to ${status}`, 'success');
             fetchShops();
         } catch (err) {
             showToast(err.response?.data?.message || 'Failed to update shop status', 'error');
@@ -43,6 +52,10 @@ export const AdminShops = () => {
             setActionId(null);
         }
     };
+
+    const displayedShops = isManageView
+        ? shops.filter((s) => s.status === 'APPROVED')
+        : shops;
 
     if (loading) {
         return (
@@ -56,17 +69,23 @@ export const AdminShops = () => {
     return (
         <div className="page-container">
             <div className="page-header" style={{ marginBottom: '2rem' }}>
-                <h1 style={{ fontSize: '2rem', color: 'var(--text-primary)' }}>Shop Partnering Applications</h1>
-                <p style={{ color: 'var(--text-secondary)' }}>Review pending shop submissions and manage active xerox partners.</p>
+                <h1 style={{ fontSize: '2rem', color: 'var(--text-primary)' }}>
+                    {isManageView ? 'Manage Active Shops' : 'Shop Partnering Applications'}
+                </h1>
+                <p style={{ color: 'var(--text-secondary)' }}>
+                    {isManageView
+                        ? 'View active shop partners and demote privileges if needed.'
+                        : 'Review pending shop submissions and manage active xerox partners.'}
+                </p>
             </div>
 
-            {shops.length === 0 ? (
+            {displayedShops.length === 0 ? (
                 <div className="empty-state card">
-                    <h3>No Shop Applications Found</h3>
+                    <h3>{isManageView ? 'No Active Shops Found' : 'No Shop Applications Found'}</h3>
                 </div>
             ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                    {shops.map((shop) => (
+                    {displayedShops.map((shop) => (
                         <div key={shop._id} className="card" style={{ padding: '1.5rem' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem' }}>
                                 <div>
@@ -91,6 +110,12 @@ export const AdminShops = () => {
                                     <small style={{ color: 'var(--text-muted)' }}>Open Timing</small>
                                     <div>{shop.openTiming?.open} - {shop.openTiming?.close}</div>
                                 </div>
+                                {shop.upiId && (
+                                    <div>
+                                        <small style={{ color: 'var(--text-muted)' }}>UPI ID</small>
+                                        <div style={{ fontWeight: 500 }}>{shop.upiId}</div>
+                                    </div>
+                                )}
                             </div>
 
                             {shop.pricing && (
@@ -104,8 +129,19 @@ export const AdminShops = () => {
                                 <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{shop.location?.address}</div>
                             </div>
 
-                            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap', marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
-                                {shop.status !== 'APPROVED' && (
+                            {isManageView ? (
+                                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap', marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
+                                    <button
+                                        className="btn btn-secondary btn-sm"
+                                        style={{ color: '#ef4444' }}
+                                        onClick={() => handleUpdateStatus(shop._id, 'REJECTED', 'Demoted by administrator')}
+                                        disabled={actionId === shop._id}
+                                    >
+                                        Demote to User
+                                    </button>
+                                </div>
+                            ) : shop.status === 'PENDING' ? (
+                                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap', marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
                                     <button
                                         className="btn btn-primary btn-sm"
                                         onClick={() => handleUpdateStatus(shop._id, 'APPROVED')}
@@ -113,27 +149,41 @@ export const AdminShops = () => {
                                     >
                                         Approve Shop
                                     </button>
-                                )}
 
-                                {shop.status !== 'REJECTED' && (
-                                    <>
-                                        <input
-                                            type="text"
-                                            placeholder="Rejection reason..."
-                                            value={rejectionMap[shop._id] || ''}
-                                            onChange={(e) => setRejectionMap({ ...rejectionMap, [shop._id]: e.target.value })}
-                                            style={{ flex: 1, minWidth: '180px', padding: '0.35rem 0.65rem', fontSize: '0.85rem' }}
-                                        />
-                                        <button
-                                            className="btn btn-danger btn-sm"
-                                            onClick={() => handleUpdateStatus(shop._id, 'REJECTED')}
-                                            disabled={actionId === shop._id}
-                                        >
-                                            Reject / Disable
-                                        </button>
-                                    </>
-                                )}
-                            </div>
+                                    <input
+                                        type="text"
+                                        placeholder="Rejection reason..."
+                                        value={rejectionMap[shop._id] || ''}
+                                        onChange={(e) => setRejectionMap({ ...rejectionMap, [shop._id]: e.target.value })}
+                                        style={{ flex: 1, minWidth: '180px', padding: '0.35rem 0.65rem', fontSize: '0.85rem' }}
+                                    />
+                                    <button
+                                        className="btn btn-danger btn-sm"
+                                        onClick={() => handleUpdateStatus(shop._id, 'REJECTED')}
+                                        disabled={actionId === shop._id}
+                                    >
+                                        Reject
+                                    </button>
+                                </div>
+                            ) : (
+                                <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                                    {shop.reviewedBy && (
+                                        <div>
+                                            <strong style={{ color: 'var(--text-primary)' }}>Reviewed By:</strong> {shop.reviewedBy.name || shop.reviewedBy}
+                                        </div>
+                                    )}
+                                    {shop.reviewedAt && (
+                                        <div>
+                                            <strong style={{ color: 'var(--text-primary)' }}>Reviewed At:</strong> {new Date(shop.reviewedAt).toLocaleString()}
+                                        </div>
+                                    )}
+                                    {shop.rejectionReason && (
+                                        <div style={{ gridColumn: '1 / -1' }}>
+                                            <strong style={{ color: 'var(--error-text)' }}>Rejection/Disable Reason:</strong> {shop.rejectionReason}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     ))}
                 </div>
