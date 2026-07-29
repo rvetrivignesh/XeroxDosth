@@ -4,7 +4,18 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <meta name="color-scheme" content="light dark" />
+    <title>XeroxDhost - Smart Printing & Xerox Solution</title>
+    <script>
+      (function() {
+        const savedTheme = localStorage.getItem('theme');
+        const theme = (savedTheme === 'light' || savedTheme === 'dark')
+          ? savedTheme
+          : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-theme', theme);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
