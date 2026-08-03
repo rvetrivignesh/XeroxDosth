@@ -94,13 +94,13 @@ export const Navbar = () => {
                                 <Link to="/my-orders" className="mobile-link" onClick={closeMenu}>My Orders</Link>
                                 <Link to="/shops" className="mobile-link" onClick={closeMenu}>Shops</Link>
                                 
-                                {user.role === 'USER' && (
+                                {/* {user.role === 'USER' && (
                                     <Link to="/apply-shop" className="mobile-link" onClick={closeMenu}>Apply for Shop</Link>
                                 )}
                                 {(user.role === 'USER' || user.role === 'SHOP') && (
                                     <Link to="/apply-admin" className="mobile-link" onClick={closeMenu}>Apply for Admin Role</Link>
                                 )}
-                                <Link to="/application-status" className="mobile-link" onClick={closeMenu}>Application Status</Link>
+                                <Link to="/application-status" className="mobile-link" onClick={closeMenu}>Application Status</Link> */}
 
                                 {user.role === 'SHOP' && (
                                     <>

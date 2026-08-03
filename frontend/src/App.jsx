@@ -12,9 +12,9 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Profile from './pages/Profile';
-import ApplyShop from './pages/ApplyShop';
-import ApplyAdmin from './pages/ApplyAdmin';
-import ApplicationStatus from './pages/ApplicationStatus';
+// import ApplyShop from './pages/ApplyShop';
+// import ApplyAdmin from './pages/ApplyAdmin';
+// import ApplicationStatus from './pages/ApplicationStatus';
 import UpdateShop from './pages/UpdateShop';
 import PlaceOrder from './pages/PlaceOrder';
 import MyOrders from './pages/MyOrders';
@@ -46,10 +46,10 @@ export function App() {
                                     <Route path="/my-orders" element={<ProtectedRoute><MyOrders /></ProtectedRoute>} />
                                     <Route path="/shops" element={<ProtectedRoute><Shops /></ProtectedRoute>} />
                                     
-                                    <Route path="/apply-shop" element={<ProtectedRoute><ApplyShop /></ProtectedRoute>} />
+                                    {/* <Route path="/apply-shop" element={<ProtectedRoute><ApplyShop /></ProtectedRoute>} />
                                     <Route path="/apply-admin" element={<ProtectedRoute><ApplyAdmin /></ProtectedRoute>} />
                                     <Route path="/application-status" element={<ProtectedRoute><ApplicationStatus /></ProtectedRoute>} />
-                                    <Route path="/my-shop-application" element={<Navigate to="/application-status" replace />} />
+                                    <Route path="/my-shop-application" element={<Navigate to="/application-status" replace />} /> */}
                                     
                                     {/* Shop Owner Routes */}
                                     <Route path="/update-shop" element={<ProtectedRoute><UpdateShop /></ProtectedRoute>} />

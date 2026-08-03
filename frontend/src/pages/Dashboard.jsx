@@ -91,7 +91,7 @@ export const Dashboard = () => {
                             <p>Track current print orders and view complete order history.</p>
                         </Link>
 
-                        <Link to="/apply-shop" className="action-card card card-hover">
+                        {/* <Link to="/apply-shop" className="action-card card card-hover">
                             <div className="action-icon">🏪</div>
                             <h3>Apply for Shop</h3>
                             <p>Submit your shop details & rates to join XeroxDosth network.</p>
@@ -107,7 +107,7 @@ export const Dashboard = () => {
                             <div className="action-icon">📜</div>
                             <h3>Application Status</h3>
                             <p>Check the status of your shop and admin role applications.</p>
-                        </Link>
+                        </Link> */}
 
                         <Link to="/shops" className="action-card card card-hover">
                             <div className="action-icon">🏬</div>
@@ -126,7 +126,7 @@ export const Dashboard = () => {
                             <p>View and manage incoming customer print orders for your shop.</p>
                         </Link>
 
-                        <Link to="/apply-admin" className="action-card card card-hover">
+                        {/* <Link to="/apply-admin" className="action-card card card-hover">
                             <div className="action-icon">🛡️</div>
                             <h3>Apply for Admin</h3>
                             <p>Submit request for platform administrator privileges.</p>
@@ -136,7 +136,7 @@ export const Dashboard = () => {
                             <div className="action-icon">📜</div>
                             <h3>Application Status</h3>
                             <p>View statuses of your role and shop applications.</p>
-                        </Link>
+                        </Link> */}
 
                         <Link to="/update-shop" className="action-card card card-hover">
                             <div className="action-icon">⚙️</div>
