@@ -72,10 +72,12 @@ export const Register = () => {
 
                 const container = document.getElementById("googleSignInDiv");
                 if (container) {
+                    const parentWidth = container.parentElement?.clientWidth || 384;
+                    const buttonWidth = Math.min(384, Math.max(200, parentWidth));
                     window.google.accounts.id.renderButton(container, {
                         theme: "outline",
                         size: "large",
-                        width: 384
+                        width: buttonWidth
                     });
                 }
             }

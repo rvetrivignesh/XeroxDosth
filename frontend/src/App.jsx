@@ -29,7 +29,7 @@ export function App() {
         <ThemeProvider>
             <ToastProvider>
                 <AuthProvider>
-                    <Router>
+                    <Router basename={import.meta.env.BASE_URL}>
                         <div className="app-layout">
                             <Navbar />
                             <main className="main-content">

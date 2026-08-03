@@ -112,3 +112,12 @@
     margin-left: .5em;
 }
 
+@media (max-width: 480px) {
+    .auth-container {
+        padding: 1rem;
+    }
+    .auth-card {
+        padding: 1.5rem;
+    }
+}
+
