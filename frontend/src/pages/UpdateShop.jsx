@@ -23,18 +23,61 @@ export const UpdateShop = () => {
     const [description, setDescription] = useState('');
     const [address, setAddress] = useState('');
     const [googleMapsLink, setGoogleMapsLink] = useState('');
-    const [isDeliveryAvailable, setIsDeliveryAvailable] = useState(false);
     const [isCodAvailable, setIsCodAvailable] = useState(false);
     const [openTime, setOpenTime] = useState('09:00 AM');
     const [closeTime, setCloseTime] = useState('08:00 PM');
     const [openDays, setOpenDays] = useState([]);
-    const [bwPerPage, setBwPerPage] = useState('1');
-    const [colorPerPage, setColorPerPage] = useState('5');
+
+    // Granular printing rates state
+    const [bwSingle, setBwSingle] = useState('1');
+    const [bwDouble, setBwDouble] = useState('1.5');
+    const [colourSingle, setColourSingle] = useState('5');
+    const [colourDouble, setColourDouble] = useState('8');
     const [spiralBinding, setSpiralBinding] = useState('30');
     const [bookBinding, setBookBinding] = useState('50');
 
+    // Home Delivery state
+    const [homeDelivery, setHomeDelivery] = useState(false);
+    const [freeDelivery, setFreeDelivery] = useState(false);
+    const [deliveryCharges, setDeliveryCharges] = useState([]);
+
+    // Express Printing state
+    const [expressPrinting, setExpressPrinting] = useState(false);
+    const [freeExpressDelivery, setFreeExpressDelivery] = useState(false);
+    const [expressDeliveryCharges, setExpressDeliveryCharges] = useState([]);
+
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
+
+    // Normal Delivery slabs helpers
+    const handleAddNormalCharge = () => {
+        setDeliveryCharges((prev) => [...prev, { from: '', to: '', charge: '' }]);
+    };
+    const handleUpdateNormalCharge = (index, field, value) => {
+        setDeliveryCharges((prev) => {
+            const copy = [...prev];
+            copy[index] = { ...copy[index], [field]: value };
+            return copy;
+        });
+    };
+    const handleRemoveNormalCharge = (index) => {
+        setDeliveryCharges((prev) => prev.filter((_, i) => i !== index));
+    };
+
+    // Express Delivery slabs helpers
+    const handleAddExpressCharge = () => {
+        setExpressDeliveryCharges((prev) => [...prev, { from: '', to: '', charge: '' }]);
+    };
+    const handleUpdateExpressCharge = (index, field, value) => {
+        setExpressDeliveryCharges((prev) => {
+            const copy = [...prev];
+            copy[index] = { ...copy[index], [field]: value };
+            return copy;
+        });
+    };
+    const handleRemoveExpressCharge = (index) => {
+        setExpressDeliveryCharges((prev) => prev.filter((_, i) => i !== index));
+    };
 
     const fetchShopDetails = async () => {
         setLoading(true);
@@ -49,15 +92,28 @@ export const UpdateShop = () => {
                 setDescription(shop.description || '');
                 setAddress(shop.location?.address || '');
                 setGoogleMapsLink(shop.location?.googleMapsLink || '');
-                setIsDeliveryAvailable(!!shop.isDeliveryAvailable);
                 setIsCodAvailable(!!shop.isCodAvailable);
                 setOpenTime(shop.openTiming?.open || '09:00 AM');
                 setCloseTime(shop.openTiming?.close || '08:00 PM');
                 setOpenDays(shop.openDays || []);
-                setBwPerPage(shop.pricing?.bwPerPage ?? 1);
-                setColorPerPage(shop.pricing?.colorPerPage ?? 5);
-                setSpiralBinding(shop.pricing?.spiralBinding ?? 30);
-                setBookBinding(shop.pricing?.bookBinding ?? 50);
+
+                // Printing Rates Loading (with old pricing fallback)
+                setBwSingle(shop.printingRates?.bwSingle ?? (shop.pricing?.bwPerPage ?? 1));
+                setBwDouble(shop.printingRates?.bwDouble ?? (shop.pricing?.bwPerPage ?? 1.5));
+                setColourSingle(shop.printingRates?.colourSingle ?? (shop.pricing?.colorPerPage ?? 5));
+                setColourDouble(shop.printingRates?.colourDouble ?? (shop.pricing?.colorPerPage ?? 8));
+                setSpiralBinding(shop.printingRates?.spiralBinding ?? (shop.pricing?.spiralBinding ?? 30));
+                setBookBinding(shop.printingRates?.bookBinding ?? (shop.pricing?.bookBinding ?? 50));
+
+                // Delivery Loading
+                setHomeDelivery(!!shop.homeDelivery);
+                setFreeDelivery(!!shop.freeDelivery);
+                setDeliveryCharges(shop.deliveryCharges || []);
+
+                // Express Printing Loading
+                setExpressPrinting(!!shop.expressPrinting);
+                setFreeExpressDelivery(!!shop.freeExpressDelivery);
+                setExpressDeliveryCharges(shop.expressDeliveryCharges || []);
             }
         } catch (err) {
             showToast(err.response?.data?.message || 'Failed to load shop details', 'error');
@@ -102,19 +158,34 @@ export const UpdateShop = () => {
                     googleMapsLink
                 },
                 images: [],
-                isDeliveryAvailable,
                 isCodAvailable,
                 openTiming: {
                     open: openTime,
                     close: closeTime
                 },
                 openDays,
-                pricing: {
-                    bwPerPage: Number(bwPerPage || 0),
-                    colorPerPage: Number(colorPerPage || 0),
+                printingRates: {
+                    bwSingle: Number(bwSingle || 0),
+                    bwDouble: Number(bwDouble || 0),
+                    colourSingle: Number(colourSingle || 0),
+                    colourDouble: Number(colourDouble || 0),
                     spiralBinding: Number(spiralBinding || 0),
                     bookBinding: Number(bookBinding || 0)
-                }
+                },
+                homeDelivery,
+                freeDelivery,
+                deliveryCharges: freeDelivery ? [] : deliveryCharges.map(c => ({
+                    from: Number(c.from || 0),
+                    to: Number(c.to || 0),
+                    charge: Number(c.charge || 0)
+                })),
+                expressPrinting,
+                freeExpressDelivery,
+                expressDeliveryCharges: (expressPrinting && !freeExpressDelivery) ? expressDeliveryCharges.map(c => ({
+                    from: Number(c.from || 0),
+                    to: Number(c.to || 0),
+                    charge: Number(c.charge || 0)
+                })) : []
             };
 
             await API.patch('/shops/me', payload);
@@ -145,23 +216,32 @@ export const UpdateShop = () => {
 
                 <form onSubmit={handleSubmit} className="shop-form">
                     <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '1.5rem', backgroundColor: 'var(--bg-input)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', flexWrap: 'wrap' }}>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: 600, flex: '1 1 auto', minWidth: '220px' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: 600, flex: '1 1 auto', minWidth: '200px' }}>
                             <input
                                 type="checkbox"
-                                checked={isDeliveryAvailable}
-                                onChange={(e) => setIsDeliveryAvailable(e.target.checked)}
+                                checked={homeDelivery}
+                                onChange={(e) => setHomeDelivery(e.target.checked)}
                                 style={{ width: 'auto', margin: 0 }}
                             />
-                            <span>Deliver to locations? (Enable home delivery)</span>
+                            <span>Enable Home Delivery</span>
                         </label>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: 600, flex: '1 1 auto', minWidth: '220px' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: 600, flex: '1 1 auto', minWidth: '200px' }}>
+                            <input
+                                type="checkbox"
+                                checked={expressPrinting}
+                                onChange={(e) => setExpressPrinting(e.target.checked)}
+                                style={{ width: 'auto', margin: 0 }}
+                            />
+                            <span>Express Printing Available</span>
+                        </label>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: 600, flex: '1 1 auto', minWidth: '200px' }}>
                             <input
                                 type="checkbox"
                                 checked={isCodAvailable}
                                 onChange={(e) => setIsCodAvailable(e.target.checked)}
                                 style={{ width: 'auto', margin: 0 }}
                             />
-                            <span>COD available? (Cash on Delivery)</span>
+                            <span>COD Available (Cash on Delivery)</span>
                         </label>
                     </div>
 
@@ -248,34 +328,66 @@ export const UpdateShop = () => {
                     </div>
 
                     <div className="form-section-title" style={{ marginTop: '1rem', fontWeight: 600, fontSize: '1.05rem', color: 'var(--text-primary)' }}>
-                        Pricing Rates (₹)
+                        Printing Rates (₹)
                     </div>
 
-                    <div className="form-row">
-                        <div className="form-group">
-                            <label htmlFor="bwPerPage">Cost per B&W Paper (₹) *</label>
-                            <input
-                                id="bwPerPage"
-                                type="number"
-                                step="0.5"
-                                min="0"
-                                value={bwPerPage}
-                                onChange={(e) => setBwPerPage(e.target.value)}
-                                required
-                            />
+                    <div style={{ padding: '1rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', marginBottom: '1rem', backgroundColor: 'var(--bg-card)' }}>
+                        <div style={{ fontWeight: 600, fontSize: '0.95rem', marginBottom: '0.75rem', color: 'var(--text-primary)' }}>🖤 Black & White</div>
+                        <div className="form-row">
+                            <div className="form-group">
+                                <label htmlFor="bwSingle">Cost per Single Side Page (₹) *</label>
+                                <input
+                                    id="bwSingle"
+                                    type="number"
+                                    step="0.1"
+                                    min="0"
+                                    value={bwSingle}
+                                    onChange={(e) => setBwSingle(e.target.value)}
+                                    required
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label htmlFor="bwDouble">Cost per Double Side Page (₹) *</label>
+                                <input
+                                    id="bwDouble"
+                                    type="number"
+                                    step="0.1"
+                                    min="0"
+                                    value={bwDouble}
+                                    onChange={(e) => setBwDouble(e.target.value)}
+                                    required
+                                />
+                            </div>
                         </div>
+                    </div>
 
-                        <div className="form-group">
-                            <label htmlFor="colorPerPage">Cost per Coloured Paper (₹) *</label>
-                            <input
-                                id="colorPerPage"
-                                type="number"
-                                step="0.5"
-                                min="0"
-                                value={colorPerPage}
-                                onChange={(e) => setColorPerPage(e.target.value)}
-                                required
-                            />
+                    <div style={{ padding: '1rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', marginBottom: '1rem', backgroundColor: 'var(--bg-card)' }}>
+                        <div style={{ fontWeight: 600, fontSize: '0.95rem', marginBottom: '0.75rem', color: 'var(--text-primary)' }}>❤️ Colour</div>
+                        <div className="form-row">
+                            <div className="form-group">
+                                <label htmlFor="colourSingle">Cost per Single Side Page (₹) *</label>
+                                <input
+                                    id="colourSingle"
+                                    type="number"
+                                    step="0.1"
+                                    min="0"
+                                    value={colourSingle}
+                                    onChange={(e) => setColourSingle(e.target.value)}
+                                    required
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label htmlFor="colourDouble">Cost per Double Side Page (₹) *</label>
+                                <input
+                                    id="colourDouble"
+                                    type="number"
+                                    step="0.1"
+                                    min="0"
+                                    value={colourDouble}
+                                    onChange={(e) => setColourDouble(e.target.value)}
+                                    required
+                                />
+                            </div>
                         </div>
                     </div>
 
@@ -306,6 +418,189 @@ export const UpdateShop = () => {
                             />
                         </div>
                     </div>
+
+                    {/* Delivery & Express Configuration Sections */}
+                    {homeDelivery && (
+                        <div style={{ backgroundColor: 'var(--bg-input)', padding: '1.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', marginBottom: '1.5rem', marginTop: '1rem' }}>
+                            <div style={{ fontWeight: 600, marginBottom: '0.75rem', fontSize: '1rem', color: 'var(--text-primary)' }}>Home Delivery Slabs</div>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: 600, marginBottom: '1rem' }}>
+                                <input
+                                    type="checkbox"
+                                    checked={freeDelivery}
+                                    onChange={(e) => setFreeDelivery(e.target.checked)}
+                                    style={{ width: 'auto', margin: 0 }}
+                                />
+                                <span>Free Delivery?</span>
+                            </label>
+                            
+                            {!freeDelivery && (
+                                <div>
+                                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Define delivery charges by distance slabs (in Kilometers):</div>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '0.75rem' }}>
+                                        <thead>
+                                            <tr style={{ borderBottom: '1px solid var(--border-color)', textAlign: 'left', fontSize: '0.85rem' }}>
+                                                <th style={{ padding: '0.4rem 0.5rem', color: 'var(--text-primary)' }}>From (KM)</th>
+                                                <th style={{ padding: '0.4rem 0.5rem', color: 'var(--text-primary)' }}>To (KM)</th>
+                                                <th style={{ padding: '0.4rem 0.5rem', color: 'var(--text-primary)' }}>Charge (₹)</th>
+                                                <th style={{ padding: '0.4rem 0.5rem', width: '50px', textAlign: 'center', color: 'var(--text-primary)' }}>Remove</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {deliveryCharges.map((slab, idx) => (
+                                                <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                                                    <td style={{ padding: '0.3rem' }}>
+                                                        <input
+                                                            type="number"
+                                                            step="0.1"
+                                                            min="0"
+                                                            value={slab.from}
+                                                            onChange={(e) => handleUpdateNormalCharge(idx, 'from', e.target.value)}
+                                                            placeholder="0"
+                                                            required
+                                                            style={{ margin: 0, padding: '0.35rem 0.5rem' }}
+                                                        />
+                                                    </td>
+                                                    <td style={{ padding: '0.3rem' }}>
+                                                        <input
+                                                            type="number"
+                                                            step="0.1"
+                                                            min="0"
+                                                            value={slab.to}
+                                                            onChange={(e) => handleUpdateNormalCharge(idx, 'to', e.target.value)}
+                                                            placeholder="2"
+                                                            required
+                                                            style={{ margin: 0, padding: '0.35rem 0.5rem' }}
+                                                        />
+                                                    </td>
+                                                    <td style={{ padding: '0.3rem' }}>
+                                                        <input
+                                                            type="number"
+                                                            step="1"
+                                                            min="0"
+                                                            value={slab.charge}
+                                                            onChange={(e) => handleUpdateNormalCharge(idx, 'charge', e.target.value)}
+                                                            placeholder="15"
+                                                            required
+                                                            style={{ margin: 0, padding: '0.35rem 0.5rem' }}
+                                                        />
+                                                    </td>
+                                                    <td style={{ padding: '0.3rem', textAlign: 'center' }}>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleRemoveNormalCharge(idx)}
+                                                            className="btn btn-danger"
+                                                            style={{ padding: '0.2rem 0.4rem', fontSize: '0.8rem', lineHeight: 1 }}
+                                                        >
+                                                            &times;
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                    <button
+                                        type="button"
+                                        onClick={handleAddNormalCharge}
+                                        className="btn btn-secondary"
+                                        style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
+                                    >
+                                        + Add Slab
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {expressPrinting && (
+                        <div style={{ backgroundColor: 'var(--bg-input)', padding: '1.25rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', marginBottom: '1.5rem' }}>
+                            <div style={{ fontWeight: 600, marginBottom: '0.75rem', fontSize: '1rem', color: 'var(--text-primary)' }}>Express Delivery Slabs</div>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: 600, marginBottom: '1rem' }}>
+                                <input
+                                    type="checkbox"
+                                    checked={freeExpressDelivery}
+                                    onChange={(e) => setFreeExpressDelivery(e.target.checked)}
+                                    style={{ width: 'auto', margin: 0 }}
+                                />
+                                <span>Free Express Delivery?</span>
+                            </label>
+                            
+                            {!freeExpressDelivery && (
+                                <div>
+                                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Define express delivery charges by distance slabs (in Kilometers):</div>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '0.75rem' }}>
+                                        <thead>
+                                            <tr style={{ borderBottom: '1px solid var(--border-color)', textAlign: 'left', fontSize: '0.85rem' }}>
+                                                <th style={{ padding: '0.4rem 0.5rem', color: 'var(--text-primary)' }}>From (KM)</th>
+                                                <th style={{ padding: '0.4rem 0.5rem', color: 'var(--text-primary)' }}>To (KM)</th>
+                                                <th style={{ padding: '0.4rem 0.5rem', color: 'var(--text-primary)' }}>Charge (₹)</th>
+                                                <th style={{ padding: '0.4rem 0.5rem', width: '50px', textAlign: 'center', color: 'var(--text-primary)' }}>Remove</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {expressDeliveryCharges.map((slab, idx) => (
+                                                <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                                                    <td style={{ padding: '0.3rem' }}>
+                                                        <input
+                                                            type="number"
+                                                            step="0.1"
+                                                            min="0"
+                                                            value={slab.from}
+                                                            onChange={(e) => handleUpdateExpressCharge(idx, 'from', e.target.value)}
+                                                            placeholder="0"
+                                                            required
+                                                            style={{ margin: 0, padding: '0.35rem 0.5rem' }}
+                                                        />
+                                                    </td>
+                                                    <td style={{ padding: '0.3rem' }}>
+                                                        <input
+                                                            type="number"
+                                                            step="0.1"
+                                                            min="0"
+                                                            value={slab.to}
+                                                            onChange={(e) => handleUpdateExpressCharge(idx, 'to', e.target.value)}
+                                                            placeholder="2"
+                                                            required
+                                                            style={{ margin: 0, padding: '0.35rem 0.5rem' }}
+                                                        />
+                                                    </td>
+                                                    <td style={{ padding: '0.3rem' }}>
+                                                        <input
+                                                            type="number"
+                                                            step="1"
+                                                            min="0"
+                                                            value={slab.charge}
+                                                            onChange={(e) => handleUpdateExpressCharge(idx, 'charge', e.target.value)}
+                                                            placeholder="25"
+                                                            required
+                                                            style={{ margin: 0, padding: '0.35rem 0.5rem' }}
+                                                        />
+                                                    </td>
+                                                    <td style={{ padding: '0.3rem', textAlign: 'center' }}>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleRemoveExpressCharge(idx)}
+                                                            className="btn btn-danger"
+                                                            style={{ padding: '0.2rem 0.4rem', fontSize: '0.8rem', lineHeight: 1 }}
+                                                        >
+                                                            &times;
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                    <button
+                                        type="button"
+                                        onClick={handleAddExpressCharge}
+                                        className="btn btn-secondary"
+                                        style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem' }}
+                                    >
+                                        + Add Slab
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )}
 
 
 
