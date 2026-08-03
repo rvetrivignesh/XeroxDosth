@@ -65,6 +65,60 @@ export const applyShopValidator = [
     body('pricing.bookBinding')
         .optional()
         .isFloat({ min: 0 }).withMessage('Book binding cost must be a non-negative number'),
+    body('printingRates.bwSingle')
+        .optional()
+        .isFloat({ min: 0 }).withMessage('B&W Single Side cost must be a non-negative number'),
+    body('printingRates.bwDouble')
+        .optional()
+        .isFloat({ min: 0 }).withMessage('B&W Double Side cost must be a non-negative number'),
+    body('printingRates.colourSingle')
+        .optional()
+        .isFloat({ min: 0 }).withMessage('Colour Single Side cost must be a non-negative number'),
+    body('printingRates.colourDouble')
+        .optional()
+        .isFloat({ min: 0 }).withMessage('Colour Double Side cost must be a non-negative number'),
+    body('printingRates.spiralBinding')
+        .optional()
+        .isFloat({ min: 0 }).withMessage('Spiral Binding cost must be a non-negative number'),
+    body('printingRates.bookBinding')
+        .optional()
+        .isFloat({ min: 0 }).withMessage('Book Binding cost must be a non-negative number'),
+    body('homeDelivery')
+        .optional()
+        .isBoolean().withMessage('Home delivery must be a boolean'),
+    body('freeDelivery')
+        .optional()
+        .isBoolean().withMessage('Free delivery must be a boolean'),
+    body('deliveryCharges')
+        .optional()
+        .isArray().withMessage('Delivery charges must be an array of slabs'),
+    body('deliveryCharges.*.from')
+        .optional()
+        .isFloat({ min: 0 }).withMessage('Delivery charge from distance must be a non-negative number'),
+    body('deliveryCharges.*.to')
+        .optional()
+        .isFloat({ min: 0 }).withMessage('Delivery charge to distance must be a non-negative number'),
+    body('deliveryCharges.*.charge')
+        .optional()
+        .isFloat({ min: 0 }).withMessage('Delivery charge cost must be a non-negative number'),
+    body('expressPrinting')
+        .optional()
+        .isBoolean().withMessage('Express printing availability must be a boolean'),
+    body('freeExpressDelivery')
+        .optional()
+        .isBoolean().withMessage('Free express delivery availability must be a boolean'),
+    body('expressDeliveryCharges')
+        .optional()
+        .isArray().withMessage('Express delivery charges must be an array of slabs'),
+    body('expressDeliveryCharges.*.from')
+        .optional()
+        .isFloat({ min: 0 }).withMessage('Express delivery charge from distance must be a non-negative number'),
+    body('expressDeliveryCharges.*.to')
+        .optional()
+        .isFloat({ min: 0 }).withMessage('Express delivery charge to distance must be a non-negative number'),
+    body('expressDeliveryCharges.*.charge')
+        .optional()
+        .isFloat({ min: 0 }).withMessage('Express delivery charge cost must be a non-negative number'),
     body('isDeliveryAvailable')
         .optional()
         .isBoolean().withMessage('Delivery availability must be a boolean'),

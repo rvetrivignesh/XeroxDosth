@@ -68,9 +68,33 @@ export const applyForShop = async (userId, shopData) => {
     return shop;
 };
 
+export const mapShopForBackwardCompatibility = (shop) => {
+    if (!shop) return null;
+    const shopObj = typeof shop.toObject === 'function' ? shop.toObject() : shop;
+    
+    // Fallback: If printingRates is missing, build it from pricing
+    if (!shopObj.printingRates && shopObj.pricing) {
+        shopObj.printingRates = {
+            bwSingle: shopObj.pricing.bwPerPage ?? 1,
+            bwDouble: shopObj.pricing.bwPerPage ?? 1,
+            colourSingle: shopObj.pricing.colorPerPage ?? 5,
+            colourDouble: shopObj.pricing.colorPerPage ?? 5,
+            spiralBinding: shopObj.pricing.spiralBinding ?? 30,
+            bookBinding: shopObj.pricing.bookBinding ?? 50
+        };
+    }
+    
+    // Fallback for homeDelivery
+    if (shopObj.homeDelivery === undefined && shopObj.isDeliveryAvailable !== undefined) {
+        shopObj.homeDelivery = shopObj.isDeliveryAvailable;
+    }
+    
+    return shopObj;
+};
+
 export const getMyShopApplication = async (userId) => {
     const shop = await Shop.findOne({ owner: userId }).sort({ createdAt: -1 });
-    return shop;
+    return mapShopForBackwardCompatibility(shop);
 };
 
 export const updateMyShopDetails = async (userId, updateData) => {
@@ -84,7 +108,6 @@ export const updateMyShopDetails = async (userId, updateData) => {
     if (updateData.phone) shop.phone = updateData.phone;
     if (updateData.description) shop.description = updateData.description;
     if (updateData.upiId) shop.upiId = updateData.upiId;
-    if (updateData.isDeliveryAvailable !== undefined) shop.isDeliveryAvailable = !!updateData.isDeliveryAvailable;
     if (updateData.isCodAvailable !== undefined) shop.isCodAvailable = !!updateData.isCodAvailable;
     if (updateData.location) {
         if (updateData.location.address) shop.location.address = updateData.location.address;
@@ -96,25 +119,37 @@ export const updateMyShopDetails = async (userId, updateData) => {
         if (updateData.openTiming.close) shop.openTiming.close = updateData.openTiming.close;
     }
     if (updateData.openDays) shop.openDays = updateData.openDays;
-    if (updateData.pricing) {
-        if (updateData.pricing.bwPerPage !== undefined) shop.pricing.bwPerPage = Number(updateData.pricing.bwPerPage);
-        if (updateData.pricing.colorPerPage !== undefined) shop.pricing.colorPerPage = Number(updateData.pricing.colorPerPage);
-        if (updateData.pricing.spiralBinding !== undefined) shop.pricing.spiralBinding = Number(updateData.pricing.spiralBinding);
-        if (updateData.pricing.bookBinding !== undefined) shop.pricing.bookBinding = Number(updateData.pricing.bookBinding);
+    
+    // Update new printing rates & delivery range tables
+    if (updateData.printingRates) {
+        shop.printingRates = {
+            bwSingle: Number(updateData.printingRates.bwSingle ?? 0),
+            bwDouble: Number(updateData.printingRates.bwDouble ?? 0),
+            colourSingle: Number(updateData.printingRates.colourSingle ?? 0),
+            colourDouble: Number(updateData.printingRates.colourDouble ?? 0),
+            spiralBinding: Number(updateData.printingRates.spiralBinding ?? 0),
+            bookBinding: Number(updateData.printingRates.bookBinding ?? 0)
+        };
     }
+    if (updateData.homeDelivery !== undefined) shop.homeDelivery = !!updateData.homeDelivery;
+    if (updateData.freeDelivery !== undefined) shop.freeDelivery = !!updateData.freeDelivery;
+    if (updateData.deliveryCharges !== undefined) shop.deliveryCharges = updateData.deliveryCharges;
+    if (updateData.expressPrinting !== undefined) shop.expressPrinting = !!updateData.expressPrinting;
+    if (updateData.freeExpressDelivery !== undefined) shop.freeExpressDelivery = !!updateData.freeExpressDelivery;
+    if (updateData.expressDeliveryCharges !== undefined) shop.expressDeliveryCharges = updateData.expressDeliveryCharges;
 
     await shop.save();
-    return shop;
+    return mapShopForBackwardCompatibility(shop);
 };
 
 export const getAllShops = async () => {
     const shops = await Shop.find().populate('owner', 'name email phone role').sort({ createdAt: -1 });
-    return shops;
+    return shops.map(mapShopForBackwardCompatibility);
 };
 
 export const getAllApprovedShops = async () => {
     const shops = await Shop.find({ status: 'APPROVED' }).sort({ createdAt: -1 });
-    return shops;
+    return shops.map(mapShopForBackwardCompatibility);
 };
 
 export const updateShopStatus = async (adminId, shopId, status, rejectionReason) => {
@@ -144,6 +179,6 @@ export const updateShopStatus = async (adminId, shopId, status, rejectionReason)
     }
 
     await shop.save();
-    return shop;
+    return mapShopForBackwardCompatibility(shop);
 };
 
