@@ -138,6 +138,7 @@ export const Login = () => {
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             required
+                            disabled={loading || googleLoading}
                         />
                     </div>
 
@@ -150,29 +151,35 @@ export const Login = () => {
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             required
+                            disabled={loading || googleLoading}
                         />
                     </div>
 
-                    <button type="submit" className="btn btn-primary auth-btn" disabled={loading || googleLoading}>
-                        {loading ? <div className="spinner"></div> : 'Sign In'}
-                    </button>
+                    {!loading && !googleLoading && (
+                        <button type="submit" className="btn btn-primary auth-btn">
+                            Sign In
+                        </button>
+                    )}
                 </form>
 
-                <div className="auth-divider">OR</div>
-
-                {googleLoading ? (
-                    <div className="google-loading-container">
+                {loading || googleLoading ? (
+                    <div className="google-loading-container" key="auth-loading-state">
                         <div className="spinner"></div>
-                        <span>Authenticating with Google...</span>
-                    </div>
-                ) : isGoogleConfigured ? (
-                    <div className="google-signin-btn-wrapper">
-                        <div id="googleSignInDiv"></div>
+                        <span>{googleLoading ? 'Authenticating with Google...' : 'Signing in...'}</span>
                     </div>
                 ) : (
-                    <div className="google-loading-container" style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--bg-input)', cursor: 'default' }}>
-                        <span>Google Sign-In is not configured.</span>
-                    </div>
+                    <>
+                        <div className="auth-divider">OR</div>
+                        {isGoogleConfigured ? (
+                            <div className="google-signin-btn-wrapper" key="google-btn-wrapper">
+                                <div id="googleSignInDiv"></div>
+                            </div>
+                        ) : (
+                            <div className="google-loading-container" key="google-not-configured" style={{ borderColor: 'var(--border-color)', backgroundColor: 'var(--bg-input)', cursor: 'default' }}>
+                                <span>Google Sign-In is not configured.</span>
+                            </div>
+                        )}
+                    </>
                 )}
 
                 <div className="auth-footer">
