@@ -188,9 +188,19 @@ export const MyOrders = () => {
                                         <div key={idx} style={{ padding: '0.75rem', backgroundColor: 'var(--bg-input)', borderRadius: 'var(--radius-sm)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                                 <span style={{ fontWeight: '600', fontSize: '0.85rem' }}>{name} <span style={{ fontWeight: 'normal', color: 'var(--text-muted)' }}>{sizeStr}</span></span>
-                                                <a href={url} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm">
-                                                    Open ↗
-                                                </a>
+                                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                    <a href={url} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm" style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}>
+                                                        Open ↗
+                                                    </a>
+                                                    <a 
+                                                        href={url.includes('/upload/') ? url.replace('/upload/', '/upload/fl_attachment/') : url} 
+                                                        download={name}
+                                                        className="btn btn-primary btn-sm"
+                                                        style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}
+                                                    >
+                                                        Download 📥
+                                                    </a>
+                                                </div>
                                             </div>
                                             {isImg && (
                                                 <div style={{ display: 'flex', marginTop: '0.25rem' }}>

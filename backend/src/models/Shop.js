@@ -208,7 +208,7 @@ const shopSchema = new mongoose.Schema(
     }
 );
 
-shopSchema.pre('save', function (next) {
+shopSchema.pre('save', function () {
     if (this.printingRates) {
         if (!this.pricing) this.pricing = {};
         this.pricing.bwPerPage = this.printingRates.bwSingle || 1;
@@ -219,7 +219,6 @@ shopSchema.pre('save', function (next) {
     if (this.homeDelivery !== undefined) {
         this.isDeliveryAvailable = this.homeDelivery;
     }
-    next();
 });
 
 const Shop = mongoose.model('Shop', shopSchema);
