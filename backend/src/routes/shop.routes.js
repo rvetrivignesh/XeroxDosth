@@ -17,7 +17,7 @@ const router = Router();
 router.get('/approved', protect, getApprovedShops);
 
 // Shop Application & Management Routes
-router.post('/apply', protect, authorize('USER'), applyShopValidator, validateRequest, applyForShop);
+// router.post('/apply', protect, authorize('USER'), applyShopValidator, validateRequest, applyForShop);
 router.get('/me', protect, getMyShopApplication);
 router.patch('/me', protect, authorize('SHOP'), updateMyShopDetails);
 

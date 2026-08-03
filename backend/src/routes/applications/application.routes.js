@@ -18,9 +18,9 @@ import { protect, authorize } from '../../middleware/auth.middleware.js';
 const router = Router();
 
 // User Routes
-router.post('/', protect, createApplicationValidator, validateRequest, submitApplication);
-router.get('/me', protect, getMyApplications);
-router.delete('/:id', protect, withdrawApplication);
+// router.post('/', protect, createApplicationValidator, validateRequest, submitApplication);
+// router.get('/me', protect, getMyApplications);
+// router.delete('/:id', protect, withdrawApplication);
 
 // Admin Routes
 router.get('/', protect, authorize('ADMIN'), getAllApplications);
