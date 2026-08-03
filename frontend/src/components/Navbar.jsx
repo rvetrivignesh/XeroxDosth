@@ -111,8 +111,8 @@ export const Navbar = () => {
 
                                 {user.role === 'ADMIN' && (
                                     <>
-                                        <Link to="/admin/applications" className="mobile-link" onClick={closeMenu}>Admin Applications</Link>
-                                        <Link to="/admin/shops" className="mobile-link" onClick={closeMenu}>Shop Applications</Link>
+                                        {/* <Link to="/admin/applications" className="mobile-link" onClick={closeMenu}>Admin Applications</Link>
+                                        <Link to="/admin/shops" className="mobile-link" onClick={closeMenu}>Shop Applications</Link> */}
                                         <Link to="/admin/manage-admins" className="mobile-link" onClick={closeMenu}>Manage Admins</Link>
                                         <Link to="/admin/manage-shops" className="mobile-link" onClick={closeMenu}>Manage Shops</Link>
                                     </>

@@ -122,7 +122,7 @@ export const Dashboard = () => {
                     <>
                         <Link to="/shop-orders" className="action-card card card-hover">
                             <div className="action-icon">📦</div>
-                            <h3>Their Orders</h3>
+                            <h3>Customer Orders</h3>
                             <p>View and manage incoming customer print orders for your shop.</p>
                         </Link>
 
@@ -155,7 +155,7 @@ export const Dashboard = () => {
                 {/* ADMIN ROLE CARDS */}
                 {user?.role === 'ADMIN' && (
                     <>
-                        <Link to="/admin/applications" className="action-card card card-hover">
+                        {/* <Link to="/admin/applications" className="action-card card card-hover">
                             <div className="action-icon">🛡️</div>
                             <h3>Admin Applications</h3>
                             <p>Review and approve/reject user requests for ADMIN role.</p>
@@ -165,7 +165,7 @@ export const Dashboard = () => {
                             <div className="action-icon">🏪</div>
                             <h3>Shop Applications</h3>
                             <p>Review and onboard pending shop partnering submissions.</p>
-                        </Link>
+                        </Link> */}
 
                         <Link to="/admin/manage-admins" className="action-card card card-hover">
                             <div className="action-icon">👥</div>
