@@ -201,6 +201,10 @@ const shopSchema = new mongoose.Schema(
             type: String,
             required: [true, "UPI ID is required"],
             trim: true
+        },
+        upiQrCode: {
+            type: String,
+            default: ""
         }
     },
     {

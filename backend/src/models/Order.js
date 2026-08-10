@@ -97,12 +97,12 @@ const orderSchema = new mongoose.Schema(
             type: Date,
             required: [true, 'Required by date is required']
         },
-        paymentMethod: {
+         paymentMethod: {
             type: String,
-            required: [true, 'Payment method is required'],
+            required: false,
             enum: {
-                values: ['ONLINE', 'COD'],
-                message: 'Payment method must be ONLINE or COD'
+                values: ['UPI', 'COD', 'ONLINE'],
+                message: 'Payment method must be UPI, COD or ONLINE'
             }
         },
         paymentStatus: {
@@ -135,10 +135,25 @@ const orderSchema = new mongoose.Schema(
         status: {
             type: String,
             enum: {
-                values: ['PENDING', 'ACCEPTED', 'REJECTED', 'PRINTING', 'READY', 'COMPLETED', 'CANCELLED'],
+                values: [
+                    'PENDING_SHOP_ACCEPTANCE',
+                    'CANCELLED_BY_USER',
+                    'REJECTED_BY_SHOP',
+                    'ACCEPTED',
+                    'PAYMENT_REQUESTED',
+                    'PAYMENT_COMPLETED',
+                    'IN_PROGRESS',
+                    'CANCELLATION_REQUESTED',
+                    'CANCELLATION_APPROVED',
+                    'CANCELLATION_REJECTED',
+                    'CANCELLED',
+                    'READY_FOR_PICKUP',
+                    'OUT_FOR_DELIVERY',
+                    'COMPLETED'
+                ],
                 message: 'Invalid order status'
             },
-            default: 'PENDING'
+            default: 'PENDING_SHOP_ACCEPTANCE'
         },
         transactionId: {
             type: String,
@@ -149,6 +164,25 @@ const orderSchema = new mongoose.Schema(
             type: String,
             required: [true, 'Customer contact number is required'],
             trim: true
+        },
+        estimatedCost: {
+            type: Number,
+            default: 0
+        },
+        finalPrice: {
+            type: Number
+        },
+        estimatedDeliveryTime: {
+            type: String,
+            default: ''
+        },
+        cancellationReason: {
+            type: String,
+            default: ''
+        },
+        rejectionReason: {
+            type: String,
+            default: ''
         }
     },
     {
