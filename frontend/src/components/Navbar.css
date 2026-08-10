@@ -196,3 +196,16 @@
     margin-top: 1rem;
 }
 
+/* Responsive Notification Dropdown Styles */
+@media (max-width: 767px) {
+    .notif-dropdown {
+        position: fixed !important;
+        top: 60px !important;
+        right: 1rem !important;
+        left: 1rem !important;
+        width: auto !important;
+        max-width: none !important;
+        box-sizing: border-box;
+    }
+}
+
