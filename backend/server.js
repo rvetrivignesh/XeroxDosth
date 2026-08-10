@@ -18,7 +18,10 @@ import applicationRoutes from './src/routes/applications/application.routes.js';
 import shopRoutes from './src/routes/shop.routes.js';
 import orderRoutes from './src/routes/order.routes.js';
 import uploadRoutes from './src/routes/upload.routes.js';
+import notificationRoutes from './src/routes/notification.routes.js';
 import ApiError from './src/utils/ApiError.js';
+import http from 'http';
+import { Server as SocketIOServer } from 'socket.io';
 
 // Uncaught Exception handler
 process.on('uncaughtException', (err) => {
@@ -32,6 +35,33 @@ process.on('uncaughtException', (err) => {
 connectDB();
 
 const app = express();
+
+const server = http.createServer(app);
+const io = new SocketIOServer(server, {
+    cors: {
+        origin: (origin, callback) => {
+            callback(null, true);
+        },
+        credentials: true
+    }
+});
+
+app.set('io', io);
+
+io.on('connection', (socket) => {
+    console.log('🔌 Socket client connected:', socket.id);
+
+    socket.on('join', (userId) => {
+        if (userId) {
+            socket.join(userId.toString());
+            console.log(`👤 User joined room: ${userId}`);
+        }
+    });
+
+    socket.on('disconnect', () => {
+        console.log('❌ Socket client disconnected:', socket.id);
+    });
+});
 
 // Trust proxy for rate limiter behind load balancers/proxies
 app.set('trust proxy', 1);
@@ -84,6 +114,7 @@ app.use('/api/applications', applicationRoutes);
 app.use('/api/shops', shopRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/uploads', uploadRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Catch 404 (non-existent routes)
 app.all('*all', (req, res, next) => {
@@ -93,9 +124,9 @@ app.all('*all', (req, res, next) => {
 // Centralized error handler
 app.use(errorHandler);
 
-const PORT = process.env.PORT || 4000;
+const PORT = process.env.PORT || 4001; // Match environment settings
 
-const server = app.listen(PORT, () => {
+server.listen(PORT, () => {
     console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
 });
 
