@@ -33,8 +33,6 @@ export const PlaceOrder = () => {
         return d.toISOString().slice(0, 16);
     });
 
-    const [paymentMethod, setPaymentMethod] = useState('ONLINE');
-    const [transactionId, setTransactionId] = useState('');
     const [instructions, setInstructions] = useState('');
     const [loading, setLoading] = useState(false);
     const [loadingShops, setLoadingShops] = useState(true);
@@ -71,14 +69,11 @@ export const PlaceOrder = () => {
 
     useEffect(() => {
         if (selectedShop) {
-            if (!selectedShop.isCodAvailable && paymentMethod === 'COD') {
-                setPaymentMethod('ONLINE');
-            }
             if (!selectedShop.isDeliveryAvailable && fulfillmentType === 'DELIVERY') {
                 setFulfillmentType('PICKUP');
             }
         }
-    }, [selectedShop, paymentMethod, fulfillmentType]);
+    }, [selectedShop, fulfillmentType]);
 
     const handleShopSelect = (id) => {
         setShopId(id);
@@ -249,10 +244,7 @@ export const PlaceOrder = () => {
             return;
         }
 
-        if (paymentMethod === 'ONLINE' && !transactionId.trim()) {
-            showToast('Please fill in the UPI transaction ID for online payment', 'error');
-            return;
-        }
+
 
         // Validate document inputs
         const uploadedDocs = files
@@ -287,8 +279,6 @@ export const PlaceOrder = () => {
                 fulfillmentType,
                 deliveryAddress: fulfillmentType === 'DELIVERY' ? deliveryAddress.trim() : '',
                 requiredBy: new Date(requiredBy).toISOString(),
-                paymentMethod,
-                transactionId: paymentMethod === 'ONLINE' ? transactionId.trim() : '',
                 customerContact: customerContact.trim(),
                 instructions
             };
@@ -598,9 +588,9 @@ export const PlaceOrder = () => {
                         </div>
                     )}
 
-                    {/* Deadline & Payment */}
+                    {/* Deadline */}
                     <div className="form-row">
-                        <div className="form-group">
+                        <div className="form-group" style={{ width: '100%' }}>
                             <label htmlFor="requiredBy">Required Deadline *</label>
                             <input
                                 id="requiredBy"
@@ -610,43 +600,7 @@ export const PlaceOrder = () => {
                                 required
                             />
                         </div>
-
-                        <div className="form-group">
-                            <label htmlFor="paymentMethod">Payment Method *</label>
-                            <select
-                                id="paymentMethod"
-                                value={paymentMethod}
-                                onChange={(e) => setPaymentMethod(e.target.value)}
-                            >
-                                <option value="ONLINE">Online Payment</option>
-                                {(!selectedShop || selectedShop.isCodAvailable) && (
-                                    <option value="COD">Cash on Delivery (COD)</option>
-                                )}
-                            </select>
-                        </div>
                     </div>
-
-                    {paymentMethod === 'ONLINE' && selectedShop && (
-                        <div className="form-group" style={{ padding: '1rem', backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', marginBottom: '1.25rem' }}>
-                            <div style={{ marginBottom: '0.75rem' }}>
-                                <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Shop UPI ID for Payment</span>
-                                <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--accent-color)' }}>
-                                    {selectedShop.upiId || 'Not configured by shop'}
-                                </div>
-                            </div>
-                            <div>
-                                <label htmlFor="transactionId" style={{ fontWeight: 600, display: 'block', marginBottom: '0.5rem' }}>UPI Transaction ID / Ref No. *</label>
-                                <input
-                                    id="transactionId"
-                                    type="text"
-                                    placeholder="Enter the 12-digit transaction reference number"
-                                    value={transactionId}
-                                    onChange={(e) => setTransactionId(e.target.value)}
-                                    required
-                                />
-                            </div>
-                        </div>
-                    )}
 
                     {/* Additional Instructions */}
                     <div className="form-group">
