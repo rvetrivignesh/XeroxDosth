@@ -18,6 +18,8 @@ export const UpdateShop = () => {
 
     const [shopName, setShopName] = useState('');
     const [upiId, setUpiId] = useState('');
+    const [upiQrCode, setUpiQrCode] = useState('');
+    const [qrUploading, setQrUploading] = useState(false);
     const [email, setEmail] = useState('');
     const [phone, setPhone] = useState('');
     const [description, setDescription] = useState('');
@@ -87,6 +89,7 @@ export const UpdateShop = () => {
             if (shop) {
                 setShopName(shop.shopName || '');
                 setUpiId(shop.upiId || '');
+                setUpiQrCode(shop.upiQrCode || '');
                 setEmail(shop.email || '');
                 setPhone(shop.phone || '');
                 setDescription(shop.description || '');
@@ -132,6 +135,29 @@ export const UpdateShop = () => {
         );
     };
 
+    const handleQrUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        setQrUploading(true);
+        const formData = new FormData();
+        formData.append('document', file);
+
+        try {
+            const res = await API.post('/uploads', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
+            });
+            setUpiQrCode(res.data?.data?.url || '');
+            showToast('QR Code uploaded successfully!', 'success');
+        } catch (err) {
+            showToast(err.response?.data?.message || 'Failed to upload QR Code image', 'error');
+        } finally {
+            setQrUploading(false);
+        }
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
 
@@ -150,6 +176,7 @@ export const UpdateShop = () => {
             const payload = {
                 shopName,
                 upiId: upiId.trim(),
+                upiQrCode,
                 email: email.trim(),
                 phone: phone.trim(),
                 description: description.trim(),
@@ -266,6 +293,35 @@ export const UpdateShop = () => {
                                 onChange={(e) => setUpiId(e.target.value)}
                                 required
                             />
+                        </div>
+                    </div>
+
+                    <div className="form-row">
+                        <div className="form-group">
+                            <label htmlFor="upiQr">UPI QR Code Image</label>
+                            <input
+                                id="upiQr"
+                                type="file"
+                                accept="image/*"
+                                onChange={handleQrUpload}
+                            />
+                            {qrUploading && <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Uploading QR Code...</div>}
+                            {upiQrCode && (
+                                <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                    <img
+                                        src={upiQrCode}
+                                        alt="UPI QR Code"
+                                        style={{ width: '100px', height: '100px', objectFit: 'contain', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)' }}
+                                    />
+                                    <button
+                                        type="button"
+                                        className="btn btn-secondary btn-sm"
+                                        onClick={() => setUpiQrCode('')}
+                                    >
+                                        Remove QR
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </div>
 
