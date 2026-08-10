@@ -156,13 +156,13 @@ export const Shops = () => {
                             <div>
                                 <strong style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>📞 Phone</strong>
                                 <div style={{ fontSize: '0.9rem', marginTop: '0.15rem' }}>
-                                    <a href={`tel:${selectedShop.phone}`} style={{ color: 'var(--text-primary)' }}>{selectedShop.phone}</a>
+                                    <a href={`tel:${selectedShop.phone}`} style={{ color: 'var(--accent-color)' }}>{selectedShop.phone}</a>
                                 </div>
                             </div>
                             <div>
                                 <strong style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>✉️ Email</strong>
                                 <div style={{ fontSize: '0.9rem', marginTop: '0.15rem' }}>
-                                    <a href={`mailto:${selectedShop.email}`} style={{ color: 'var(--text-primary)' }}>{selectedShop.email}</a>
+                                    <a href={`mailto:${selectedShop.email}`} style={{ color: 'var(--accent-color)' }}>{selectedShop.email}</a>
                                 </div>
                             </div>
                         </div>
