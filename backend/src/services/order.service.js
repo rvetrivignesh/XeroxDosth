@@ -58,7 +58,7 @@ export const createOrder = async (userId, orderData, io) => {
 
     // Notify Shop Owner
     if (shop.owner) {
-        const dashboardUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/shop-orders`;
+        const dashboardUrl = `${process.env.FRONTEND_URL || 'https://rvetrivignesh.github.io/XeroxDosth'}/shop-orders`;
         const orderIdStr = order._id.toString();
         
         await createNotification(io, {
@@ -204,7 +204,7 @@ export const acceptOrder = async (userId, orderId, { finalPrice, estimatedDelive
     await order.save();
 
     const orderIdStr = order._id.toString();
-    const paymentRequestUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/payment-request/${order._id}`;
+    const paymentRequestUrl = `${process.env.FRONTEND_URL || 'https://rvetrivignesh.github.io/XeroxDosth'}/payment-request/${order._id}`;
 
     // Send notifications
     await createNotification(io, {
