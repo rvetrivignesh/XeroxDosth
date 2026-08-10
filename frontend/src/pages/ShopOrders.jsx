@@ -305,6 +305,11 @@ export const ShopOrders = () => {
                                                 📞 Contact: <strong>{order.customerContact}</strong>
                                             </span>
                                         )}
+                                        {order.customerEmail && (
+                                            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'block', marginTop: '0.2rem' }}>
+                                                ✉️ Contact Email: <strong>{order.customerEmail}</strong>
+                                            </span>
+                                        )}
                                     </div>
 
                                     {/* Action Workflow Controls */}

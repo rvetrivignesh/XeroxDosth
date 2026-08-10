@@ -71,6 +71,9 @@
 }
 
 @media (max-width: 650px) {
+    .form-card {
+        padding: 1rem !important;
+    }
     .form-row {
         grid-template-columns: 1fr;
     }

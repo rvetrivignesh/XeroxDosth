@@ -14,6 +14,44 @@ export const PaymentRequest = () => {
     const [submitting, setSubmitting] = useState(false);
     const [paymentMethod, setPaymentMethod] = useState('UPI');
     const [transactionId, setTransactionId] = useState('');
+    const [isQrZoomed, setIsQrZoomed] = useState(false);
+
+    const handleCopyUpi = () => {
+        if (order?.shop?.upiId) {
+            navigator.clipboard.writeText(order.shop.upiId);
+            showToast('UPI ID copied to clipboard!', 'success');
+        }
+    };
+
+    const getQrCodeUrl = () => {
+        if (!order?.shop) return null;
+        return order.shop.upiQrCode || (order.shop.upiId ? `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(`upi://pay?pa=${order.shop.upiId}&pn=${order.shop.shopName}&am=${order.finalPrice || order.estimatedCost}`)}` : null);
+    };
+
+    const handleDownloadQr = async () => {
+        const qrUrl = getQrCodeUrl();
+        if (!qrUrl) return;
+        try {
+            const response = await fetch(qrUrl);
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `${order.shop.shopName.replace(/\s+/g, '_')}_UPI_QR.png`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+            showToast('QR Code download started!', 'success');
+        } catch (err) {
+            const link = document.createElement('a');
+            link.href = qrUrl;
+            link.target = '_blank';
+            link.download = `${order.shop.shopName.replace(/\s+/g, '_')}_UPI_QR.png`;
+            link.click();
+            showToast('Opening QR code image in a new tab', 'info');
+        }
+    };
 
     const fetchOrderDetails = async () => {
         setLoading(true);
@@ -91,69 +129,67 @@ export const PaymentRequest = () => {
 
     return (
         <div className="page-container">
-            <div className="order-form-card card" style={{ maxWidth: '750px' }}>
-                <div className="form-header" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '1.25rem', marginBottom: '1.5rem' }}>
-                    <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase' }}>
+            <div className="order-form-card card payment-request-card">
+                <div className="form-header payment-request-header">
+                    <span className="payment-request-subtitle">
                         Payment Request
                     </span>
-                    <h2 style={{ marginTop: '0.25rem' }}>Order #{orderId.slice(-6).toUpperCase()}</h2>
-                    <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
-                        <span className={`badge`} style={{
-                            backgroundColor: isAwaitingPayment ? 'var(--accent-light)' : 'var(--bg-input)',
-                            color: isAwaitingPayment ? 'var(--accent-color)' : 'var(--text-secondary)',
-                            fontWeight: 600
-                        }}>
+                    <h2 className="payment-request-title">Order #{orderId.slice(-6).toUpperCase()}</h2>
+                    <div className="payment-status-badge-row">
+                        <span className="badge badge-pending payment-status-badge">
                             Status: {status.replace(/_/g, ' ')}
                         </span>
-                        <span className={`badge`} style={{
-                            backgroundColor: paymentStatus === 'PAID' ? '#10b98122' : 'var(--bg-input)',
-                            color: paymentStatus === 'PAID' ? '#10b981' : 'var(--text-secondary)',
-                            fontWeight: 600
-                        }}>
+                        <span className="badge badge-approved payment-status-badge">
                             Payment: {paymentStatus}
                         </span>
                     </div>
                 </div>
 
                 {/* Print Job Specifications */}
-                <div style={{ marginBottom: '1.5rem' }}>
-                    <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.75rem', color: 'var(--text-primary)' }}>
+                <div className="payment-details-section">
+                    <h3 className="payment-details-heading">
                         Print Job Details
                     </h3>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem', padding: '1rem', backgroundColor: 'var(--bg-input)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
-                        <div>
-                            <small style={{ color: 'var(--text-muted)' }}>Shop Name</small>
-                            <div style={{ fontWeight: 600 }}>{shop?.shopName || 'N/A'}</div>
+                    <div className="payment-details-grid">
+                        <div className="payment-details-col">
+                            <small className="payment-details-label">Shop Name</small>
+                            <div className="payment-details-val-bold">{shop?.shopName || 'N/A'}</div>
                         </div>
-                        <div>
-                            <small style={{ color: 'var(--text-muted)' }}>Specs & Copies</small>
-                            <div style={{ fontWeight: 500 }}>
+                        <div className="payment-details-col">
+                            <small className="payment-details-label">Specs & Copies</small>
+                            <div className="payment-details-val">
                                 {bwPages} B&W, {colorPages} Color ({totalPages} Total) &times; {copies} copies
                             </div>
                         </div>
-                        <div>
-                            <small style={{ color: 'var(--text-muted)' }}>Print & Binding</small>
-                            <div style={{ fontWeight: 500 }}>
+                        <div className="payment-details-col">
+                            <small className="payment-details-label">Print & Binding</small>
+                            <div className="payment-details-val">
                                 {printSide === 'SINGLE_SIDE' ? 'Single Sided' : 'Double Sided'}, {binding} Binding
                             </div>
                         </div>
-                        <div>
-                            <small style={{ color: 'var(--text-muted)' }}>Customer Contact</small>
-                            <div style={{ fontWeight: 500 }}>{order.customerContact || 'N/A'}</div>
+                        <div className="payment-details-col">
+                            <small className="payment-details-label">Customer Contact</small>
+                            <div className="payment-details-val">{order.customerContact || 'N/A'}</div>
                         </div>
+                        {order.customerEmail && (
+                            <div className="payment-details-col">
+                                <small className="payment-details-label">Customer Email</small>
+                                <div className="payment-details-val">{order.customerEmail}</div>
+                            </div>
+                        )}
                     </div>
                 </div>
 
                 {/* Documents List */}
-                <div style={{ marginBottom: '1.5rem' }}>
-                    <small style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Documents ({documents?.length || 0})</small>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.5rem' }}>
+                <div className="payment-docs-section">
+                    <small className="payment-docs-title">Documents ({documents?.length || 0})</small>
+                    <div className="payment-docs-list">
                         {documents?.map((doc, idx) => (
-                            <div key={idx} style={{ padding: '0.65rem 0.85rem', backgroundColor: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', fontSize: '0.85rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '80%' }}>
+                            <div key={idx} className="payment-doc-card">
+                                <span className="payment-doc-name">
                                     📄 {doc.originalName}
                                 </span>
-                                <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                                <span className="payment-doc-size">
                                     {(doc.size / (1024 * 1024)).toFixed(2)} MB
                                 </span>
                             </div>
@@ -162,26 +198,17 @@ export const PaymentRequest = () => {
                 </div>
 
                 {/* Pricing Summary */}
-                <div style={{
-                    padding: '1.25rem',
-                    backgroundColor: 'var(--bg-hover)',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--accent-color)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '0.5rem',
-                    marginBottom: '2rem'
-                }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>Estimated Cost originally:</span>
-                        <span style={{ color: 'var(--text-muted)', textDecoration: 'line-through' }}>₹{order.estimatedCost}</span>
+                <div className="final-pricing-box">
+                    <div className="final-pricing-row">
+                        <span className="original-price-label">Estimated Cost originally:</span>
+                        <span className="original-price-val">₹{order.estimatedCost}</span>
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-color)', paddingTop: '0.5rem', marginTop: '0.25rem' }}>
-                        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Final Approved Price:</span>
-                        <span style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--accent-color)' }}>₹{finalPrice || order.estimatedCost}</span>
+                    <div className="final-pricing-row-divider">
+                        <span className="final-price-label">Final Approved Price:</span>
+                        <span className="final-price-val">₹{finalPrice || order.estimatedCost}</span>
                     </div>
                     {estimatedDeliveryTime && (
-                        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+                        <div className="final-pricing-time">
                             ⏰ Estimated Completion Time: <strong>{estimatedDeliveryTime}</strong>
                         </div>
                     )}
@@ -190,10 +217,10 @@ export const PaymentRequest = () => {
                 {/* Interactive Payment Section */}
                 {isAwaitingPayment ? (
                     <form onSubmit={handleSubmitPayment} className="order-form">
-                        <div className="form-group" style={{ padding: '1rem', backgroundColor: 'var(--bg-input)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
-                            <label style={{ fontWeight: 600, marginBottom: '0.75rem', display: 'block' }}>Choose Payment Option</label>
-                            <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
-                                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                        <div className="form-group payment-option-card">
+                            <label className="payment-option-heading">Choose Payment Option</label>
+                            <div className="payment-option-choices">
+                                <label className="payment-option-label">
                                     <input
                                         type="radio"
                                         name="paymentMethod"
@@ -204,7 +231,7 @@ export const PaymentRequest = () => {
                                     <span>UPI Payment (Online)</span>
                                 </label>
                                 {shop?.isCodAvailable && (
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                                    <label className="payment-option-label">
                                         <input
                                             type="radio"
                                             name="paymentMethod"
@@ -219,22 +246,41 @@ export const PaymentRequest = () => {
                         </div>
 
                         {paymentMethod === 'UPI' ? (
-                            <div style={{ padding: '1.25rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--bg-card)', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            <div className="upi-payment-form">
                                 <div>
-                                    <small style={{ color: 'var(--text-muted)' }}>Shop UPI ID</small>
-                                    <div style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--accent-color)' }}>
-                                        {shop?.upiId || 'Not configured'}
+                                    <small className="upi-id-label">Shop UPI ID</small>
+                                    <div className="upi-id-row">
+                                        <span className="upi-id-val">
+                                            {shop?.upiId || 'Not configured'}
+                                        </span>
+                                        {shop?.upiId && (
+                                            <button 
+                                                type="button" 
+                                                onClick={handleCopyUpi} 
+                                                className="btn btn-secondary btn-xs copy-upi-btn"
+                                            >
+                                                📋 Copy UPI
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
 
-                                {shop?.upiQrCode && (
-                                    <div style={{ textAlign: 'center', margin: '0.5rem 0' }}>
-                                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Scan QR to Pay</div>
+                                {getQrCodeUrl() && (
+                                    <div className="qr-code-wrapper">
+                                        <small className="qr-code-label">Scan QR to Pay (Click to zoom)</small>
                                         <img
-                                            src={shop.upiQrCode}
+                                            src={getQrCodeUrl()}
                                             alt="UPI QR Code"
-                                            style={{ maxWidth: '200px', maxHeight: '200px', objectFit: 'contain', border: '1px solid var(--border-color)', padding: '0.5rem', backgroundColor: 'white', borderRadius: '4px' }}
+                                            onClick={() => setIsQrZoomed(true)}
+                                            className="qr-code-image"
                                         />
+                                        <button 
+                                            type="button" 
+                                            onClick={handleDownloadQr} 
+                                            className="btn btn-secondary btn-xs download-qr-btn"
+                                        >
+                                            📥 Download QR Code
+                                        </button>
                                     </div>
                                 )}
 
@@ -248,41 +294,51 @@ export const PaymentRequest = () => {
                                         onChange={(e) => setTransactionId(e.target.value)}
                                         required
                                     />
-                                    <small style={{ color: 'var(--text-muted)', marginTop: '0.25rem', display: 'block' }}>
+                                    <small className="field-help">
                                         Enter the reference number after making payment in your UPI app (GPay, PhonePe, Paytm, etc.).
                                     </small>
                                 </div>
                             </div>
                         ) : (
-                            <div style={{ padding: '1.25rem', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--bg-card)' }}>
-                                <div style={{ color: 'var(--text-primary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <div className="cod-payment-info">
+                                <div className="cod-payment-heading">
                                     <span>🚚</span> Cash on Delivery Selected
                                 </div>
-                                <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '0.5rem', marginBottom: 0 }}>
+                                <p className="cod-payment-desc">
                                     Please keep the exact amount (<strong>₹{finalPrice}</strong>) ready at the time of delivery or pickup.
                                 </p>
                             </div>
                         )}
 
-                        <button type="submit" className="btn btn-primary submit-btn" disabled={submitting} style={{ marginTop: '0.5rem' }}>
+                        <button type="submit" className="btn btn-primary submit-btn" disabled={submitting}>
                             {submitting ? <div className="spinner"></div> : paymentMethod === 'UPI' ? 'Submit UPI Payment Details' : 'Confirm Cash on Delivery'}
                         </button>
                     </form>
                 ) : (
-                    <div className="card text-center" style={{ padding: '2rem', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-input)' }}>
-                        <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>ℹ️</div>
-                        <h4>Payment Not Pending</h4>
-                        <p style={{ color: 'var(--text-secondary)', margin: 0 }}>
+                    <div className="card text-center payment-completed-box">
+                        <div className="payment-completed-icon">ℹ️</div>
+                        <h4 className="payment-completed-heading">Payment Not Pending</h4>
+                        <p className="payment-completed-desc">
                             {status === 'PENDING_SHOP_ACCEPTANCE' && 'This order is awaiting shop acceptance and review.'}
                             {status === 'REJECTED_BY_SHOP' && 'This order was rejected by the shop owner.'}
                             {status === 'CANCELLED_BY_USER' && 'This order was cancelled.'}
                             {['PAYMENT_COMPLETED', 'IN_PROGRESS', 'READY_FOR_PICKUP', 'OUT_FOR_DELIVERY', 'COMPLETED'].includes(status) && 
                                 'Payment action has already been completed for this order. It is currently being processed by the shop.'}
                         </p>
-                        <Link to="/my-orders" className="btn btn-secondary btn-sm" style={{ marginTop: '1rem', display: 'inline-block' }}>Back to My Orders</Link>
+                        <Link to="/my-orders" className="btn btn-secondary btn-sm payment-completed-btn">Back to My Orders</Link>
                     </div>
                 )}
             </div>
+
+            {/* click to close full screen QR Code Zoom Modal */}
+            {isQrZoomed && (
+                <div className="qr-zoom-backdrop" onClick={() => setIsQrZoomed(false)}>
+                    <div className="qr-zoom-container">
+                        <img src={getQrCodeUrl()} alt="Zoomed UPI QR Code" className="qr-zoom-img" />
+                        <div className="qr-zoom-close-btn">✕</div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

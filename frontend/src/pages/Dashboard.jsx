@@ -179,6 +179,12 @@ export const Dashboard = () => {
                             <p>Manage all registered xerox shops and partner statuses.</p>
                         </Link>
 
+                        <Link to="/my-orders" className="action-card card card-hover">
+                            <div className="action-icon">📋</div>
+                            <h3>My Orders</h3>
+                            <p>Track your own print orders and view complete order history.</p>
+                        </Link>
+
                         <Link to="/shops" className="action-card card card-hover">
                             <div className="action-icon">🏬</div>
                             <h3>Shops</h3>

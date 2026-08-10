@@ -32,7 +32,7 @@ export const Notifications = () => {
 
         // Connect to socket.io
         const socketUrl = (import.meta.env.VITE_API_URL || 'http://localhost:4001/api').replace('/api', '');
-        const socket = io(socketUrl);
+        const socket = io(socketUrl, { transports: ['websocket'] });
 
         socket.on('connect', () => {
             socket.emit('join', user._id);

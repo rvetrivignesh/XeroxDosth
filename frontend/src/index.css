@@ -1,24 +1,24 @@
-/* XeroxDosth Modern Theme & Design System */
+/* XeroxDosth Modern SaaS Theme & Design System */
 
 :root {
-    --font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     
-    /* Light Mode Palette */
-    --bg-primary: #f8fafc;
+    /* Soft Light Theme - Low contrast, warm & comfortable for eyes */
+    --bg-primary: #f7f7f8;
     --bg-secondary: #ffffff;
     --bg-card: #ffffff;
-    --bg-hover: #f1f5f9;
-    --bg-input: #f8fafc;
-    --border-color: #e2e8f0;
-    --border-focus: #2563eb;
+    --bg-hover: #ececf1;
+    --bg-input: #fdfdfd;
+    --border-color: #e5e5e7;
+    --border-focus: #10a37f;
     
-    --text-primary: #0f172a;
-    --text-secondary: #475569;
-    --text-muted: #94a3b8;
+    --text-primary: #374151; /* Slate Charcoal instead of harsh black */
+    --text-secondary: #4b5563;
+    --text-muted: #9ca3af;
     
-    --accent-color: #2563eb;
-    --accent-hover: #1d4ed8;
-    --accent-light: #eff6ff;
+    --accent-color: #10a37f; /* Classic ChatGPT soft emerald green */
+    --accent-hover: #0d8a6b;
+    --accent-light: #f0fdf4;
     
     --success-bg: #dcfce7;
     --success-text: #166534;
@@ -30,11 +30,11 @@
     --info-text: #075985;
     
     --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
-    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.04), 0 4px 6px -4px rgba(0, 0, 0, 0.02);
     
-    --radius-sm: 6px;
-    --radius-md: 10px;
+    --radius-sm: 8px;
+    --radius-md: 12px;
     --radius-lg: 16px;
     
     --transition-fast: 0.15s ease;
@@ -44,68 +44,70 @@
 }
 
 [data-theme="dark"] {
-    --bg-primary: #0b0f19;
-    --bg-secondary: #111827;
-    --bg-card: #1f2937;
-    --bg-hover: #374151;
-    --bg-input: #111827;
-    --border-color: #374151;
-    --border-focus: #3b82f6;
+    /* ChatGPT Classic Dark Grey Theme - Comfortable, soft contrast */
+    --bg-primary: #202123;
+    --bg-secondary: #2d2f39;
+    --bg-card: #343541;
+    --bg-hover: #40414f;
+    --bg-input: #202123;
+    --border-color: #4d4d4f;
+    --border-focus: #10a37f;
     
-    --text-primary: #f9fafb;
-    --text-secondary: #d1d5db;
-    --text-muted: #6b7280;
+    --text-primary: #ececf1;
+    --text-secondary: #c5c5d2;
+    --text-muted: #8e8ea0;
     
-    --accent-color: #3b82f6;
-    --accent-hover: #60a5fa;
-    --accent-light: #1e3a8a;
+    --accent-color: #10a37f; /* ChatGPT green */
+    --accent-hover: #1a7f64;
+    --accent-light: #21222b;
     
-    --success-bg: #064e3b;
+    --success-bg: #1b4d3e;
     --success-text: #a7f3d0;
-    --warning-bg: #713f12;
+    --warning-bg: #5c3d18;
     --warning-text: #fef08a;
-    --error-bg: #7f1d1d;
+    --error-bg: #631d1d;
     --error-text: #fecaca;
-    --info-bg: #0c4a6e;
+    --info-bg: #1d3e56;
     --info-text: #bae6fd;
     
-    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
-    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
-    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.4);
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.25), 0 2px 4px -2px rgba(0, 0, 0, 0.2);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.25);
     
     color-scheme: dark;
 }
 
 @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-        --bg-primary: #0b0f19;
-        --bg-secondary: #111827;
-        --bg-card: #1f2937;
-        --bg-hover: #374151;
-        --bg-input: #111827;
-        --border-color: #374151;
-        --border-focus: #3b82f6;
+        /* Default browser dark theme preferences matches ChatGPT grey dark mode */
+        --bg-primary: #202123;
+        --bg-secondary: #2d2f39;
+        --bg-card: #343541;
+        --bg-hover: #40414f;
+        --bg-input: #202123;
+        --border-color: #4d4d4f;
+        --border-focus: #10a37f;
         
-        --text-primary: #f9fafb;
-        --text-secondary: #d1d5db;
-        --text-muted: #6b7280;
+        --text-primary: #ececf1;
+        --text-secondary: #c5c5d2;
+        --text-muted: #8e8ea0;
         
-        --accent-color: #3b82f6;
-        --accent-hover: #60a5fa;
-        --accent-light: #1e3a8a;
+        --accent-color: #10a37f;
+        --accent-hover: #1a7f64;
+        --accent-light: #21222b;
         
-        --success-bg: #064e3b;
+        --success-bg: #1b4d3e;
         --success-text: #a7f3d0;
-        --warning-bg: #713f12;
+        --warning-bg: #5c3d18;
         --warning-text: #fef08a;
-        --error-bg: #7f1d1d;
+        --error-bg: #631d1d;
         --error-text: #fecaca;
-        --info-bg: #0c4a6e;
+        --info-bg: #1d3e56;
         --info-text: #bae6fd;
         
-        --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
-        --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
-        --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.4);
+        --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+        --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.25), 0 2px 4px -2px rgba(0, 0, 0, 0.2);
+        --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -4px rgba(0, 0, 0, 0.25);
         
         color-scheme: dark;
     }
@@ -411,4 +413,15 @@ input:focus, select:focus, textarea:focus {
 .empty-state p {
     color: var(--text-muted);
     margin-bottom: 1.5rem;
+}
+
+/* Responsive adjustments for mobile screens */
+@media (max-width: 768px) {
+    .card {
+        padding: 1rem !important; /* Reduce padding on mobile devices */
+    }
+    
+    .form-card {
+        padding: 1rem !important;
+    }
 }
