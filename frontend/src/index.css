@@ -299,6 +299,16 @@ input:focus, select:focus, textarea:focus {
     width: 100%;
 }
 
+@media (max-width: 480px) {
+    .toast-container {
+        right: 1rem;
+        left: 1rem;
+        bottom: 1rem;
+        width: auto;
+        max-width: none;
+    }
+}
+
 .toast {
     display: flex;
     align-items: center;
