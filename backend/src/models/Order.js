@@ -165,6 +165,12 @@ const orderSchema = new mongoose.Schema(
             required: [true, 'Customer contact number is required'],
             trim: true
         },
+        customerEmail: {
+            type: String,
+            required: false,
+            trim: true,
+            default: ''
+        },
         estimatedCost: {
             type: Number,
             default: 0

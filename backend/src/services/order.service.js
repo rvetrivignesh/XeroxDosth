@@ -52,6 +52,7 @@ export const createOrder = async (userId, orderData, io) => {
         paymentStatus: 'UNPAID',
         instructions: orderData.instructions || '',
         customerContact: orderData.customerContact || '',
+        customerEmail: orderData.customerEmail || '',
         status: 'PENDING_SHOP_ACCEPTANCE',
         estimatedCost
     });
@@ -81,6 +82,7 @@ export const createOrder = async (userId, orderData, io) => {
                     <li><strong>Order ID:</strong> #${orderIdStr.slice(-6).toUpperCase()}</li>
                     <li><strong>Customer Name:</strong> ${customer.name}</li>
                     <li><strong>Contact:</strong> ${order.customerContact}</li>
+                    <li><strong>Email:</strong> ${order.customerEmail || 'N/A'}</li>
                     <li><strong>Document Copies:</strong> ${order.copies}</li>
                     <li><strong>Pages Breakdown:</strong> ${order.bwPages} B&W, ${order.colorPages} Color (${order.totalPages} total)</li>
                     <li><strong>Binding Preference:</strong> ${order.binding}</li>

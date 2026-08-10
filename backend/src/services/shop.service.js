@@ -108,6 +108,7 @@ export const updateMyShopDetails = async (userId, updateData) => {
     if (updateData.phone) shop.phone = updateData.phone;
     if (updateData.description) shop.description = updateData.description;
     if (updateData.upiId) shop.upiId = updateData.upiId;
+    if (updateData.upiQrCode !== undefined) shop.upiQrCode = updateData.upiQrCode;
     if (updateData.isCodAvailable !== undefined) shop.isCodAvailable = !!updateData.isCodAvailable;
     if (updateData.location) {
         if (updateData.location.address) shop.location.address = updateData.location.address;

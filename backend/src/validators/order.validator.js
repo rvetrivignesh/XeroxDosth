@@ -112,6 +112,11 @@ export const createOrderValidator = [
         .notEmpty().withMessage('Customer contact details are required')
         .isString().withMessage('Customer contact details must be a string'),
 
+    body('customerEmail')
+        .optional({ checkFalsy: true })
+        .trim()
+        .isEmail().withMessage('Please enter a valid email address'),
+
     body('fulfillmentType')
         .optional()
         .trim()
