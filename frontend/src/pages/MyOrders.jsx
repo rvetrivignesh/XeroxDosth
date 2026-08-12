@@ -126,19 +126,20 @@ export const MyOrders = () => {
                 {orders.map((order) => {
                     const isPendingAcceptance = order.status === 'PENDING_SHOP_ACCEPTANCE';
                     const isAwaitingPayment = order.status === 'PAYMENT_REQUESTED';
-                    const canCancelImmediately = isPendingAcceptance;
-                    const canRequestCancellation = !['CANCELLED', 'COMPLETED', 'READY_FOR_PICKUP', 'OUT_FOR_DELIVERY', 'CANCELLATION_APPROVED', 'CANCELLATION_REQUESTED', 'PENDING_SHOP_ACCEPTANCE', 'REJECTED_BY_SHOP'].includes(order.status);
+                    const isCancelled = ['CANCELLED', 'CANCELLED_BY_USER', 'CANCELLATION_APPROVED'].includes(order.status);
+                    const canCancelImmediately = isPendingAcceptance && !isCancelled;
+                    const canRequestCancellation = !isCancelled && !['CANCELLED', 'CANCELLED_BY_USER', 'CANCELLATION_APPROVED', 'COMPLETED', 'READY_FOR_PICKUP', 'OUT_FOR_DELIVERY', 'CANCELLATION_REQUESTED', 'PENDING_SHOP_ACCEPTANCE', 'REJECTED_BY_SHOP'].includes(order.status);
 
                     return (
                         <div key={order._id} className="card card-hover" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '1.25rem' }}>
                             <div>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
                                     <span className={`badge`} style={{
-                                        backgroundColor: isPendingAcceptance ? 'var(--accent-light)' : isAwaitingPayment ? '#f59e0b22' : 'var(--bg-input)',
-                                        color: isPendingAcceptance ? 'var(--accent-color)' : isAwaitingPayment ? '#d97706' : 'var(--text-secondary)',
+                                        backgroundColor: isCancelled ? '#ef444415' : isPendingAcceptance ? 'var(--accent-light)' : isAwaitingPayment ? '#f59e0b22' : 'var(--bg-input)',
+                                        color: isCancelled ? '#ef4444' : isPendingAcceptance ? 'var(--accent-color)' : isAwaitingPayment ? '#d97706' : 'var(--text-secondary)',
                                         fontWeight: 700
                                     }}>
-                                        {order.status.replace(/_/g, ' ')}
+                                        {isCancelled ? 'Cancelled' : order.status.replace(/_/g, ' ')}
                                     </span>
                                     <span className={`badge`} style={{
                                         backgroundColor: order.paymentStatus === 'PAID' ? '#10b98122' : 'var(--bg-input)',
@@ -222,9 +223,13 @@ export const MyOrders = () => {
                                     </div>
                                 )}
                             </div>
-                            <span className="badge" style={{ backgroundColor: 'var(--bg-input)', color: 'var(--text-primary)', fontWeight: 700 }}>
-                                {selectedOrder.status.replace(/_/g, ' ')}
-                            </span>
+                             <span className="badge" style={{ 
+                                 backgroundColor: ['CANCELLED', 'CANCELLED_BY_USER', 'CANCELLATION_APPROVED'].includes(selectedOrder.status) ? '#ef444415' : 'var(--bg-input)', 
+                                 color: ['CANCELLED', 'CANCELLED_BY_USER', 'CANCELLATION_APPROVED'].includes(selectedOrder.status) ? '#ef4444' : 'var(--text-primary)', 
+                                 fontWeight: 700 
+                             }}>
+                                 {['CANCELLED', 'CANCELLED_BY_USER', 'CANCELLATION_APPROVED'].includes(selectedOrder.status) ? 'Cancelled' : selectedOrder.status.replace(/_/g, ' ')}
+                             </span>
                         </div>
 
                         <div style={{ padding: '1rem', backgroundColor: 'var(--bg-input)', borderRadius: 'var(--radius-md)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', fontSize: '0.875rem' }}>
@@ -240,6 +245,14 @@ export const MyOrders = () => {
                             <div><strong>Final Price:</strong> {selectedOrder.finalPrice ? `₹${selectedOrder.finalPrice}` : 'Awaiting Approval'}</div>
                             {selectedOrder.transactionId && (
                                 <div style={{ gridColumn: 'span 2' }}><strong>Transaction Ref ID:</strong> {selectedOrder.transactionId}</div>
+                            )}
+                            {selectedOrder.paymentScreenshot && (
+                                <div style={{ gridColumn: 'span 2' }}>
+                                    <strong>Payment Screenshot:</strong>{' '}
+                                    <a href={selectedOrder.paymentScreenshot} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-color)', textDecoration: 'underline' }}>
+                                        View Screenshot 🖼️
+                                    </a>
+                                </div>
                             )}
                         </div>
 
@@ -314,6 +327,11 @@ export const MyOrders = () => {
                                                     </a>
                                                 </div>
                                             </div>
+                                            {doc.pageCount !== undefined && (
+                                                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', padding: '0.4rem 0', borderTop: '1px dashed var(--border-color)', borderBottom: isImg ? '1px dashed var(--border-color)' : 'none' }}>
+                                                    ⚙️ <strong>Settings:</strong> Pages {doc.startPage}–{doc.lastPage} ({doc.pageCount} total) • {doc.bwPages} B&W / {doc.colorPages} Color {doc.colorPageNumbersText ? `[Pages: ${doc.colorPageNumbersText}]` : ''} • {doc.copies} copy(ies) • {doc.printSide === 'SINGLE_SIDE' ? 'Single-Sided' : 'Double-Sided'} • Binding: {doc.binding}
+                                                </div>
+                                            )}
                                             {isImg && (
                                                 <div style={{ display: 'flex', marginTop: '0.25rem' }}>
                                                     <img src={url} alt={name} style={{ maxWidth: '120px', maxHeight: '120px', objectFit: 'cover', borderRadius: '4px', border: '1px solid var(--border-color)' }} />

@@ -151,6 +151,22 @@ export const ShopOrders = () => {
         }
     };
 
+    const handleRequestPaymentAgain = async (orderId) => {
+        const reason = window.prompt('Enter reason for requesting payment again (e.g. invalid transaction ID, screenshot blurry):');
+        if (reason === null) return;
+        
+        setUpdatingId(orderId);
+        try {
+            await API.patch(`/orders/${orderId}/request-payment`, { reason });
+            showToast('Payment request sent to customer again!', 'info');
+            fetchOrders();
+        } catch (err) {
+            showToast(err.response?.data?.message || 'Failed to request payment again', 'error');
+        } finally {
+            setUpdatingId(null);
+        }
+    };
+
     const handleApproveCancellation = async (orderId) => {
         if (!window.confirm('Approve customer cancellation request? The order will be cancelled.')) return;
         setUpdatingId(orderId);
@@ -280,6 +296,7 @@ export const ShopOrders = () => {
                         const isPending = order.status === 'PENDING_SHOP_ACCEPTANCE';
                         const isAwaitingPayment = order.status === 'PAYMENT_REQUESTED';
                         const isPaid = order.paymentStatus === 'PAID';
+                        const isCancelled = ['CANCELLED', 'CANCELLED_BY_USER', 'CANCELLATION_APPROVED'].includes(order.status);
 
                         return (
                             <div key={order._id} className="card" style={{ padding: '1.5rem' }}>
@@ -350,12 +367,19 @@ export const ShopOrders = () => {
                                             </button>
                                         )}
 
+                                        {/* Request Payment Again option for active accepted orders */}
+                                        {!['PENDING_SHOP_ACCEPTANCE', 'CANCELLED', 'CANCELLED_BY_USER', 'REJECTED_BY_SHOP', 'CANCELLATION_APPROVED', 'CANCELLATION_REQUESTED', 'COMPLETED'].includes(order.status) && (
+                                            <button className="btn btn-danger btn-sm" onClick={() => handleRequestPaymentAgain(order._id)} disabled={updatingId === order._id}>
+                                                Request Payment Again 🔄
+                                            </button>
+                                        )}
+
                                         <span className="badge" style={{
-                                            backgroundColor: isPending ? 'var(--accent-light)' : 'var(--bg-input)',
-                                            color: isPending ? 'var(--accent-color)' : 'var(--text-secondary)',
+                                            backgroundColor: isCancelled ? '#ef444415' : isPending ? 'var(--accent-light)' : 'var(--bg-input)',
+                                            color: isCancelled ? '#ef4444' : isPending ? 'var(--accent-color)' : 'var(--text-secondary)',
                                             fontWeight: 700
                                         }}>
-                                            {order.status.replace(/_/g, ' ')}
+                                            {isCancelled ? 'Cancelled' : order.status.replace(/_/g, ' ')}
                                         </span>
                                     </div>
                                 </div>
@@ -396,12 +420,19 @@ export const ShopOrders = () => {
 
                                     <div>
                                         <small style={{ color: 'var(--text-muted)' }}>Pricing & Payment</small>
-                                        <div style={{ fontWeight: 600 }}>
+                                        <div style={{ fontWeight: 500 }}>
                                             {order.paymentMethod || 'Awaiting Payment Selector'} {order.transactionId && `(${order.transactionId})`}
                                         </div>
-                                        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
+                                        <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
                                             Status: <strong>{order.paymentStatus}</strong>
                                         </div>
+                                        {order.paymentScreenshot && (
+                                            <div style={{ marginTop: '0.25rem' }}>
+                                                <a href={order.paymentScreenshot} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.8rem', color: 'var(--accent-color)', fontWeight: 600, textDecoration: 'underline' }}>
+                                                    🖼️ View Payment Screenshot
+                                                </a>
+                                            </div>
+                                        )}
                                         <div style={{ fontSize: '0.85rem', color: 'var(--accent-color)', fontWeight: 600, marginTop: '0.15rem' }}>
                                             {order.finalPrice ? `Exact: ₹${order.finalPrice}` : `Est: ₹${order.estimatedCost}`}
                                         </div>
@@ -445,6 +476,11 @@ export const ShopOrders = () => {
                                                             </a>
                                                         </div>
                                                     </div>
+                                                    {doc.pageCount !== undefined && (
+                                                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', padding: '0.4rem 0', borderTop: '1px dashed var(--border-color)', borderBottom: isImg ? '1px dashed var(--border-color)' : 'none' }}>
+                                                            ⚙️ <strong>Settings:</strong> Pages {doc.startPage}–{doc.lastPage} ({doc.pageCount} total) • {doc.bwPages} B&W / {doc.colorPages} Color {doc.colorPageNumbersText ? `[Pages: ${doc.colorPageNumbersText}]` : ''} • {doc.copies} copy(ies) • {doc.printSide === 'SINGLE_SIDE' ? 'Single-Sided' : 'Double-Sided'} • Binding: {doc.binding}
+                                                        </div>
+                                                    )}
                                                     {isImg && (
                                                         <div style={{ display: 'flex', marginTop: '0.25rem' }}>
                                                             <img src={url} alt={name} style={{ maxWidth: '120px', maxHeight: '120px', objectFit: 'cover', borderRadius: '4px', border: '1px solid var(--border-color)' }} />
