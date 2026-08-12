@@ -16,6 +16,55 @@ export const PaymentRequest = () => {
     const [transactionId, setTransactionId] = useState('');
     const [isQrZoomed, setIsQrZoomed] = useState(false);
 
+    // Screenshot states
+    const [screenshotUrl, setScreenshotUrl] = useState('');
+    const [screenshotPublicId, setScreenshotPublicId] = useState('');
+    const [uploadingScreenshot, setUploadingScreenshot] = useState(false);
+
+    const handleScreenshotChange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (!file.type.startsWith('image/')) {
+            showToast('Please upload an image file (PNG/JPG/JPEG)', 'error');
+            return;
+        }
+
+        setUploadingScreenshot(true);
+        const formData = new FormData();
+        formData.append('document', file);
+
+        try {
+            const res = await API.post('/uploads', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
+            });
+            const data = res.data?.data;
+            if (data?.url) {
+                setScreenshotUrl(data.url);
+                setScreenshotPublicId(data.publicId);
+                showToast('Screenshot uploaded successfully!', 'success');
+            }
+        } catch (err) {
+            showToast(err.response?.data?.message || 'Failed to upload screenshot', 'error');
+        } finally {
+            setUploadingScreenshot(false);
+        }
+    };
+
+    const handleRemoveScreenshot = async () => {
+        if (!screenshotPublicId) return;
+        try {
+            await API.delete(`/uploads?publicId=${encodeURIComponent(screenshotPublicId)}`);
+            setScreenshotUrl('');
+            setScreenshotPublicId('');
+            showToast('Screenshot removed', 'info');
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
     const handleCopyUpi = () => {
         if (order?.shop?.upiId) {
             navigator.clipboard.writeText(order.shop.upiId);
@@ -83,7 +132,8 @@ export const PaymentRequest = () => {
         try {
             await API.patch(`/orders/${orderId}/pay`, {
                 paymentMethod,
-                transactionId: paymentMethod === 'UPI' ? transactionId.trim() : ''
+                transactionId: paymentMethod === 'UPI' ? transactionId.trim() : '',
+                paymentScreenshot: paymentMethod === 'UPI' ? screenshotUrl : ''
             });
 
             showToast(
@@ -297,6 +347,24 @@ export const PaymentRequest = () => {
                                     <small className="field-help">
                                         Enter the reference number after making payment in your UPI app (GPay, PhonePe, Paytm, etc.).
                                     </small>
+                                </div>
+
+                                <div className="form-group">
+                                    <label htmlFor="paymentScreenshot">Attach Payment Screenshot (Optional)</label>
+                                    <input
+                                        id="paymentScreenshot"
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleScreenshotChange}
+                                        style={{ marginTop: '0.25rem', display: 'block' }}
+                                    />
+                                    {uploadingScreenshot && <small className="field-help" style={{ color: 'var(--accent-color)', fontWeight: 600 }}>Uploading screenshot...</small>}
+                                    {screenshotUrl && (
+                                        <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'flex-start' }}>
+                                            <img src={screenshotUrl} alt="Payment Screenshot Preview" style={{ maxWidth: '180px', maxHeight: '180px', objectFit: 'contain', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }} />
+                                            <button type="button" className="btn btn-danger btn-xs" onClick={handleRemoveScreenshot}>Remove Screenshot</button>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         ) : (
