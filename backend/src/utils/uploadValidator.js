@@ -1,16 +1,11 @@
 const ALLOWED_MIME_TYPES = [
     'application/pdf',
-    'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'application/vnd.ms-powerpoint',
-    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-    'application/vnd.ms-excel',
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     'image/jpeg',
-    'image/png'
+    'image/png',
+    'image/webp'
 ];
 
-const ALLOWED_EXTENSIONS = ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png'];
+const ALLOWED_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png', 'webp'];
 
 /**
  * Validates file structure, size, extension, and mime-type.
@@ -25,12 +20,12 @@ export const validateUploadedFile = (file) => {
     // Validate by extension
     const ext = file.originalname.split('.').pop().toLowerCase();
     if (!ALLOWED_EXTENSIONS.includes(ext)) {
-        return 'Unsupported file format. Allowed formats: PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX, JPG, JPEG, PNG.';
+        return 'Unsupported file type. Please upload only PDF or image files.';
     }
     
     // Validate by MIME type
     if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
-        return `Unsupported file type (MIME): ${file.mimetype}`;
+        return 'Unsupported file type. Please upload only PDF or image files.';
     }
     
     // Validate file size (100 MB limit)
