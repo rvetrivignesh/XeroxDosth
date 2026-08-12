@@ -94,6 +94,13 @@ export const mapShopForBackwardCompatibility = (shop) => {
 
 export const getMyShopApplication = async (userId) => {
     const shop = await Shop.findOne({ owner: userId }).sort({ createdAt: -1 });
+    if (shop) {
+        const user = await User.findById(userId);
+        if (user && user.role === 'SHOP' && shop.status !== 'APPROVED') {
+            shop.status = 'APPROVED';
+            await shop.save();
+        }
+    }
     return mapShopForBackwardCompatibility(shop);
 };
 
@@ -101,6 +108,11 @@ export const updateMyShopDetails = async (userId, updateData) => {
     const shop = await Shop.findOne({ owner: userId });
     if (!shop) {
         throw new ApiError(404, "Shop not found for this user");
+    }
+
+    const user = await User.findById(userId);
+    if (user && user.role === 'SHOP' && shop.status !== 'APPROVED') {
+        shop.status = 'APPROVED';
     }
 
     if (updateData.shopName) shop.shopName = updateData.shopName;
@@ -145,6 +157,12 @@ export const updateMyShopDetails = async (userId, updateData) => {
 
 export const getAllShops = async () => {
     const shops = await Shop.find().populate('owner', 'name email phone role').sort({ createdAt: -1 });
+    for (const shop of shops) {
+        if (shop.owner && shop.owner.role === 'SHOP' && shop.status !== 'APPROVED') {
+            shop.status = 'APPROVED';
+            await shop.save();
+        }
+    }
     return shops.map(mapShopForBackwardCompatibility);
 };
 
