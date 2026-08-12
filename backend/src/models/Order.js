@@ -25,6 +25,44 @@ const documentSchema = new mongoose.Schema(
             type: String,
             required: [true, 'mimeType is required'],
             trim: true
+        },
+        pageCount: {
+            type: Number,
+            default: 1
+        },
+        startPage: {
+            type: Number,
+            default: 1
+        },
+        lastPage: {
+            type: Number,
+            default: 1
+        },
+        bwPages: {
+            type: Number,
+            default: 0
+        },
+        colorPages: {
+            type: Number,
+            default: 0
+        },
+        colorPageNumbersText: {
+            type: String,
+            default: ''
+        },
+        copies: {
+            type: Number,
+            default: 1
+        },
+        printSide: {
+            type: String,
+            enum: ['SINGLE_SIDE', 'DOUBLE_SIDE'],
+            default: 'SINGLE_SIDE'
+        },
+        binding: {
+            type: String,
+            enum: ['NONE', 'SPIRAL', 'BOOK'],
+            default: 'NONE'
         }
     },
     { _id: false }
@@ -156,6 +194,11 @@ const orderSchema = new mongoose.Schema(
             default: 'PENDING_SHOP_ACCEPTANCE'
         },
         transactionId: {
+            type: String,
+            trim: true,
+            default: ''
+        },
+        paymentScreenshot: {
             type: String,
             trim: true,
             default: ''
