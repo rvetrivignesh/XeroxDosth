@@ -84,10 +84,11 @@ export const ApplyAdmin = () => {
                             <input
                                 id="phone"
                                 type="tel"
-                                placeholder="+91 9876543210"
+                                placeholder="e.g. 9876543210"
                                 value={phone}
-                                onChange={(e) => setPhone(e.target.value)}
+                                onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
                                 required
+                                maxLength={10}
                             />
                         </div>
                     </div>

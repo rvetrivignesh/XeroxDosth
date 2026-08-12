@@ -342,9 +342,11 @@ export const UpdateShop = () => {
                             <input
                                 id="phone"
                                 type="tel"
+                                placeholder="Enter 10-digit phone number"
                                 value={phone}
-                                onChange={(e) => setPhone(e.target.value)}
+                                onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
                                 required
+                                maxLength={10}
                             />
                         </div>
                     </div>
