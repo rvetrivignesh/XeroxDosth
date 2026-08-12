@@ -12,7 +12,6 @@ const detectPdfPages = async (file) => {
         const buffer = await slice.arrayBuffer();
         const text = new TextDecoder('ascii').decode(new Uint8Array(buffer));
         
-        // Match '/Type /Pages' structure or general '/Count'
         const pagesMatches = [...text.matchAll(/\/Type\s*\/Pages[\s\S]*?\/Count\s*(\d+)/gi)];
         if (pagesMatches.length > 0) {
             const counts = pagesMatches.map(m => parseInt(m[1], 10)).filter(c => !isNaN(c));
@@ -21,7 +20,6 @@ const detectPdfPages = async (file) => {
             }
         }
         
-        // Fallback: general /Count matcher
         const countMatches = [...text.matchAll(/\/Count\s*(\d+)/gi)];
         if (countMatches.length > 0) {
             const counts = countMatches.map(m => parseInt(m[1], 10)).filter(c => !isNaN(c) && c < 5000);
@@ -35,13 +33,22 @@ const detectPdfPages = async (file) => {
     return null;
 };
 
+const parseColorPageNumbers = (text) => {
+    if (!text || !text.trim()) return [];
+    return text.split(',')
+        .map(p => p.trim())
+        .filter(Boolean)
+        .map(p => parseInt(p, 10))
+        .filter(num => !isNaN(num));
+};
+
 export const PlaceOrder = () => {
     const { user } = useAuth();
     const { showToast } = useToast();
     const navigate = useNavigate();
     const location = useLocation();
 
-    // Stepper Wizard State
+    // Wizard Stepper State: Steps 1 to 5
     const [step, setStep] = useState(1);
     const [serviceType, setServiceType] = useState('PRINT'); // 'PRINT' | 'DELIVERY' | 'RECORD'
 
@@ -53,48 +60,38 @@ export const PlaceOrder = () => {
     const [files, setFiles] = useState([]);
     const [dragActive, setDragActive] = useState(false);
 
-    // Document and specs state
-    const [docPages, setDocPages] = useState(0); // Auto-populated or manual override
-    const [bwPages, setBwPages] = useState(0);
-    const [colorPages, setColorPages] = useState(0);
-    const [colorPageNumbersText, setColorPageNumbersText] = useState('');
-    const [copies, setCopies] = useState(1);
-    const [printSide, setPrintSide] = useState('SINGLE_SIDE');
-    const [binding, setBinding] = useState('NONE');
-    
-    // Fulfillment and Customer info
-    const [fulfillmentType, setFulfillmentType] = useState('PICKUP');
-    const [deliveryAddress, setDeliveryAddress] = useState('');
+    // Order-Level details
     const [customerContact, setCustomerContact] = useState('');
     const [customerEmail, setCustomerEmail] = useState('');
-    
-    // Record specific details
-    const [recordFromPage, setRecordFromPage] = useState(1);
-    const [recordPickupLocation, setRecordPickupLocation] = useState('');
-    const [recordPickupTime, setRecordPickupTime] = useState(() => {
-        const d = new Date();
-        d.setHours(d.getHours() + 2); // default pickup in 2 hours
-        return d.toISOString().slice(0, 16);
-    });
-    const [recordBindingType, setRecordBindingType] = useState('SPIRAL');
-    const [recordDeliveryOption, setRecordDeliveryOption] = useState('PICKUP');
-    const [recordDeliveryAddress, setRecordDeliveryAddress] = useState('');
-
-    // Default deadline: tomorrow at current time
+    const [instructions, setInstructions] = useState('');
     const [requiredBy, setRequiredBy] = useState(() => {
         const d = new Date();
         d.setDate(d.getDate() + 1);
         return d.toISOString().slice(0, 16);
     });
 
-    const [instructions, setInstructions] = useState('');
+    // Regular Print Fulfillment
+    const [fulfillmentType, setFulfillmentType] = useState('PICKUP');
+    const [deliveryAddress, setDeliveryAddress] = useState('');
+
+    // Record pickup & fulfillment details
+    const [recordPickupLocation, setRecordPickupLocation] = useState('');
+    const [recordPickupTime, setRecordPickupTime] = useState(() => {
+        const d = new Date();
+        d.setHours(d.getHours() + 2);
+        return d.toISOString().slice(0, 16);
+    });
+    const [recordBindingType, setRecordBindingType] = useState('SPIRAL');
+    const [recordDeliveryOption, setRecordDeliveryOption] = useState('PICKUP');
+    const [recordDeliveryAddress, setRecordDeliveryAddress] = useState('');
+
     const [loading, setLoading] = useState(false);
     const [loadingShops, setLoadingShops] = useState(true);
 
-    const ALLOWED_EXTENSIONS = ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png'];
+    const ALLOWED_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png', 'webp'];
     const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100 MB
 
-    // Pre-populate customerContact and customerEmail from logged-in user context
+    // Pre-populate user details
     useEffect(() => {
         if (user) {
             if (user.phone && !customerContact) {
@@ -106,7 +103,7 @@ export const PlaceOrder = () => {
         }
     }, [user, customerContact, customerEmail]);
 
-    // Fetch shops
+    // Fetch approved shops
     useEffect(() => {
         const fetchShops = async () => {
             try {
@@ -121,8 +118,7 @@ export const PlaceOrder = () => {
                     setShopId(queryShopId);
                     const found = list.find((s) => s._id === queryShopId);
                     setSelectedShop(found || null);
-                    // Automatically skip to details if shop selected via query params
-                    setStep(3);
+                    setStep(3); // skip straight to specifications config
                 } else if (list.length > 0) {
                     setShopId(list[0]._id);
                     setSelectedShop(list[0]);
@@ -137,7 +133,7 @@ export const PlaceOrder = () => {
         fetchShops();
     }, [location]);
 
-    // Keep fulfillment types in sync with shop capabilities
+    // Ensure fulfillment matches service type
     useEffect(() => {
         if (selectedShop) {
             if (serviceType === 'DELIVERY') {
@@ -148,120 +144,7 @@ export const PlaceOrder = () => {
         }
     }, [selectedShop, serviceType]);
 
-    // Sync colorPageNumbersText with colorPages count to trim excess numbers if colorPages is reduced
-    useEffect(() => {
-        if (!colorPageNumbersText.trim()) return;
-        const parts = colorPageNumbersText.split(',');
-        const pageNumbers = parts
-            .map((p) => parseInt(p.trim(), 10))
-            .filter((num) => !isNaN(num) && num >= 1 && num <= docPages);
-        
-        const uniquePages = [...new Set(pageNumbers)];
-        if (uniquePages.length > colorPages) {
-            const trimmed = uniquePages.slice(0, colorPages);
-            setColorPageNumbersText(trimmed.join(', '));
-        }
-    }, [colorPages, docPages, colorPageNumbersText]);
-
-    const handleColorPageNumbersChange = (val) => {
-        let sanitized = val.replace(/[^0-9,\s]/g, '');
-        const parts = sanitized.split(',');
-        const validated = [];
-        
-        for (let part of parts) {
-            const trimmed = part.trim();
-            if (!trimmed) {
-                validated.push('');
-                continue;
-            }
-            const num = parseInt(trimmed, 10);
-            if (isNaN(num)) continue;
-            
-            const capped = Math.min(docPages, Math.max(1, num));
-            const activeCount = validated.filter(p => p !== '').length;
-            if (activeCount >= colorPages) {
-                break;
-            }
-            validated.push(capped.toString());
-        }
-
-        const trailingComma = sanitized.endsWith(',') ? ',' : '';
-        const trailingSpace = sanitized.endsWith(' ') ? ' ' : '';
-        
-        const finalActiveCount = validated.filter(p => p !== '').length;
-        const finalComma = finalActiveCount >= colorPages ? '' : trailingComma;
-        const finalSpace = finalActiveCount >= colorPages ? '' : trailingSpace;
-
-        const joined = validated.filter((p, i) => p !== '' || i === validated.length - 1).join(', ');
-        setColorPageNumbersText(joined + finalComma + finalSpace);
-    };
-
-    const handleBwPagesChange = (val) => {
-        const num = Math.min(docPages, Math.max(0, Number(val)));
-        setBwPages(num);
-        setColorPages(docPages - num);
-    };
-
-    const handleColorPagesChange = (val) => {
-        const num = Math.min(docPages, Math.max(0, Number(val)));
-        setColorPages(num);
-        setBwPages(docPages - num);
-    };
-
-    const handleDocPagesChange = (val) => {
-        const num = Math.max(1, Number(val));
-        setDocPages(num);
-        const newColor = Math.min(colorPages, num);
-        setColorPages(newColor);
-        setBwPages(num - newColor);
-    };
-
-    // Calculate pages that will actually be printed
-    const pagesToPrint = useMemo(() => {
-        if (serviceType === 'RECORD') {
-            const startFrom = Number(recordFromPage || 1);
-            if (startFrom > 1 && docPages >= startFrom) {
-                return Math.max(0, docPages - startFrom + 1);
-            }
-            return docPages;
-        }
-        return docPages;
-    }, [docPages, recordFromPage, serviceType]);
-
-    // Calculate estimated cost
-    const estimatedCost = useMemo(() => {
-        if (!selectedShop || !selectedShop.pricing) return null;
-        const p = selectedShop.pricing;
-
-        let printedBw = bwPages;
-        let printedColor = colorPages;
-
-        if (serviceType === 'RECORD') {
-            const totalRemaining = pagesToPrint;
-            printedColor = Math.min(colorPages, totalRemaining);
-            printedBw = Math.max(0, totalRemaining - printedColor);
-        }
-
-        const bwCost = printedBw * (p.bwPerPage || 1);
-        const colorCost = printedColor * (p.colorPerPage || 5);
-        
-        let bindingCost = 0;
-        const activeBinding = serviceType === 'RECORD' ? recordBindingType : binding;
-        if (activeBinding === 'SPIRAL') bindingCost = p.spiralBinding || 30;
-        if (activeBinding === 'BOOK') bindingCost = p.bookBinding || 50;
-
-        const subtotal = (bwCost + colorCost + bindingCost) * Number(copies || 1);
-        
-        let deliveryCharge = 0;
-        const isDelivery = serviceType === 'RECORD' ? (recordDeliveryOption === 'DELIVERY') : (fulfillmentType === 'DELIVERY');
-        if (isDelivery && selectedShop.isDeliveryAvailable) {
-            deliveryCharge = 15;
-        }
-
-        return subtotal + deliveryCharge;
-    }, [selectedShop, bwPages, colorPages, copies, binding, fulfillmentType, serviceType, recordBindingType, recordDeliveryOption, pagesToPrint]);
-
-    // Shop listings filter
+    // Shop Listings filter
     const filteredShops = useMemo(() => {
         return shops.filter((shop) => {
             const matchesSearch = shop.shopName.toLowerCase().includes(shopSearch.toLowerCase()) ||
@@ -274,11 +157,11 @@ export const PlaceOrder = () => {
         });
     }, [shops, shopSearch, serviceType]);
 
-    // Drag-and-drop file helpers
+    // Drag-and-drop helpers
     const validateFile = (file) => {
         const ext = file.name.split('.').pop().toLowerCase();
         if (!ALLOWED_EXTENSIONS.includes(ext)) {
-            return `Unsupported file format. Allowed: ${ALLOWED_EXTENSIONS.join(', ').toUpperCase()}`;
+            return 'Unsupported file type. Please upload only PDF or image files.';
         }
         if (file.size > MAX_FILE_SIZE) {
             return 'File size exceeds the 100 MB limit.';
@@ -318,7 +201,7 @@ export const PlaceOrder = () => {
         } catch (err) {
             updateFileStatus(fileObj.id, {
                 status: 'failed',
-                error: err.message || 'Upload failed'
+                error: err.response?.data?.message || err.message || 'Upload failed'
             });
         }
     };
@@ -334,6 +217,7 @@ export const PlaceOrder = () => {
 
         incomingFiles.forEach(async (file, i) => {
             const error = validateFile(file);
+            const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
             
             const fileObj = {
                 id: Date.now() + i + Math.random(),
@@ -342,21 +226,49 @@ export const PlaceOrder = () => {
                 status: error ? 'failed' : 'pending',
                 error: error,
                 metadata: null,
-                pageCount: 0
+                
+                // Individual file print specifications
+                pageCount: 1, // Default to 1 (for images)
+                startPage: 1,
+                lastPage: 1,
+                bwPages: 1,
+                colorPages: 0,
+                colorPageNumbersText: '',
+                copies: 1,
+                printSide: 'SINGLE_SIDE',
+                binding: 'NONE',
+                isCollapsed: false // Expand initially for settings config
             };
             
             newFileObjects.push(fileObj);
 
-            if (!error && (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf'))) {
+            if (!error && isPdf) {
                 const detected = await detectPdfPages(file);
                 if (detected) {
-                    fileObj.pageCount = detected;
-                    setDocPages((prev) => {
-                        const newTotal = prev === 0 ? detected : prev + detected;
-                        setBwPages(newTotal);
-                        return newTotal;
-                    });
+                    setFiles(prev => prev.map(f => {
+                        if (f.id === fileObj.id) {
+                            return {
+                                ...f,
+                                pageCount: detected,
+                                lastPage: detected,
+                                bwPages: detected
+                            };
+                        }
+                        return f;
+                    }));
                     showToast(`Auto-detected ${detected} pages in PDF: ${file.name}`, 'success');
+                } else {
+                    setFiles(prev => prev.map(f => {
+                        if (f.id === fileObj.id) {
+                            return {
+                                ...f,
+                                pageCount: 1,
+                                lastPage: 1,
+                                bwPages: 1
+                            };
+                        }
+                        return f;
+                    }));
                 }
             }
         });
@@ -403,63 +315,139 @@ export const PlaceOrder = () => {
                 console.error('Failed to delete from Cloudinary:', err);
             }
         }
-        setFiles((prev) => {
-            const filtered = prev.filter((f) => f.id !== fileObj.id);
-            if (fileObj.pageCount) {
-                setDocPages((prevPages) => {
-                    const newTotal = Math.max(0, prevPages - fileObj.pageCount);
-                    setBwPages(newTotal);
-                    return newTotal;
-                });
-            }
-            return filtered;
-        });
+        setFiles((prev) => prev.filter((f) => f.id !== fileObj.id));
     };
 
     const handleRetryUpload = (fileObj) => {
         uploadSingleFile(fileObj);
     };
 
-    // Form submission
-    const handleSubmit = async (e) => {
-        e.preventDefault();
+    // File card validation helper
+    const getFileValidationError = (f) => {
+        if (f.status !== 'success') return null;
 
+        const start = Number(f.startPage || 1);
+        const last = Number(f.lastPage || 1);
+        const count = Number(f.pageCount || 1);
+        const copies = Number(f.copies || 1);
+
+        if (start < 1) return "Start page must be at least 1.";
+        if (last > count) return `Last page cannot exceed document total (${count}).`;
+        if (start > last) return "Start page cannot be greater than last page.";
+
+        const printedPages = last - start + 1;
+
+        if (f.colorPageNumbersText && f.colorPageNumbersText.trim()) {
+            const parts = f.colorPageNumbersText.split(',').map(p => p.trim());
+            const pageNumbers = [];
+            
+            for (const part of parts) {
+                if (!part) continue;
+                const num = parseInt(part, 10);
+                if (isNaN(num) || num.toString() !== part) {
+                    return `Invalid page number format: "${part}". Must be valid integers.`;
+                }
+                pageNumbers.push(num);
+            }
+
+            const uniquePages = [...new Set(pageNumbers)];
+            if (uniquePages.length !== pageNumbers.length) {
+                return "Duplicate color page numbers are not allowed.";
+            }
+
+            for (const num of pageNumbers) {
+                if (num < start || num > last) {
+                    return `Color page number ${num} is outside the selected print range [${start}-${last}].`;
+                }
+            }
+
+            if (pageNumbers.length > printedPages) {
+                return "Number of color pages exceeds total printed pages.";
+            }
+        }
+
+        if (copies < 1) return "Copies must be at least 1.";
+
+        return null;
+    };
+
+    // Verify all uploaded files configurations are valid
+    const isAllFilesValid = useMemo(() => {
+        const uploaded = files.filter(f => f.status === 'success');
+        if (uploaded.length === 0) return false;
+        
+        return files.every(f => {
+            if (f.status === 'failed') return false;
+            if (f.status === 'pending' || f.status === 'uploading') return false;
+            return getFileValidationError(f) === null;
+        });
+    }, [files]);
+
+    // Calculate dynamic cost estimates
+    const estimatedCost = useMemo(() => {
+        if (!selectedShop || !selectedShop.pricing) return 0;
+        const p = selectedShop.pricing;
+
+        let totalSubtotal = 0;
+        files.forEach(f => {
+            if (f.status !== 'success') return;
+            const bw = Number(f.bwPages || 0);
+            const color = Number(f.colorPages || 0);
+            const copies = Number(f.copies || 1);
+            
+            const bwCost = bw * (p.bwPerPage || 1);
+            const colorCost = color * (p.colorPerPage || 5);
+            
+            let fileBindingCost = 0;
+            if (f.binding === 'SPIRAL') fileBindingCost = p.spiralBinding || 30;
+            if (f.binding === 'BOOK') fileBindingCost = p.bookBinding || 50;
+            
+            totalSubtotal += (bwCost + colorCost + fileBindingCost) * copies;
+        });
+
+        let recordBindingCost = 0;
+        if (serviceType === 'RECORD') {
+            if (recordBindingType === 'SPIRAL') recordBindingCost = p.spiralBinding || 30;
+            if (recordBindingType === 'BOOK') recordBindingCost = p.bookBinding || 50;
+        }
+
+        let deliveryCharge = 0;
+        const isDelivery = serviceType === 'RECORD' ? (recordDeliveryOption === 'DELIVERY') : (fulfillmentType === 'DELIVERY');
+        if (isDelivery && selectedShop.isDeliveryAvailable) {
+            deliveryCharge = 15;
+        }
+
+        return totalSubtotal + recordBindingCost + deliveryCharge;
+    }, [files, selectedShop, serviceType, recordBindingType, recordDeliveryOption, fulfillmentType]);
+
+    // Handle Order Submission
+    const handlePlaceOrderSubmit = async () => {
         if (!shopId.trim()) {
             showToast('Please select a target shop', 'error');
             return;
         }
 
-        if (pagesToPrint < 1) {
-            showToast('Total pages to print must be at least 1', 'error');
-            return;
-        }
-
-        if (!customerContact.trim()) {
-            showToast('Please fill in your contact phone number', 'error');
-            return;
-        }
-
-        if (!customerEmail.trim()) {
-            showToast('Please fill in your email address', 'error');
-            return;
-        }
-
-        if (Number(bwPages) + Number(colorPages) !== Number(docPages)) {
-            showToast('The sum of Black & White and Color pages must strictly equal the Total Pages', 'error');
-            return;
-        }
-
-        const uploadedDocs = files
-            .filter((f) => f.status === 'success')
-            .map((f) => f.metadata);
-
+        const uploadedDocs = files.filter(f => f.status === 'success');
         if (uploadedDocs.length === 0) {
             showToast('Please upload at least 1 valid document', 'error');
             return;
         }
 
-        if (files.some((f) => f.status === 'uploading')) {
-            showToast('Please wait for all file uploads to finish', 'error');
+        for (const f of uploadedDocs) {
+            const err = getFileValidationError(f);
+            if (err) {
+                showToast(`Validation error in ${f.file.name}: ${err}`, 'error');
+                return;
+            }
+        }
+
+        if (!customerContact.trim() || customerContact.length !== 10) {
+            showToast('Please provide a valid 10-digit phone number', 'error');
+            return;
+        }
+
+        if (!customerEmail.trim()) {
+            showToast('Please provide your email address', 'error');
             return;
         }
 
@@ -486,14 +474,30 @@ export const PlaceOrder = () => {
 
         setLoading(true);
         try {
+            const documentsPayload = uploadedDocs.map(f => ({
+                publicId: f.metadata.publicId,
+                url: f.metadata.url,
+                originalName: f.metadata.originalName,
+                size: f.metadata.size,
+                mimeType: f.metadata.mimeType,
+                pageCount: Number(f.pageCount),
+                startPage: Number(f.startPage),
+                lastPage: Number(f.lastPage),
+                bwPages: Number(f.bwPages),
+                colorPages: Number(f.colorPages),
+                colorPageNumbersText: f.colorPageNumbersText,
+                copies: Number(f.copies),
+                printSide: f.printSide,
+                binding: f.binding
+            }));
+
             let finalInstructions = instructions;
             let finalFulfillment = fulfillmentType;
             let finalAddress = deliveryAddress.trim();
-            let finalBinding = binding;
+            let finalBinding = 'NONE';
 
             if (serviceType === 'RECORD') {
                 finalInstructions = `[Record Pickup & Binding]
-- Continue Printing from Page: ${recordFromPage}
 - Record Pickup Location: ${recordPickupLocation}
 - Record Pickup Time: ${new Date(recordPickupTime).toLocaleString()}
 - Delivery Option: ${recordDeliveryOption === 'DELIVERY' ? 'Home Delivery' : 'Self Pickup'}
@@ -502,15 +506,25 @@ export const PlaceOrder = () => {
                 finalFulfillment = recordDeliveryOption;
                 finalAddress = recordDeliveryOption === 'DELIVERY' ? recordDeliveryAddress.trim() : '';
                 finalBinding = recordBindingType;
+            } else {
+                const hasSpiral = documentsPayload.some(d => d.binding === 'SPIRAL');
+                const hasBook = documentsPayload.some(d => d.binding === 'BOOK');
+                if (hasSpiral) finalBinding = 'SPIRAL';
+                else if (hasBook) finalBinding = 'BOOK';
             }
+
+            const rootBw = documentsPayload.reduce((sum, d) => sum + d.bwPages * d.copies, 0);
+            const rootColor = documentsPayload.reduce((sum, d) => sum + d.colorPages * d.copies, 0);
+            const rootCopies = 1;
+            const rootPrintSide = documentsPayload[0]?.printSide || 'SINGLE_SIDE';
 
             const payload = {
                 shop: shopId.trim(),
-                documents: uploadedDocs,
-                bwPages: Number(bwPages),
-                colorPages: Number(colorPages),
-                copies: Number(copies),
-                printSide,
+                documents: documentsPayload,
+                bwPages: rootBw,
+                colorPages: rootColor,
+                copies: rootCopies,
+                printSide: rootPrintSide,
                 binding: finalBinding,
                 fulfillmentType: finalFulfillment,
                 deliveryAddress: finalAddress,
@@ -530,44 +544,57 @@ export const PlaceOrder = () => {
         }
     };
 
-    const renderStepper = () => (
-        <div className="stepper-indicator">
-            <button 
-                type="button" 
-                className={`step-node ${step >= 1 ? 'active' : ''} ${step > 1 ? 'completed' : ''}`}
-                onClick={() => step > 1 && setStep(1)}
-            >
-                <span className="step-number">{step > 1 ? '✓' : '1'}</span>
-                <span className="step-label">Service</span>
-            </button>
-            <div className="step-line"></div>
-            <button 
-                type="button" 
-                className={`step-node ${step >= 2 ? 'active' : ''} ${step > 2 ? 'completed' : ''}`}
-                disabled={step < 2}
-                onClick={() => step > 2 && setStep(2)}
-            >
-                <span className="step-number">{step > 2 ? '✓' : '2'}</span>
-                <span className="step-label">Shop</span>
-            </button>
-            <div className="step-line"></div>
-            <div className={`step-node ${step >= 3 ? 'active' : ''}`}>
-                <span className="step-number">3</span>
-                <span className="step-label">Details</span>
+    // Stepper wizard navigation renderer
+    const renderStepper = () => {
+        const stepLabels = [
+            'Service',
+            'Shop',
+            serviceType === 'RECORD' ? 'Print Details' : 'Configure Files',
+            serviceType === 'RECORD' ? 'Fulfillment' : 'Order Details',
+            'Review'
+        ];
+
+        return (
+            <div className="stepper-indicator">
+                {stepLabels.map((label, idx) => {
+                    const currentStepNum = idx + 1;
+                    const isActive = step >= currentStepNum;
+                    const isCompleted = step > currentStepNum;
+                    
+                    return (
+                        <React.Fragment key={idx}>
+                            <button 
+                                type="button" 
+                                className={`step-node ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''}`}
+                                onClick={() => {
+                                    if (currentStepNum < step) {
+                                        setStep(currentStepNum);
+                                    }
+                                }}
+                                disabled={currentStepNum >= step}
+                                style={{ cursor: currentStepNum < step ? 'pointer' : 'default' }}
+                            >
+                                <span className="step-number">{isCompleted ? '✓' : currentStepNum}</span>
+                                <span className="step-label">{label}</span>
+                            </button>
+                            {idx < stepLabels.length - 1 && <div className="step-line"></div>}
+                        </React.Fragment>
+                    );
+                })}
             </div>
-        </div>
-    );
+        );
+    };
 
     return (
-        <div className="page-container order-wizard-page">
+        <div className="order-wizard-page">
             {renderStepper()}
 
-            {/* STEP 1: Select Service */}
+            {/* STEP 1: Service Selection */}
             {step === 1 && (
-                <div className="step-container service-selection-step fade-in">
-                    <div className="step-header">
-                        <h2>Select Printing Service</h2>
-                        <p>Choose the method of printing that matches your needs.</p>
+                <div className="step-container service-step fade-in">
+                    <div className="step-header text-center" style={{ marginBottom: '2.5rem' }}>
+                        <h1>Select Xerox Service</h1>
+                        <p style={{ color: 'var(--text-secondary)' }}>Choose how you want to print or bind your documents.</p>
                     </div>
 
                     <div className="service-cards-grid">
@@ -575,13 +602,12 @@ export const PlaceOrder = () => {
                             className="service-card"
                             onClick={() => {
                                 setServiceType('PRINT');
-                                setFulfillmentType('PICKUP');
                                 setStep(2);
                             }}
                         >
-                            <div className="service-icon">📄</div>
-                            <h3>Print Documents</h3>
-                            <p>Upload digital files for printing. Collect the printed copy yourself from the selected shop.</p>
+                            <div className="service-icon">🖨️</div>
+                            <h3>Direct Printing</h3>
+                            <p>Upload files online, configure page properties, and collect printed sheets directly from the shop.</p>
                             <button type="button" className="btn btn-secondary btn-sm">Select Service</button>
                         </div>
 
@@ -589,7 +615,6 @@ export const PlaceOrder = () => {
                             className="service-card"
                             onClick={() => {
                                 setServiceType('DELIVERY');
-                                setFulfillmentType('DELIVERY');
                                 setStep(2);
                             }}
                         >
@@ -684,478 +709,698 @@ export const PlaceOrder = () => {
                 </div>
             )}
 
-            {/* STEP 3: Specifications & Summary */}
+            {/* STEP 3: File Configuration (Regular & Record) */}
             {step === 3 && (
                 <div className="step-container specs-step fade-in">
+                    <div className="step-header">
+                        <h2>
+                            {serviceType === 'RECORD' ? 'Step 1 — Upload Record PDF & Config' : 'Configure Printing Details'}
+                        </h2>
+                        <br />
+                    </div>
+
                     <div className="specs-layout-grid">
-                        
-                        {/* Specifications Form Column */}
-                        <div className="specs-form-container card">
-                            <div className="step-header">
-                                <h2>Configure Specifications</h2>
-                                <p>Provide details for: <strong>{selectedShop?.shopName}</strong></p>
+                        <div className="specs-form-container card" style={{ padding: '1.5rem' }}>
+                            {/* File Upload zone */}
+                            <div className="form-group">
+                                <label>Upload Files ({files.length}/10) *</label>
+                                <div
+                                    className={`upload-dropzone ${dragActive ? 'dragover' : ''}`}
+                                    onDragEnter={handleDrag}
+                                    onDragOver={handleDrag}
+                                    onDragLeave={handleDrag}
+                                    onDrop={handleDrop}
+                                    onClick={() => document.getElementById('file-input-browse').click()}
+                                >
+                                    <input
+                                        id="file-input-browse"
+                                        type="file"
+                                        multiple={serviceType !== 'RECORD'}
+                                        style={{ display: 'none' }}
+                                        onChange={handleFileSelect}
+                                        accept=".pdf,.jpg,.jpeg,.png,.webp"
+                                    />
+                                    <div className="upload-dropzone-icon">📥</div>
+                                    <div className="upload-dropzone-text">Drag & Drop files here or click to browse</div>
+                                    <button type="button" className="btn btn-secondary btn-xs" style={{ pointerEvents: 'none', marginTop: '0.5rem' }}>Browse Files</button>
+                                    <div className="upload-dropzone-subtext" style={{ marginTop: '0.5rem' }}>
+                                        PDF and Images (JPG, PNG, WEBP) only up to 100MB
+                                    </div>
+                                </div>
                             </div>
 
-                            <form onSubmit={handleSubmit} className="order-form">
-                                
-                                {/* A. PRINT DOCUMENT SPECIFIC FIELDS */}
-                                {(serviceType === 'PRINT' || serviceType === 'DELIVERY') && (
-                                    <>
-                                        {/* Drag and Drop File Input */}
-                                        <div className="form-group">
-                                            <label>Upload Documents ({files.length}/10) *</label>
-                                            <div
-                                                className={`upload-dropzone ${dragActive ? 'dragover' : ''}`}
-                                                onDragEnter={handleDrag}
-                                                onDragOver={handleDrag}
-                                                onDragLeave={handleDrag}
-                                                onDrop={handleDrop}
-                                                onClick={() => document.getElementById('file-input-browse').click()}
+                            {/* Collapsible File Configuration list */}
+                            {files.length > 0 && (
+                                <div style={{ marginBottom: '1.5rem' }}>
+                                    <label style={{ display: 'block', marginBottom: '0.75rem', fontWeight: 600 }}>Configure Files</label>
+                                    
+                                    {files.map((fileObj) => {
+                                        const validationError = getFileValidationError(fileObj);
+                                        const isImage = fileObj.file.type.startsWith('image/') || !fileObj.file.name.toLowerCase().endsWith('.pdf');
+                                        
+                                        return (
+                                            <div 
+                                                key={fileObj.id} 
+                                                className={`file-card-container ${validationError ? 'has-error' : ''}`}
                                             >
-                                                <input
-                                                    id="file-input-browse"
-                                                    type="file"
-                                                    multiple
-                                                    style={{ display: 'none' }}
-                                                    onChange={handleFileSelect}
-                                                    accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.jpg,.jpeg,.png"
-                                                />
-                                                <div className="upload-dropzone-icon">📥</div>
-                                                <div className="upload-dropzone-text">Drag & Drop files here or click to browse</div>
-                                                <button type="button" className="btn btn-secondary btn-xs" style={{ pointerEvents: 'none', marginTop: '0.5rem', marginBottom: '0.25rem' }}>Browse Files</button>
-                                                <div className="upload-dropzone-subtext">
-                                                    PDF, Word, Slides, Sheets, Images up to 100MB
-                                                </div>
-                                            </div>
-
-                                            {/* File List Queue */}
-                                            {files.length > 0 && (
-                                                <div className="file-list">
-                                                    {files.map((fileObj) => {
-                                                        const isImage = fileObj.file.type.startsWith('image/');
-                                                        const ext = fileObj.file.name.split('.').pop().toLowerCase();
-                                                        return (
-                                                            <div key={fileObj.id} className="file-item-card">
-                                                                <div className="file-item-info">
-                                                                    <div className="file-item-preview">
-                                                                        {isImage ? (
-                                                                            <img src={URL.createObjectURL(fileObj.file)} alt="preview" />
-                                                                        ) : (
-                                                                            <span>
-                                                                                {ext === 'pdf' ? '📕' : 
-                                                                                 ['doc', 'docx'].includes(ext) ? '📘' : '📄'}
-                                                                            </span>
-                                                                        )}
-                                                                    </div>
-                                                                    <div className="file-item-meta">
-                                                                        <div className="file-item-name" title={fileObj.file.name}>
-                                                                            {fileObj.file.name}
-                                                                        </div>
-                                                                        <div className="file-item-size-status">
-                                                                            <span>{(fileObj.file.size / (1024 * 1024)).toFixed(2)} MB</span>
-                                                                            <span className={`file-status-tag ${fileObj.status}`}>
-                                                                                {fileObj.status.toUpperCase()}
-                                                                            </span>
-                                                                        </div>
-                                                                        {fileObj.status === 'uploading' && (
-                                                                            <div className="file-progress-bar-container">
-                                                                                <div className="file-progress-bar" style={{ width: `${fileObj.progress}%` }}></div>
-                                                                            </div>
-                                                                        )}
-                                                                        {fileObj.error && (
-                                                                            <div className="error-message-text">{fileObj.error}</div>
-                                                                        )}
-                                                                    </div>
-                                                                </div>
-                                                                <div className="file-item-actions">
-                                                                    {fileObj.status === 'failed' && (
-                                                                        <button type="button" className="btn btn-secondary btn-xs" onClick={() => handleRetryUpload(fileObj)}>Retry</button>
-                                                                    )}
-                                                                    <button type="button" className="remove-doc-btn" onClick={() => handleRemoveFile(fileObj)}>Remove</button>
-                                                                </div>
+                                                {/* Header (Collapsed View) */}
+                                                <div 
+                                                    className="file-card-header"
+                                                    onClick={() => updateFileStatus(fileObj.id, { isCollapsed: !fileObj.isCollapsed })}
+                                                >
+                                                    <div className="file-card-header-left">
+                                                        <span>{isImage ? '🖼️' : '📕'}</span>
+                                                        <div style={{ minWidth: 0 }}>
+                                                            <div className="file-card-name-sec" title={fileObj.file.name}>{fileObj.file.name}</div>
+                                                            <div className="file-card-summary-sec">
+                                                                {fileObj.status === 'success' ? (
+                                                                    <span>
+                                                                        {fileObj.pageCount} pg(s) • Pages {fileObj.startPage}-{fileObj.lastPage} • {fileObj.bwPages} B&W / {fileObj.colorPages} Color • {fileObj.copies} copy(ies) • {fileObj.printSide === 'SINGLE_SIDE' ? 'Single' : 'Double'} • Binding: {fileObj.binding}
+                                                                    </span>
+                                                                ) : (
+                                                                    <span style={{ textTransform: 'uppercase', fontWeight: 600, color: fileObj.status === 'failed' ? '#ef4444' : 'var(--text-muted)' }}>
+                                                                        {fileObj.status} {fileObj.progress > 0 && fileObj.status === 'uploading' ? `(${fileObj.progress}%)` : ''}
+                                                                    </span>
+                                                                )}
                                                             </div>
-                                                        );
-                                                    })}
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div className="file-card-header-right" onClick={(e) => e.stopPropagation()}>
+                                                        <button 
+                                                            type="button" 
+                                                            className="btn btn-secondary btn-xs"
+                                                            onClick={() => updateFileStatus(fileObj.id, { isCollapsed: !fileObj.isCollapsed })}
+                                                        >
+                                                            {fileObj.isCollapsed ? 'Expand ⚙️' : 'Collapse ▴'}
+                                                        </button>
+                                                        <button 
+                                                            type="button" 
+                                                            className="btn btn-danger btn-xs" 
+                                                            style={{ backgroundColor: '#fee2e2', color: '#ef4444', border: '1px solid #fca5a5' }}
+                                                            onClick={() => handleRemoveFile(fileObj)}
+                                                        >
+                                                            Remove 🗑️
+                                                        </button>
+                                                    </div>
                                                 </div>
-                                            )}
-                                        </div>
 
-                                        {/* Total Pages override and Color Calculations */}
+                                                {/* Error banner */}
+                                                {validationError && (
+                                                    <div className="file-card-error-banner">
+                                                        ⚠️ {validationError}
+                                                    </div>
+                                                )}
+
+                                                {/* Body (Expanded View) */}
+                                                {!fileObj.isCollapsed && fileObj.status === 'success' && (
+                                                    <div className="file-card-body">
+                                                        {/* 1. Page Print Range */}
+                                                        <div className="form-row" style={{ marginBottom: '1.25rem' }}>
+                                                            <div className="form-group" style={{ marginBottom: 0 }}>
+                                                                <label style={{ fontSize: '0.85rem' }}>Start Page</label>
+                                                                <input 
+                                                                    type="number" 
+                                                                    min={1} 
+                                                                    max={fileObj.pageCount}
+                                                                    value={fileObj.startPage}
+                                                                    onChange={(e) => {
+                                                                        const startVal = Math.max(1, Number(e.target.value));
+                                                                        const rangeSize = fileObj.lastPage - startVal + 1;
+                                                                        const colorNumbers = parseColorPageNumbers(fileObj.colorPageNumbersText);
+                                                                        const colorCount = colorNumbers.length;
+                                                                        const bwCount = Math.max(0, rangeSize - colorCount);
+                                                                        updateFileStatus(fileObj.id, { 
+                                                                            startPage: startVal,
+                                                                            bwPages: bwCount,
+                                                                            colorPages: colorCount
+                                                                        });
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                            <div className="form-group" style={{ marginBottom: 0 }}>
+                                                                <label style={{ fontSize: '0.85rem' }}>Last Page</label>
+                                                                <input 
+                                                                    type="number" 
+                                                                    min={1} 
+                                                                    max={fileObj.pageCount}
+                                                                    value={fileObj.lastPage}
+                                                                    onChange={(e) => {
+                                                                        const lastVal = Math.max(1, Number(e.target.value));
+                                                                        const rangeSize = lastVal - fileObj.startPage + 1;
+                                                                        const colorNumbers = parseColorPageNumbers(fileObj.colorPageNumbersText);
+                                                                        const colorCount = colorNumbers.length;
+                                                                        const bwCount = Math.max(0, rangeSize - colorCount);
+                                                                        updateFileStatus(fileObj.id, { 
+                                                                            lastPage: lastVal,
+                                                                            bwPages: bwCount,
+                                                                            colorPages: colorCount
+                                                                        });
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
+                                                            Total pages in document: <strong>{fileObj.pageCount}</strong>
+                                                        </div>
+
+                                                        {/* 2. Color Settings & Page Numbers */}
+                                                        <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+                                                            <label style={{ fontSize: '0.85rem' }}>Color Page Numbers (Optional)</label>
+                                                            <input 
+                                                                type="text" 
+                                                                placeholder="e.g. 5, 12, 27"
+                                                                value={fileObj.colorPageNumbersText}
+                                                                onChange={(e) => {
+                                                                    const text = e.target.value;
+                                                                    const rangeSize = fileObj.lastPage - fileObj.startPage + 1;
+                                                                    const colorNumbers = parseColorPageNumbers(text);
+                                                                    const colorCount = colorNumbers.length;
+                                                                    const bwCount = Math.max(0, rangeSize - colorCount);
+                                                                    
+                                                                    updateFileStatus(fileObj.id, { 
+                                                                        colorPageNumbersText: text,
+                                                                        colorPages: colorCount,
+                                                                        bwPages: bwCount
+                                                                    });
+                                                                }}
+                                                            />
+                                                            <small className="field-help" style={{ fontSize: '0.75rem' }}>
+                                                                Specify page numbers separated by commas. Leave empty for B&W only.
+                                                            </small>
+                                                        </div>
+
+                                                        <div className="form-row" style={{ marginBottom: '1.25rem' }}>
+                                                            <div className="form-group" style={{ marginBottom: 0 }}>
+                                                                <label style={{ fontSize: '0.85rem' }}>B&W Pages (Auto Calculated)</label>
+                                                                <input 
+                                                                    type="number"
+                                                                    readOnly
+                                                                    value={fileObj.bwPages}
+                                                                    style={{ backgroundColor: 'var(--bg-input)', cursor: 'not-allowed' }}
+                                                                />
+                                                            </div>
+                                                            <div className="form-group" style={{ marginBottom: 0 }}>
+                                                                <label style={{ fontSize: '0.85rem' }}>Color Pages (Auto Calculated)</label>
+                                                                <input 
+                                                                    type="number"
+                                                                    readOnly
+                                                                    value={fileObj.colorPages}
+                                                                    style={{ backgroundColor: 'var(--bg-input)', cursor: 'not-allowed' }}
+                                                                />
+                                                            </div>
+                                                        </div>
+
+                                                        {/* 3. General Print Configs */}
+                                                        <div className="form-row" style={{ marginBottom: 0 }}>
+                                                            <div className="form-group" style={{ marginBottom: 0 }}>
+                                                                <label style={{ fontSize: '0.85rem' }}>Copies</label>
+                                                                <input 
+                                                                    type="number" 
+                                                                    min={1} 
+                                                                    value={fileObj.copies}
+                                                                    onChange={(e) => updateFileStatus(fileObj.id, { copies: Math.max(1, Number(e.target.value)) })}
+                                                                />
+                                                            </div>
+                                                            <div className="form-group" style={{ marginBottom: 0 }}>
+                                                                <label style={{ fontSize: '0.85rem' }}>Print Side</label>
+                                                                <select 
+                                                                    value={fileObj.printSide}
+                                                                    onChange={(e) => updateFileStatus(fileObj.id, { printSide: e.target.value })}
+                                                                >
+                                                                    <option value="SINGLE_SIDE">Single-Sided</option>
+                                                                    <option value="DOUBLE_SIDE">Double-Sided</option>
+                                                                </select>
+                                                            </div>
+                                                            <div className="form-group" style={{ marginBottom: 0 }}>
+                                                                <label style={{ fontSize: '0.85rem' }}>Binding</label>
+                                                                <select 
+                                                                    value={fileObj.binding}
+                                                                    onChange={(e) => updateFileStatus(fileObj.id, { binding: e.target.value })}
+                                                                >
+                                                                    <option value="NONE">None</option>
+                                                                    <option value="SPIRAL">Spiral Binding</option>
+                                                                    <option value="BOOK">Book Binding</option>
+                                                                </select>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+
+                            {/* Additional fields for Record Pickup (Step 1 fields) */}
+                            {serviceType === 'RECORD' && (
+                                <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem', marginTop: '1.5rem' }}>
+                                    <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem' }}>Record Pickup Details</h3>
+                                    
+                                    <div className="form-group">
+                                        <label htmlFor="recordPickupLocation">Physical Record Pickup Location *</label>
+                                        <input
+                                            id="recordPickupLocation"
+                                            type="text"
+                                            placeholder="e.g. Hostel 3, Room 102"
+                                            value={recordPickupLocation}
+                                            onChange={(e) => setRecordPickupLocation(e.target.value)}
+                                            required
+                                        />
+                                    </div>
+
+                                    <div className="form-row">
                                         <div className="form-group">
-                                            <label htmlFor="docPages">Total Pages (Detected/Manual) *</label>
+                                            <label htmlFor="recordPickupTime">Preferred Pickup Time *</label>
                                             <input
-                                                id="docPages"
-                                                type="number"
-                                                min={1}
-                                                value={docPages}
-                                                onChange={(e) => handleDocPagesChange(e.target.value)}
+                                                id="recordPickupTime"
+                                                type="datetime-local"
+                                                value={recordPickupTime}
+                                                onChange={(e) => setRecordPickupTime(e.target.value)}
                                                 required
                                             />
                                         </div>
-
-                                        <div className="form-row">
-                                            <div className="form-group">
-                                                <label htmlFor="bwPages">B&W Pages</label>
-                                                <input
-                                                    id="bwPages"
-                                                    type="number"
-                                                    min={0}
-                                                    value={bwPages}
-                                                    onChange={(e) => handleBwPagesChange(e.target.value)}
-                                                />
-                                            </div>
-                                            <div className="form-group">
-                                                <label htmlFor="colorPages">Color Pages</label>
-                                                <input
-                                                    id="colorPages"
-                                                    type="number"
-                                                    min={0}
-                                                    value={colorPages}
-                                                    onChange={(e) => handleColorPagesChange(e.target.value)}
-                                                />
-                                            </div>
-                                        </div>
-
                                         <div className="form-group">
-                                            <label htmlFor="colorPageNumbersText">Specific Color Page Numbers (Optional)</label>
-                                            <input
-                                                id="colorPageNumbersText"
-                                                type="text"
-                                                placeholder="e.g. 1, 5, 8, 12"
-                                                value={colorPageNumbersText}
-                                                onChange={(e) => handleColorPageNumbersChange(e.target.value)}
-                                            />
-                                        </div>
-
-                                        {/* Printing Options */}
-                                        <div className="form-row">
-                                            <div className="form-group">
-                                                <label htmlFor="copies">Number of Copies *</label>
-                                                <input
-                                                    id="copies"
-                                                    type="number"
-                                                    min={1}
-                                                    value={copies}
-                                                    onChange={(e) => setCopies(e.target.value)}
-                                                    required
-                                                />
-                                            </div>
-                                            <div className="form-group">
-                                                <label htmlFor="printSide">Print Side *</label>
-                                                <select id="printSide" value={printSide} onChange={(e) => setPrintSide(e.target.value)}>
-                                                    <option value="SINGLE_SIDE">Single Sided</option>
-                                                    <option value="DOUBLE_SIDE">Double Sided</option>
-                                                </select>
-                                            </div>
-                                            <div className="form-group">
-                                                <label htmlFor="binding">Binding option *</label>
-                                                <select id="binding" value={binding} onChange={(e) => setBinding(e.target.value)}>
-                                                    <option value="NONE">None</option>
-                                                    <option value="SPIRAL">Spiral Binding</option>
-                                                    <option value="BOOK">Book Binding</option>
-                                                </select>
-                                            </div>
-                                        </div>
-
-                                        {/* Delivery/Fulfillment */}
-                                        {serviceType === 'DELIVERY' && (
-                                            <div className="form-group delivery-input-block">
-                                                <label htmlFor="deliveryAddress">Hostel / Room Delivery Address *</label>
-                                                <textarea
-                                                    id="deliveryAddress"
-                                                    rows={2}
-                                                    placeholder="Specify building name, room number, floor..."
-                                                    value={deliveryAddress}
-                                                    onChange={(e) => setDeliveryAddress(e.target.value)}
-                                                    required
-                                                />
-                                            </div>
-                                        )}
-                                    </>
-                                )}
-
-                                {/* B. RECORD PICKUP & BINDING SPECIFIC FIELDS */}
-                                {serviceType === 'RECORD' && (
-                                    <>
-                                        <div className="form-group">
-                                            <label>Upload PDF for Remaining Sheets *</label>
-                                            <div
-                                                className={`upload-dropzone ${dragActive ? 'dragover' : ''}`}
-                                                onDragEnter={handleDrag}
-                                                onDragOver={handleDrag}
-                                                onDragLeave={handleDrag}
-                                                onDrop={handleDrop}
-                                                onClick={() => document.getElementById('file-input-browse').click()}
+                                            <label htmlFor="recordBindingType">Record Binding Selection *</label>
+                                            <select 
+                                                id="recordBindingType" 
+                                                value={recordBindingType} 
+                                                onChange={(e) => setRecordBindingType(e.target.value)}
                                             >
-                                                <input
-                                                    id="file-input-browse"
-                                                    type="file"
-                                                    style={{ display: 'none' }}
-                                                    onChange={handleFileSelect}
-                                                    accept=".pdf"
-                                                />
-                                                <div className="upload-dropzone-icon">📓</div>
-                                                <div className="upload-dropzone-text">Drag & Drop record PDF file here</div>
-                                                <button type="button" className="btn btn-secondary btn-xs" style={{ pointerEvents: 'none', marginTop: '0.5rem', marginBottom: '0.25rem' }}>Browse Files</button>
-                                            </div>
-
-                                            {files.length > 0 && (
-                                                <div className="file-list">
-                                                    {files.map((fileObj) => (
-                                                        <div key={fileObj.id} className="file-item-card">
-                                                            <div className="file-item-info">
-                                                                <span className="file-item-preview">📕</span>
-                                                                <div className="file-item-meta">
-                                                                    <div className="file-item-name">{fileObj.file.name}</div>
-                                                                    <div className="file-item-size-status">
-                                                                        <span>{(fileObj.file.size / (1024 * 1024)).toFixed(2)} MB</span>
-                                                                        <span className={`file-status-tag ${fileObj.status}`}>{fileObj.status}</span>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                            <button type="button" className="remove-doc-btn" onClick={() => handleRemoveFile(fileObj)}>Remove</button>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
+                                                <option value="SPIRAL">Spiral Binding</option>
+                                                <option value="BOOK">Book Binding</option>
+                                            </select>
                                         </div>
-
-                                        <div className="form-row">
-                                            <div className="form-group">
-                                                <label htmlFor="docPages">Total Pages in PDF *</label>
-                                                <input
-                                                    id="docPages"
-                                                    type="number"
-                                                    min={1}
-                                                    value={docPages}
-                                                    onChange={(e) => handleDocPagesChange(e.target.value)}
-                                                    required
-                                                />
-                                            </div>
-                                            <div className="form-group">
-                                                <label htmlFor="recordFromPage">Continue Printing from Page *</label>
-                                                <input
-                                                    id="recordFromPage"
-                                                    type="number"
-                                                    min={1}
-                                                    value={recordFromPage}
-                                                    onChange={(e) => setRecordFromPage(Math.max(1, Number(e.target.value)))}
-                                                    required
-                                                />
-                                                <small className="field-help">We print from this page to end of PDF.</small>
-                                            </div>
-                                        </div>
-
-                                        <div className="form-row">
-                                            <div className="form-group">
-                                                <label htmlFor="recordPickupLocation">Record Pickup Location *</label>
-                                                <input
-                                                    id="recordPickupLocation"
-                                                    type="text"
-                                                    placeholder="e.g. Hostel 4, Room 302"
-                                                    value={recordPickupLocation}
-                                                    onChange={(e) => setRecordPickupLocation(e.target.value)}
-                                                    required
-                                                />
-                                            </div>
-                                            <div className="form-group">
-                                                <label htmlFor="recordPickupTime">Preferred Pickup Time *</label>
-                                                <input
-                                                    id="recordPickupTime"
-                                                    type="datetime-local"
-                                                    value={recordPickupTime}
-                                                    onChange={(e) => setRecordPickupTime(e.target.value)}
-                                                    required
-                                                />
-                                            </div>
-                                        </div>
-
-                                        <div className="form-row">
-                                            <div className="form-group">
-                                                <label htmlFor="recordBindingType">Binding Type *</label>
-                                                <select id="recordBindingType" value={recordBindingType} onChange={(e) => setRecordBindingType(e.target.value)}>
-                                                    <option value="SPIRAL">Spiral Binding</option>
-                                                    <option value="BOOK">Book Binding</option>
-                                                </select>
-                                            </div>
-                                            <div className="form-group">
-                                                <label htmlFor="recordDeliveryOption">Final Delivery Option *</label>
-                                                <select id="recordDeliveryOption" value={recordDeliveryOption} onChange={(e) => setRecordDeliveryOption(e.target.value)}>
-                                                    <option value="PICKUP">Self Pickup from Shop</option>
-                                                    <option value="DELIVERY">Delivery to Location</option>
-                                                </select>
-                                            </div>
-                                        </div>
-
-                                        {recordDeliveryOption === 'DELIVERY' && (
-                                            <div className="form-group">
-                                                <label htmlFor="recordDeliveryAddress">Delivery Address *</label>
-                                                <textarea
-                                                    id="recordDeliveryAddress"
-                                                    rows={2}
-                                                    placeholder="Specify building name, room number..."
-                                                    value={recordDeliveryAddress}
-                                                    onChange={(e) => setRecordDeliveryAddress(e.target.value)}
-                                                    required
-                                                />
-                                            </div>
-                                        )}
-                                    </>
-                                )}
-
-                                {/* Common inputs (Contact, Deadline, Instructions) */}
-                                <div className="form-row">
-                                    <div className="form-group">
-                                        <label htmlFor="customerContact">Your Phone Number *</label>
-                                        <input
-                                            id="customerContact"
-                                            type="tel"
-                                            placeholder="Enter phone number"
-                                            value={customerContact}
-                                            onChange={(e) => setCustomerContact(e.target.value)}
-                                            required
-                                        />
-                                    </div>
-                                    <div className="form-group">
-                                        <label htmlFor="customerEmail">Your Email Address *</label>
-                                        <input
-                                            id="customerEmail"
-                                            type="email"
-                                            placeholder="Enter email address"
-                                            value={customerEmail}
-                                            onChange={(e) => setCustomerEmail(e.target.value)}
-                                            required
-                                        />
                                     </div>
                                 </div>
-                                <div className="form-row">
-                                    <div className="form-group deadline-row-full">
-                                        <label htmlFor="requiredBy">Required Completion Deadline *</label>
-                                        <input
-                                            id="requiredBy"
-                                            type="datetime-local"
-                                            value={requiredBy}
-                                            onChange={(e) => setRequiredBy(e.target.value)}
-                                            required
-                                        />
-                                    </div>
-                                </div>
+                            )}
 
-                                <div className="form-group">
-                                    <label htmlFor="instructions">Special Instructions (Optional)</label>
-                                    <textarea
-                                        id="instructions"
-                                        rows={2}
-                                        placeholder="e.g. Single sided print, specific page requests..."
-                                        value={instructions}
-                                        onChange={(e) => setInstructions(e.target.value)}
-                                    />
-                                </div>
-
-                                <div className="specs-actions">
-                                    <button type="button" className="btn btn-secondary" onClick={() => setStep(2)}>
-                                        Back to Step 2
-                                    </button>
-                                    <button type="submit" className="btn btn-primary" disabled={loading}>
-                                        {loading ? <div className="spinner"></div> : 'Place Order'}
-                                    </button>
-                                </div>
-
-                            </form>
+                            <div className="specs-actions" style={{ marginTop: '2rem' }}>
+                                <button type="button" className="btn btn-secondary" onClick={() => setStep(2)}>
+                                    ← Back
+                                </button>
+                                <button 
+                                    type="button" 
+                                    className="btn btn-primary"
+                                    onClick={() => setStep(4)}
+                                    disabled={
+                                        files.length === 0 || 
+                                        !isAllFilesValid || 
+                                        (serviceType === 'RECORD' && !recordPickupLocation.trim())
+                                    }
+                                >
+                                    Continue →
+                                </button>
+                            </div>
                         </div>
 
-                        {/* Sticky Order Summary Column (Desktop) */}
+                        {/* Cost estimates sidebar */}
                         <div className="summary-sidebar-container">
                             <div className="summary-sidebar card">
-                                <h3>Order Summary</h3>
+                                <h3>Price Summary</h3>
                                 <hr />
                                 <div className="summary-details">
                                     <div className="summary-row">
-                                        <span>Service Type</span>
-                                        <strong>
-                                            {serviceType === 'PRINT' && 'Print Documents'}
-                                            {serviceType === 'DELIVERY' && 'Home Delivery'}
-                                            {serviceType === 'RECORD' && 'Record Binding'}
-                                        </strong>
+                                        <span>Uploaded files</span>
+                                        <strong>{files.length}</strong>
                                     </div>
                                     <div className="summary-row">
-                                        <span>Xerox Shop</span>
-                                        <strong>{selectedShop?.shopName || 'N/A'}</strong>
-                                    </div>
-
-                                    {serviceType === 'RECORD' ? (
-                                        <>
-                                            <div className="summary-row">
-                                                <span>PDF Total Pages</span>
-                                                <strong>{docPages} pages</strong>
-                                            </div>
-                                            <div className="summary-row">
-                                                <span>Print From Page</span>
-                                                <strong>{recordFromPage}</strong>
-                                            </div>
-                                            <div className="summary-row">
-                                                <span>Pages to Print</span>
-                                                <strong>{pagesToPrint} pages</strong>
-                                            </div>
-                                            <div className="summary-row">
-                                                <span>Binding Choice</span>
-                                                <strong>{recordBindingType}</strong>
-                                            </div>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <div className="summary-row">
-                                                <span>Total Pages</span>
-                                                <strong>{docPages} pages</strong>
-                                            </div>
-                                            <div className="summary-row">
-                                                <span>B&W Pages</span>
-                                                <strong>{bwPages} pages</strong>
-                                            </div>
-                                            <div className="summary-row">
-                                                <span>Color Pages</span>
-                                                <strong>{colorPages} pages</strong>
-                                            </div>
-                                            <div className="summary-row">
-                                                <span>Copies</span>
-                                                <strong>{copies} copies</strong>
-                                            </div>
-                                            <div className="summary-row">
-                                                <span>Binding Option</span>
-                                                <strong>{binding}</strong>
-                                            </div>
-                                        </>
-                                    )}
-
-                                    <div className="summary-row">
-                                        <span>Fulfillment Option</span>
-                                        <strong>
-                                            {serviceType === 'RECORD' 
-                                                ? (recordDeliveryOption === 'DELIVERY' ? 'Hostel Delivery' : 'Pickup')
-                                                : (fulfillmentType === 'DELIVERY' ? 'Hostel Delivery' : 'Self Pickup')
-                                            }
-                                        </strong>
-                                    </div>
-
-                                    <div className="summary-row documents-preview-row">
-                                        <span>Documents</span>
-                                        <div className="summary-docs-list">
-                                            {files.length > 0 ? (
-                                                files.map(f => <div key={f.id} className="summary-doc-tag">📄 {f.file.name}</div>)
-                                            ) : (
-                                                <span className="no-docs-tag">No documents uploaded</span>
-                                            )}
-                                        </div>
+                                        <span>Fulfillment Capability</span>
+                                        <strong>{selectedShop?.isDeliveryAvailable ? 'Delivery available' : 'Pickup only'}</strong>
                                     </div>
                                 </div>
-
                                 <div className="summary-price-box">
                                     <span>Estimated Cost</span>
                                     <div className="price-tag">₹{estimatedCost || 0}</div>
                                 </div>
                             </div>
                         </div>
+                    </div>
+                </div>
+            )}
 
+            {/* STEP 4: Fulfillment / Order Details (Regular & Record) */}
+            {step === 4 && (
+                <div className="step-container specs-step fade-in">
+                    <div className="step-header">
+                        <h2>
+                            {serviceType === 'RECORD' ? 'Step 2 — Pickup / Delivery' : 'Order Details & Fulfillment'}
+                        </h2>
+                        <p>Complete your contact and delivery preferences.</p>
+                    </div>
+
+                    <div className="specs-layout-grid">
+                        <div className="specs-form-container card" style={{ padding: '1.5rem' }}>
+                            {/* Fulfillment selector */}
+                            {serviceType === 'RECORD' ? (
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label htmlFor="recordDeliveryOption">Fulfillment Method *</label>
+                                        <select 
+                                            id="recordDeliveryOption" 
+                                            value={recordDeliveryOption} 
+                                            onChange={(e) => setRecordDeliveryOption(e.target.value)}
+                                        >
+                                            <option value="PICKUP">Self Pickup from Shop</option>
+                                            <option value="DELIVERY">Delivery to Location</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="form-row">
+                                    <div className="form-group">
+                                        <label htmlFor="fulfillmentType">Fulfillment Method *</label>
+                                        <select 
+                                            id="fulfillmentType" 
+                                            value={fulfillmentType} 
+                                            onChange={(e) => setFulfillmentType(e.target.value)}
+                                            disabled={serviceType === 'DELIVERY'}
+                                        >
+                                            <option value="PICKUP">Self Pickup from Shop</option>
+                                            {selectedShop?.isDeliveryAvailable && (
+                                                <option value="DELIVERY">Hostel/Room Delivery</option>
+                                            )}
+                                        </select>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Delivery Address block */}
+                            {serviceType === 'RECORD' ? (
+                                recordDeliveryOption === 'DELIVERY' && (
+                                    <div className="form-group">
+                                        <label htmlFor="recordDeliveryAddress">Hostel / Room Delivery Address *</label>
+                                        <textarea
+                                            id="recordDeliveryAddress"
+                                            rows={2}
+                                            placeholder="Specify hostel block, room number, floor..."
+                                            value={recordDeliveryAddress}
+                                            onChange={(e) => setRecordDeliveryAddress(e.target.value)}
+                                            required
+                                        />
+                                    </div>
+                                )
+                            ) : (
+                                fulfillmentType === 'DELIVERY' && (
+                                    <div className="form-group">
+                                        <label htmlFor="deliveryAddress">Hostel / Room Delivery Address *</label>
+                                        <textarea
+                                            id="deliveryAddress"
+                                            rows={2}
+                                            placeholder="Specify hostel block, room number, floor..."
+                                            value={deliveryAddress}
+                                            onChange={(e) => setDeliveryAddress(e.target.value)}
+                                            required
+                                        />
+                                    </div>
+                                )
+                            )}
+
+                            {/* Contact Details */}
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label htmlFor="customerContact">Your Phone Number *</label>
+                                    <input
+                                        id="customerContact"
+                                        type="tel"
+                                        placeholder="10-digit number"
+                                        value={customerContact}
+                                        onChange={(e) => setCustomerContact(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                                        required
+                                        maxLength={10}
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label htmlFor="customerEmail">Your Email Address *</label>
+                                    <input
+                                        id="customerEmail"
+                                        type="email"
+                                        placeholder="Enter email address"
+                                        value={customerEmail}
+                                        onChange={(e) => setCustomerEmail(e.target.value)}
+                                        required
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Deadline Picker */}
+                            <div className="form-row">
+                                <div className="form-group deadline-row-full">
+                                    <label htmlFor="requiredBy">Required Completion Deadline *</label>
+                                    <input
+                                        id="requiredBy"
+                                        type="datetime-local"
+                                        value={requiredBy}
+                                        onChange={(e) => setRequiredBy(e.target.value)}
+                                        required
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Special instructions */}
+                            <div className="form-group">
+                                <label htmlFor="instructions">Special Instructions (Optional)</label>
+                                <textarea
+                                    id="instructions"
+                                    rows={2}
+                                    placeholder="e.g. Single sided print, specific page requests..."
+                                    value={instructions}
+                                    onChange={(e) => setInstructions(e.target.value)}
+                                />
+                            </div>
+
+                            <div className="specs-actions" style={{ marginTop: '2rem' }}>
+                                <button type="button" className="btn btn-secondary" onClick={() => setStep(3)}>
+                                    ← Back
+                                </button>
+                                <button 
+                                    type="button" 
+                                    className="btn btn-primary"
+                                    onClick={() => setStep(5)}
+                                    disabled={
+                                        !customerContact.trim() || 
+                                        customerContact.length !== 10 ||
+                                        !customerEmail.trim() ||
+                                        (serviceType === 'RECORD' && recordDeliveryOption === 'DELIVERY' && !recordDeliveryAddress.trim()) ||
+                                        (serviceType !== 'RECORD' && fulfillmentType === 'DELIVERY' && !deliveryAddress.trim()) ||
+                                        new Date(requiredBy) <= new Date()
+                                    }
+                                >
+                                    Continue to Review →
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Price summary sidebar */}
+                        <div className="summary-sidebar-container">
+                            <div className="summary-sidebar card">
+                                <h3>Price Summary</h3>
+                                <hr />
+                                <div className="summary-details">
+                                    <div className="summary-row">
+                                        <span>Fulfillment Option</span>
+                                        <strong>
+                                            {serviceType === 'RECORD' 
+                                                ? (recordDeliveryOption === 'DELIVERY' ? 'Home Delivery' : 'Pickup')
+                                                : (fulfillmentType === 'DELIVERY' ? 'Home Delivery' : 'Self Pickup')
+                                            }
+                                        </strong>
+                                    </div>
+                                    <div className="summary-row">
+                                        <span>Deadline</span>
+                                        <strong>{requiredBy ? new Date(requiredBy).toLocaleString() : 'N/A'}</strong>
+                                    </div>
+                                </div>
+                                <div className="summary-price-box">
+                                    <span>Estimated Cost</span>
+                                    <div className="price-tag">₹{estimatedCost || 0}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* STEP 5: Dedicated Review Order Page */}
+            {step === 5 && (
+                <div className="step-container fade-in">
+                    <div className="step-header text-center" style={{ marginBottom: '2.5rem' }}>
+                        <h2>Review Your Order</h2>
+                        <p style={{ color: 'var(--text-secondary)' }}>Review all configurations and finalize your print order request.</p>
+                    </div>
+
+                    <div className="review-order-page">
+                        {/* A. Service and Shop details */}
+                        <div className="review-section">
+                            <h3>Service & Shop</h3>
+                            <div className="review-grid">
+                                <div className="review-grid-item">
+                                    <span>Selected Service</span>
+                                    <strong>
+                                        {serviceType === 'PRINT' && 'Direct Printing'}
+                                        {serviceType === 'DELIVERY' && 'Home Delivery'}
+                                        {serviceType === 'RECORD' && 'Record Pickup & Binding'}
+                                    </strong>
+                                </div>
+                                <div className="review-grid-item">
+                                    <span>Xerox Partner</span>
+                                    <strong>{selectedShop?.shopName}</strong>
+                                </div>
+                                <div className="review-grid-item">
+                                    <span>Shop Location</span>
+                                    <strong>📍 {selectedShop?.location?.address}</strong>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* B. Fulfillment, Contact & Deadlines */}
+                        <div className="review-section">
+                            <h3>Fulfillment & Details</h3>
+                            <div className="review-grid">
+                                <div className="review-grid-item">
+                                    <span>Fulfillment Option</span>
+                                    <strong>
+                                        {serviceType === 'RECORD'
+                                            ? (recordDeliveryOption === 'DELIVERY' ? 'Hostel/Room Delivery' : 'Self Pickup from Shop')
+                                            : (fulfillmentType === 'DELIVERY' ? 'Hostel/Room Delivery' : 'Self Pickup from Shop')
+                                        }
+                                    </strong>
+                                </div>
+                                {((serviceType === 'RECORD' && recordDeliveryOption === 'DELIVERY') || (serviceType !== 'RECORD' && fulfillmentType === 'DELIVERY')) && (
+                                    <div className="review-grid-item" style={{ gridColumn: '1 / -1' }}>
+                                        <span>Delivery Address</span>
+                                        <strong>{serviceType === 'RECORD' ? recordDeliveryAddress : deliveryAddress}</strong>
+                                    </div>
+                                )}
+                                {serviceType === 'RECORD' && (
+                                    <>
+                                        <div className="review-grid-item">
+                                            <span>Record Pickup Location</span>
+                                            <strong>{recordPickupLocation}</strong>
+                                        </div>
+                                        <div className="review-grid-item">
+                                            <span>Record Pickup Time</span>
+                                            <strong>{new Date(recordPickupTime).toLocaleString()}</strong>
+                                        </div>
+                                        <div className="review-grid-item">
+                                            <span>Record Binding Type</span>
+                                            <strong>{recordBindingType === 'SPIRAL' ? 'Spiral Binding' : 'Book Binding'}</strong>
+                                        </div>
+                                    </>
+                                )}
+                                <div className="review-grid-item">
+                                    <span>Phone Number</span>
+                                    <strong>{customerContact}</strong>
+                                </div>
+                                <div className="review-grid-item">
+                                    <span>Email Address</span>
+                                    <strong>{customerEmail}</strong>
+                                </div>
+                                <div className="review-grid-item">
+                                    <span>Deadline Needed By</span>
+                                    <strong>{new Date(requiredBy).toLocaleString()}</strong>
+                                </div>
+                            </div>
+                            
+                            {instructions && (
+                                <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid var(--border-color)' }}>
+                                    <small style={{ color: 'var(--text-muted)', display: 'block', marginBottom: '0.25rem' }}>Special Instructions</small>
+                                    <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{instructions}</span>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* C. Documents and Printing Config details */}
+                        <div className="review-section">
+                            <h3>Uploaded Documents ({files.length})</h3>
+                            <div className="review-doc-list">
+                                {files.map((fileObj, idx) => {
+                                    const isPdf = fileObj.file.name.toLowerCase().endsWith('.pdf');
+                                    return (
+                                        <div key={idx} className="review-doc-card">
+                                            <div className="review-doc-details">
+                                                <strong style={{ fontSize: '0.95rem' }}>
+                                                    {isPdf ? '📕' : '🖼️'} {fileObj.file.name}
+                                                </strong>
+                                                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+                                                    Pages: {fileObj.startPage}–{fileObj.lastPage} ({fileObj.pageCount} total) • B&W: {fileObj.bwPages} • Color: {fileObj.colorPages} 
+                                                    {fileObj.colorPageNumbersText ? ` [Pages: ${fileObj.colorPageNumbersText}]` : ''} • Copies: {fileObj.copies} • Print Side: {fileObj.printSide === 'SINGLE_SIDE' ? 'Single-Sided' : 'Double-Sided'} • Binding: {fileObj.binding}
+                                                </span>
+                                            </div>
+                                            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                                                {(fileObj.file.size / (1024 * 1024)).toFixed(2)} MB
+                                            </span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* D. Pricing & Costs Table */}
+                        <div className="review-section" style={{ backgroundColor: 'var(--bg-hover)' }}>
+                            <h3>Cost Details</h3>
+                            <div className="review-cost-table">
+                                <div className="review-cost-row">
+                                    <span>Document Printing Costs</span>
+                                    <span>
+                                        ₹{files.reduce((sum, f) => {
+                                            if (f.status !== 'success') return sum;
+                                            const bw = Number(f.bwPages || 0);
+                                            const color = Number(f.colorPages || 0);
+                                            const copies = Number(f.copies || 1);
+                                            const bwCost = bw * (selectedShop.pricing.bwPerPage || 1);
+                                            const colorCost = color * (selectedShop.pricing.colorPerPage || 5);
+                                            return sum + (bwCost + colorCost) * copies;
+                                        }, 0)}
+                                    </span>
+                                </div>
+                                <div className="review-cost-row">
+                                    <span>Binding Costs</span>
+                                    <span>
+                                        ₹{files.reduce((sum, f) => {
+                                            if (f.status !== 'success') return sum;
+                                            const copies = Number(f.copies || 1);
+                                            let fileBindingCost = 0;
+                                            if (f.binding === 'SPIRAL') fileBindingCost = selectedShop.pricing.spiralBinding || 30;
+                                            if (f.binding === 'BOOK') fileBindingCost = selectedShop.pricing.bookBinding || 50;
+                                            return sum + fileBindingCost * copies;
+                                        }, 0) + (serviceType === 'RECORD' ? (recordBindingType === 'SPIRAL' ? selectedShop.pricing.spiralBinding || 30 : selectedShop.pricing.bookBinding || 50) : 0)}
+                                    </span>
+                                </div>
+                                <div className="review-cost-row">
+                                    <span>Delivery Charge</span>
+                                    <span>
+                                        ₹{((serviceType === 'RECORD' && recordDeliveryOption === 'DELIVERY') || (serviceType !== 'RECORD' && fulfillmentType === 'DELIVERY')) && selectedShop.isDeliveryAvailable ? 15 : 0}
+                                    </span>
+                                </div>
+                                <div className="review-cost-row total">
+                                    <span>Estimated Total</span>
+                                    <span>₹{estimatedCost || 0}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Bottom checkout buttons */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', marginTop: '1.5rem' }}>
+                            <button 
+                                type="button" 
+                                className="btn btn-secondary" 
+                                style={{ padding: '0.85rem 1.5rem', fontWeight: 600 }}
+                                onClick={() => setStep(4)}
+                                disabled={loading}
+                            >
+                                ← Back & Edit
+                            </button>
+                            <button 
+                                type="button" 
+                                className="btn btn-primary" 
+                                style={{ padding: '0.85rem 2rem', fontWeight: 600 }}
+                                onClick={handlePlaceOrderSubmit}
+                                disabled={loading || files.length === 0 || !isAllFilesValid}
+                            >
+                                {loading ? <div className="spinner"></div> : 'Place Order →'}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
