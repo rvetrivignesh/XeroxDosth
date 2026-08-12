@@ -866,7 +866,7 @@
         margin-top: 1.5rem;
     }
     .stepper-indicator {
-        margin-bottom: 2rem;
+        display: none !important;
     }
     .shop-list-card {
         flex-direction: column;
@@ -888,4 +888,166 @@
 }
 .order-wizard-page .form-row .form-group {
     margin-bottom: 0 !important; /* Prevents nested element margin stacking */
+}
+
+/* --- Collapsible File Card Styles --- */
+.file-card-container {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background-color: var(--bg-card);
+    margin-bottom: 1rem;
+    overflow: hidden;
+    transition: all 0.2s ease;
+}
+
+.file-card-container:hover {
+    border-color: var(--accent-color);
+}
+
+.file-card-container.has-error {
+    border-color: #ef4444;
+}
+
+.file-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.85rem 1.25rem;
+    background-color: var(--bg-hover);
+    cursor: pointer;
+    user-select: none;
+}
+
+.file-card-header-left {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 0;
+}
+
+.file-card-name-sec {
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.95rem;
+}
+
+.file-card-summary-sec {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 0.15rem;
+}
+
+.file-card-header-right {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.file-card-body {
+    padding: 1.25rem;
+    border-top: 1px solid var(--border-color);
+    background-color: var(--bg-card);
+}
+
+.file-card-error-banner {
+    padding: 0.5rem 1rem;
+    background-color: #fef2f2;
+    color: #ef4444;
+    font-size: 0.85rem;
+    font-weight: 500;
+    border-top: 1px solid #fee2e2;
+}
+
+/* --- Review Order Page --- */
+.review-order-page {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.review-section {
+    padding: 1.5rem;
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+}
+
+.review-section h3 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+    border-bottom: 2px solid var(--accent-color);
+    padding-bottom: 0.4rem;
+    display: inline-block;
+}
+
+.review-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.review-grid-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.review-grid-item span {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.review-grid-item strong {
+    font-size: 0.95rem;
+    color: var(--text-primary);
+}
+
+.review-doc-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.review-doc-card {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 1rem;
+    background-color: var(--bg-hover);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.review-doc-details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.review-cost-table {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+}
+
+.review-cost-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+}
+
+.review-cost-row.total {
+    border-top: 1px solid var(--border-color);
+    padding-top: 0.75rem;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--text-primary);
 }
