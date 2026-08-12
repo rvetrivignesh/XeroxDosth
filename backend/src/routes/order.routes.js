@@ -11,7 +11,8 @@ import {
     requestCancellation,
     approveCancellation,
     rejectCancellation,
-    payOrder
+    payOrder,
+    requestPaymentAgain
 } from '../controllers/order.controller.js';
 import {
     createOrderValidator,
@@ -38,6 +39,7 @@ router.patch('/:id/request-cancellation', requestCancellation);
 router.patch('/:id/approve-cancellation', authorize('SHOP'), approveCancellation);
 router.patch('/:id/reject-cancellation', authorize('SHOP'), rejectCancellation);
 router.patch('/:id/pay', payOrder);
+router.patch('/:id/request-payment', authorize('SHOP'), requestPaymentAgain);
 
 router.get('/:id', getOrderByIdValidator, validateRequest, getOrderById);
 

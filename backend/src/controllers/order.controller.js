@@ -86,3 +86,10 @@ export const payOrder = asyncHandler(async (req, res) => {
         .status(200)
         .json(new ApiResponse(200, order, 'Payment / COD confirmation submitted'));
 });
+
+export const requestPaymentAgain = asyncHandler(async (req, res) => {
+    const order = await orderService.requestPaymentAgain(req.user._id, req.params.id, req.body, req.app.get('io'));
+    return res
+        .status(200)
+        .json(new ApiResponse(200, order, 'Payment requested again successfully'));
+});

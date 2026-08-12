@@ -17,35 +17,70 @@ export const createOrder = async (userId, orderData, io) => {
         throw new ApiError(404, 'Customer user not found');
     }
 
-    const bwPages = Number(orderData.bwPages || 0);
-    const colorPages = Number(orderData.colorPages || 0);
-    const totalPages = bwPages + colorPages;
+    let totalBwPages = 0;
+    let totalColorPages = 0;
+    let totalEstimatedCost = 0;
+    let totalCopies = 1;
+
+    // Check if we have individual document configurations
+    const hasDocConfigs = orderData.documents && orderData.documents.length > 0 && orderData.documents.some(d => d.pageCount !== undefined);
+
+    if (hasDocConfigs) {
+        for (const doc of orderData.documents) {
+            const docBw = Number(doc.bwPages || 0);
+            const docColor = Number(doc.colorPages || 0);
+            const docCopies = Number(doc.copies || 1);
+
+            totalBwPages += docBw * docCopies;
+            totalColorPages += docColor * docCopies;
+
+            let docBindingCost = 0;
+            if (doc.binding === 'SPIRAL') docBindingCost = shop.pricing.spiralBinding || 30;
+            if (doc.binding === 'BOOK') docBindingCost = shop.pricing.bookBinding || 50;
+
+            const bwCost = docBw * (shop.pricing.bwPerPage || 1);
+            const colorCost = docColor * (shop.pricing.colorPerPage || 5);
+
+            totalEstimatedCost += (bwCost + colorCost + docBindingCost) * docCopies;
+        }
+    } else {
+        totalBwPages = Number(orderData.bwPages || 0);
+        totalColorPages = Number(orderData.colorPages || 0);
+        totalCopies = Number(orderData.copies || 1);
+
+        let bindingCost = 0;
+        if (orderData.binding === 'SPIRAL') bindingCost = shop.pricing.spiralBinding || 30;
+        if (orderData.binding === 'BOOK') bindingCost = shop.pricing.bookBinding || 50;
+
+        const bwCost = totalBwPages * (shop.pricing.bwPerPage || 1);
+        const colorCost = totalColorPages * (shop.pricing.colorPerPage || 5);
+
+        totalEstimatedCost = (bwCost + colorCost + bindingCost) * totalCopies;
+    }
+
+    const totalPages = totalBwPages + totalColorPages;
 
     if (totalPages < 1) {
         throw new ApiError(400, 'Order must contain at least 1 page');
     }
 
-    const copies = Number(orderData.copies || 1);
-    
-    // Calculate estimated cost in backend securely based on shop rates
-    let bindingCost = 0;
-    if (orderData.binding === 'SPIRAL') bindingCost = shop.pricing.spiralBinding || 30;
-    if (orderData.binding === 'BOOK') bindingCost = shop.pricing.bookBinding || 50;
-
-    const bwCost = bwPages * (shop.pricing.bwPerPage || 1);
-    const colorCost = colorPages * (shop.pricing.colorPerPage || 5);
-    const estimatedCost = (bwCost + colorCost + bindingCost) * copies;
+    // Add delivery charge if applicable
+    let deliveryCharge = 0;
+    if (orderData.fulfillmentType === 'DELIVERY' && shop.isDeliveryAvailable) {
+        deliveryCharge = 15;
+    }
+    const estimatedCost = totalEstimatedCost + deliveryCharge;
 
     const order = await Order.create({
         customer: userId,
         shop: orderData.shop,
         documents: orderData.documents,
-        bwPages,
-        colorPages,
+        bwPages: totalBwPages,
+        colorPages: totalColorPages,
         totalPages,
-        copies,
-        printSide: orderData.printSide,
-        binding: orderData.binding,
+        copies: hasDocConfigs ? 1 : totalCopies,
+        printSide: orderData.printSide || 'SINGLE_SIDE',
+        binding: orderData.binding || 'NONE',
         fulfillmentType: orderData.fulfillmentType || 'PICKUP',
         deliveryAddress: orderData.fulfillmentType === 'DELIVERY' ? (orderData.deliveryAddress || '') : '',
         requiredBy: orderData.requiredBy,
@@ -71,7 +106,7 @@ export const createOrder = async (userId, orderData, io) => {
             message: `Order #${orderIdStr.slice(-6).toUpperCase()} of ${totalPages} pages placed by ${customer.name}.`
         });
 
-        await sendEmail({
+        sendEmail({
             to: shop.email || shop.owner.email,
             subject: `[XeroxDosth] New Order #${orderIdStr.slice(-6).toUpperCase()} Received`,
             html: `
@@ -164,7 +199,7 @@ export const updateOrderStatus = async (userId, orderId, status, paymentStatus, 
             message: msg
         });
 
-        await sendEmail({
+        sendEmail({
             to: order.customer.email,
             subject: `[XeroxDosth] ${title}`,
             html: `
@@ -218,7 +253,7 @@ export const acceptOrder = async (userId, orderId, { finalPrice, estimatedDelive
         message: `Shop accepted order #${orderIdStr.slice(-6).toUpperCase()}. Approved Price: ₹${finalPrice}. Please complete payment.`
     });
 
-    await sendEmail({
+    sendEmail({
         to: order.customer.email,
         subject: `[XeroxDosth] Order #${orderIdStr.slice(-6).toUpperCase()} Accepted - Payment Required`,
         html: `
@@ -265,7 +300,7 @@ export const rejectOrder = async (userId, orderId, { rejectionReason }, io) => {
         message: `Order #${orderIdStr.slice(-6).toUpperCase()} rejected. Reason: ${order.rejectionReason}`
     });
 
-    await sendEmail({
+    sendEmail({
         to: order.customer.email,
         subject: `[XeroxDosth] Order #${orderIdStr.slice(-6).toUpperCase()} Rejected`,
         html: `
@@ -306,7 +341,7 @@ export const cancelOrder = async (userId, orderId, io) => {
             message: `Customer cancelled order #${orderIdStr.slice(-6).toUpperCase()} before acceptance.`
         });
 
-        await sendEmail({
+        sendEmail({
             to: shop.email || shop.owner.email,
             subject: `[XeroxDosth] Order #${orderIdStr.slice(-6).toUpperCase()} Cancelled`,
             html: `
@@ -349,7 +384,7 @@ export const requestCancellation = async (userId, orderId, { cancellationReason 
             message: `User requested cancellation for #${orderIdStr.slice(-6).toUpperCase()}. Reason: ${order.cancellationReason}`
         });
 
-        await sendEmail({
+        sendEmail({
             to: shop.email || shop.owner.email,
             subject: `[XeroxDosth] Cancellation Request for Order #${orderIdStr.slice(-6).toUpperCase()}`,
             html: `
@@ -396,7 +431,7 @@ export const approveCancellation = async (userId, orderId, io) => {
         message: `Your cancellation request for order #${orderIdStr.slice(-6).toUpperCase()} was approved.`
     });
 
-    await sendEmail({
+    sendEmail({
         to: order.customer.email,
         subject: `[XeroxDosth] Cancellation Request Approved - Order #${orderIdStr.slice(-6).toUpperCase()}`,
         html: `
@@ -445,7 +480,7 @@ export const rejectCancellation = async (userId, orderId, io) => {
         message: `Your cancellation request for order #${orderIdStr.slice(-6).toUpperCase()} was rejected as printing has started.`
     });
 
-    await sendEmail({
+    sendEmail({
         to: order.customer.email,
         subject: `[XeroxDosth] Cancellation Request Rejected - Order #${orderIdStr.slice(-6).toUpperCase()}`,
         html: `
@@ -460,7 +495,7 @@ export const rejectCancellation = async (userId, orderId, io) => {
     return order;
 };
 
-export const payOrder = async (userId, orderId, { paymentMethod, transactionId }, io) => {
+export const payOrder = async (userId, orderId, { paymentMethod, transactionId, paymentScreenshot }, io) => {
     const order = await Order.findOne({ _id: orderId, customer: userId }).populate('shop');
     if (!order) {
         throw new ApiError(404, 'Order not found');
@@ -477,6 +512,9 @@ export const payOrder = async (userId, orderId, { paymentMethod, transactionId }
         order.status = 'PAYMENT_COMPLETED';
         order.paymentMethod = 'UPI';
         order.transactionId = transactionId.trim();
+        if (paymentScreenshot) {
+            order.paymentScreenshot = paymentScreenshot;
+        }
         order.paymentStatus = 'UNPAID'; // Paid status to be confirmed by shop owner
     } else if (paymentMethod === 'COD') {
         // If COD, move directly to IN_PROGRESS since no advance payment is needed
@@ -503,7 +541,7 @@ export const payOrder = async (userId, orderId, { paymentMethod, transactionId }
                 : `Payment reference submitted for order #${orderIdStr.slice(-6).toUpperCase()}.`
         });
 
-        await sendEmail({
+        sendEmail({
             to: shop.email || shop.owner.email,
             subject: `[XeroxDosth] Order #${orderIdStr.slice(-6).toUpperCase()} Payment/COD Confirmed`,
             html: `
@@ -513,6 +551,7 @@ export const payOrder = async (userId, orderId, { paymentMethod, transactionId }
                 <ul>
                     <li><strong>Payment Method chosen:</strong> ${paymentMethod}</li>
                     ${paymentMethod === 'UPI' ? `<li><strong>UPI Txn Ref ID:</strong> ${order.transactionId}</li>` : ''}
+                    ${paymentMethod === 'UPI' && order.paymentScreenshot ? `<li><strong>Screenshot:</strong> <a href="${order.paymentScreenshot}">View Screenshot</a></li>` : ''}
                     <li><strong>Order Status:</strong> ${order.status}</li>
                 </ul>
                 <p>Please check your dashboard and start printing.</p>
@@ -545,6 +584,59 @@ export const getOrderById = async (userId, orderId) => {
     if (!isCustomer && !isShopOwner && !isAdmin) {
         throw new ApiError(403, 'Not authorized to access this order');
     }
+
+    return order;
+};
+
+export const requestPaymentAgain = async (userId, orderId, { reason }, io) => {
+    const shop = await Shop.findOne({ owner: userId });
+    if (!shop) {
+        throw new ApiError(404, 'No shop registered for this user');
+    }
+
+    const order = await Order.findOne({ _id: orderId, shop: shop._id }).populate('customer');
+    if (!order) {
+        throw new ApiError(404, 'Order not found for your shop');
+    }
+
+    const unallowedStatuses = ['CANCELLED', 'CANCELLED_BY_USER', 'REJECTED_BY_SHOP', 'CANCELLATION_APPROVED', 'COMPLETED'];
+    if (unallowedStatuses.includes(order.status)) {
+        throw new ApiError(400, `Cannot request payment again for order in ${order.status} state.`);
+    }
+
+    order.status = 'PAYMENT_REQUESTED';
+    order.paymentStatus = 'UNPAID';
+    order.transactionId = '';
+    order.paymentScreenshot = '';
+    await order.save();
+
+    const orderIdStr = order._id.toString();
+    const customerMsg = reason 
+        ? `Payment requested again for order #${orderIdStr.slice(-6).toUpperCase()}. Reason: ${reason}` 
+        : `Shop requested payment again for order #${orderIdStr.slice(-6).toUpperCase()}.`;
+
+    await createNotification(io, {
+        recipient: order.customer._id,
+        sender: userId,
+        order: order._id,
+        type: 'PAYMENT_REQUESTED',
+        title: 'Payment Requested Again',
+        message: customerMsg
+    });
+
+    sendEmail({
+        to: order.customer.email,
+        subject: `[XeroxDosth] Action Required: Payment Requested Again for Order #${orderIdStr.slice(-6).toUpperCase()}`,
+        html: `
+            <h3>Payment Requested Again</h3>
+            <p>Hello <strong>${order.customer.name}</strong>,</p>
+            <p>The shop owner for your order #${orderIdStr.slice(-6).toUpperCase()} has requested payment again.</p>
+            ${reason ? `<p><strong>Reason:</strong> ${reason}</p>` : ''}
+            <p>Please visit the payment request page to submit your payment details (transaction ID and screenshot):</p>
+            <p><a href="${process.env.FRONTEND_URL || 'https://rvetrivignesh.github.io/XeroxDosth'}/payment-request/${order._id}" style="padding: 10px 15px; background-color: #10b981; color: white; text-decoration: none; border-radius: 5px; display: inline-block;">Go to Payment Request</a></p>
+            <p>Thank you,<br/>XeroxDosth Team</p>
+        `
+    });
 
     return order;
 };

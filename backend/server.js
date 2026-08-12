@@ -43,23 +43,24 @@ const io = new SocketIOServer(server, {
             callback(null, true);
         },
         credentials: true
-    }
+    },
+    transports: ['websocket']
 });
 
 app.set('io', io);
 
 io.on('connection', (socket) => {
-    console.log('🔌 Socket client connected:', socket.id);
+    // console.log('🔌 Socket client connected:', socket.id);
 
     socket.on('join', (userId) => {
         if (userId) {
             socket.join(userId.toString());
-            console.log(`👤 User joined room: ${userId}`);
+            // console.log(`👤 User joined room: ${userId}`);
         }
     });
 
     socket.on('disconnect', () => {
-        console.log('❌ Socket client disconnected:', socket.id);
+        // console.log('❌ Socket client disconnected:', socket.id);
     });
 });
 
