@@ -126,6 +126,12 @@ export const Dashboard = () => {
                             <p>View and manage incoming customer print orders for your shop.</p>
                         </Link>
 
+                        <Link to="/my-orders" className="action-card card card-hover">
+                            <div className="action-icon">📋</div>
+                            <h3>My Orders</h3>
+                            <p>Track your own print orders and view complete order history.</p>
+                        </Link>
+
                         {/* <Link to="/apply-admin" className="action-card card card-hover">
                             <div className="action-icon">🛡️</div>
                             <h3>Apply for Admin</h3>
