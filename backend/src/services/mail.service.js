@@ -52,6 +52,12 @@ const getTransporter = async () => {
 
 export const sendEmail = async ({ to, subject, html }) => {
     try {
+        if (!to) {
+            console.error(`[Mail Service] Cannot send email. Recipient address is empty/undefined. Subject: "${subject}"`);
+            return;
+        }
+
+        console.log(`[Mail Service] Attempting to send email to: ${to} | Subject: "${subject}"`);
         const activeTransporter = await getTransporter();
         const mailOptions = {
             from: `"${process.env.SMTP_FROM_NAME || 'XeroxDosth'}" <${process.env.SMTP_FROM || 'rvetrivignesh01@gmail.com'}>`,
@@ -61,7 +67,7 @@ export const sendEmail = async ({ to, subject, html }) => {
         };
 
         const info = await activeTransporter.sendMail(mailOptions);
-        console.log(`Email successfully dispatched: ${info.messageId}`);
+        console.log(`[Mail Service] Email successfully dispatched to ${to}: ${info.messageId}`);
         
         // Show test link if we are using Ethereal
         const previewUrl = nodemailer.getTestMessageUrl(info);
@@ -70,7 +76,7 @@ export const sendEmail = async ({ to, subject, html }) => {
         }
         return info;
     } catch (error) {
-        console.error('Error occurred in mail delivery service:', error);
+        console.error(`[Mail Service] Error occurred in mail delivery service to ${to}:`, error);
         // We log the error but don't reject/crash so operations can continue normally
     }
 };

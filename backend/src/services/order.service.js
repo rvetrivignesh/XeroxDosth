@@ -128,6 +128,24 @@ export const createOrder = async (userId, orderData, io) => {
                 <p>Thank you,<br/>XeroxDosth Team</p>
             `
         });
+
+        // Also notify the Customer that order is successfully created
+        sendEmail({
+            to: order.customerEmail || customer.email,
+            subject: `[XeroxDosth] Order #${orderIdStr.slice(-6).toUpperCase()} Placed Successfully`,
+            html: `
+                <h3>Order Confirmation</h3>
+                <p>Hello <strong>${customer.name}</strong>,</p>
+                <p>Your print job order has been placed successfully and is awaiting shop review and acceptance.</p>
+                <ul>
+                    <li><strong>Order ID:</strong> #${orderIdStr.slice(-6).toUpperCase()}</li>
+                    <li><strong>Shop Name:</strong> ${shop.shopName}</li>
+                    <li><strong>Fulfillment Method:</strong> ${order.fulfillmentType}</li>
+                    <li><strong>Estimated Cost:</strong> ₹${order.estimatedCost}</li>
+                </ul>
+                <p>Thank you,<br/>XeroxDosth Team</p>
+            `
+        });
     }
 
     return order;
@@ -200,7 +218,7 @@ export const updateOrderStatus = async (userId, orderId, status, paymentStatus, 
         });
 
         sendEmail({
-            to: order.customer.email,
+            to: order.customerEmail || order.customer.email,
             subject: `[XeroxDosth] ${title}`,
             html: `
                 <h3>Order Status Update</h3>
@@ -208,6 +226,32 @@ export const updateOrderStatus = async (userId, orderId, status, paymentStatus, 
                 <p>${msg}</p>
                 <p>Order ID: #${orderIdStr.slice(-6).toUpperCase()}</p>
                 <p>Fulfillment Type: ${order.fulfillmentType}</p>
+                <p>Thank you,<br/>XeroxDosth Team</p>
+            `
+        });
+    }
+
+    if (paymentStatus === 'PAID') {
+        const title = 'Payment Confirmed';
+        const msg = `Your payment for Order #${orderIdStr.slice(-6).toUpperCase()} has been confirmed by the shop.`;
+        
+        await createNotification(io, {
+            recipient: order.customer._id,
+            sender: userId,
+            order: order._id,
+            type: 'PAYMENT_CONFIRMED',
+            title,
+            message: msg
+        });
+
+        sendEmail({
+            to: order.customerEmail || order.customer.email,
+            subject: `[XeroxDosth] ${title}`,
+            html: `
+                <h3>Payment Confirmed</h3>
+                <p>Hello <strong>${order.customer.name}</strong>,</p>
+                <p>${msg}</p>
+                <p>Order ID: #${orderIdStr.slice(-6).toUpperCase()}</p>
                 <p>Thank you,<br/>XeroxDosth Team</p>
             `
         });
@@ -254,7 +298,7 @@ export const acceptOrder = async (userId, orderId, { finalPrice, estimatedDelive
     });
 
     sendEmail({
-        to: order.customer.email,
+        to: order.customerEmail || order.customer.email,
         subject: `[XeroxDosth] Order #${orderIdStr.slice(-6).toUpperCase()} Accepted - Payment Required`,
         html: `
             <h3>Your Order Has Been Approved!</h3>
@@ -301,7 +345,7 @@ export const rejectOrder = async (userId, orderId, { rejectionReason }, io) => {
     });
 
     sendEmail({
-        to: order.customer.email,
+        to: order.customerEmail || order.customer.email,
         subject: `[XeroxDosth] Order #${orderIdStr.slice(-6).toUpperCase()} Rejected`,
         html: `
             <h3>Order Rejection Notice</h3>
@@ -432,7 +476,7 @@ export const approveCancellation = async (userId, orderId, io) => {
     });
 
     sendEmail({
-        to: order.customer.email,
+        to: order.customerEmail || order.customer.email,
         subject: `[XeroxDosth] Cancellation Request Approved - Order #${orderIdStr.slice(-6).toUpperCase()}`,
         html: `
             <h3>Cancellation Approved</h3>
@@ -481,7 +525,7 @@ export const rejectCancellation = async (userId, orderId, io) => {
     });
 
     sendEmail({
-        to: order.customer.email,
+        to: order.customerEmail || order.customer.email,
         subject: `[XeroxDosth] Cancellation Request Rejected - Order #${orderIdStr.slice(-6).toUpperCase()}`,
         html: `
             <h3>Cancellation Request Rejected</h3>
@@ -496,7 +540,7 @@ export const rejectCancellation = async (userId, orderId, io) => {
 };
 
 export const payOrder = async (userId, orderId, { paymentMethod, transactionId, paymentScreenshot }, io) => {
-    const order = await Order.findOne({ _id: orderId, customer: userId }).populate('shop');
+    const order = await Order.findOne({ _id: orderId, customer: userId }).populate('shop').populate('customer');
     if (!order) {
         throw new ApiError(404, 'Order not found');
     }
@@ -555,6 +599,24 @@ export const payOrder = async (userId, orderId, { paymentMethod, transactionId, 
                     <li><strong>Order Status:</strong> ${order.status}</li>
                 </ul>
                 <p>Please check your dashboard and start printing.</p>
+                <p>Thank you,<br/>XeroxDosth Team</p>
+            `
+        });
+
+        // Also notify the Customer that payment/COD details are received
+        sendEmail({
+            to: order.customerEmail || order.customer.email,
+            subject: `[XeroxDosth] Order #${orderIdStr.slice(-6).toUpperCase()} Payment Submitted`,
+            html: `
+                <h3>Payment Action Received</h3>
+                <p>Hello <strong>${order.customer?.name || 'Customer'}</strong>,</p>
+                <p>Your payment/COD confirmation details for order <strong>#${orderIdStr.slice(-6).toUpperCase()}</strong> have been successfully received and submitted to the shop.</p>
+                <ul>
+                    <li><strong>Fulfillment Shop:</strong> ${shop?.shopName || 'N/A'}</li>
+                    <li><strong>Payment Method:</strong> ${paymentMethod}</li>
+                    ${paymentMethod === 'UPI' ? `<li><strong>UPI Txn Ref ID:</strong> ${transactionId}</li>` : ''}
+                </ul>
+                <p>The shop will review your submission and proceed with printing.</p>
                 <p>Thank you,<br/>XeroxDosth Team</p>
             `
         });
@@ -625,7 +687,7 @@ export const requestPaymentAgain = async (userId, orderId, { reason }, io) => {
     });
 
     sendEmail({
-        to: order.customer.email,
+        to: order.customerEmail || order.customer.email,
         subject: `[XeroxDosth] Action Required: Payment Requested Again for Order #${orderIdStr.slice(-6).toUpperCase()}`,
         html: `
             <h3>Payment Requested Again</h3>
