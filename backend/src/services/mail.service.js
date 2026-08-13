@@ -1,82 +1,64 @@
-import nodemailer from 'nodemailer';
+import { BrevoClient } from '@getbrevo/brevo';
 
-let transporter;
+let brevoClient = null;
 
-const getTransporter = async () => {
-    if (transporter) return transporter;
+const getBrevoClient = () => {
+    if (brevoClient) return brevoClient;
 
-    const user = process.env.SMTP_USER || 'rvetrivignesh01@gmail.com';
-    const pass = process.env.SMTP_PASS;
+    const apiKey = process.env.BREVO_API_KEY;
 
-    if (user && pass) {
-        console.log(`Configuring SMTP transporter for user: ${user}`);
-        transporter = nodemailer.createTransport({
-            host: process.env.SMTP_HOST || 'smtp.gmail.com',
-            port: parseInt(process.env.SMTP_PORT || '587'),
-            secure: process.env.SMTP_PORT === '465',
-            auth: {
-                user: user,
-                pass: pass
-            }
+    if (apiKey) {
+        brevoClient = new BrevoClient({
+            apiKey
         });
-    } else {
-        console.log('No SMTP password (SMTP_PASS) found in environment variables. Setting up Ethereal Mail testing account...');
-        try {
-            const testAccount = await nodemailer.createTestAccount();
-            console.log('Ethereal Mail account created:', testAccount.user);
-            transporter = nodemailer.createTransport({
-                host: testAccount.smtp.host,
-                port: testAccount.smtp.port,
-                secure: testAccount.smtp.secure,
-                auth: {
-                    user: testAccount.user,
-                    pass: testAccount.pass
-                }
-            });
-        } catch (err) {
-            console.error('Failed to create Ethereal Mail account. Falling back to dummy transporter:', err);
-            // Dummy fallback so it does not block application execution
-            transporter = {
-                sendMail: async (options) => {
-                    console.log('--- DUMMY MAIL LOG (SMTP NOT CONFIG) ---');
-                    console.log(`To: ${options.to}`);
-                    console.log(`Subject: ${options.subject}`);
-                    console.log(`Body: ${options.html}`);
-                    return { messageId: 'dummy-id' };
-                }
-            };
-        }
     }
-    return transporter;
+    return brevoClient;
 };
 
-export const sendEmail = async ({ to, subject, html }) => {
+export const sendEmail = async ({ to, subject, html, recipientName = '' }) => {
     try {
         if (!to) {
             console.error(`[Mail Service] Cannot send email. Recipient address is empty/undefined. Subject: "${subject}"`);
             return;
         }
 
-        console.log(`[Mail Service] Attempting to send email to: ${to} | Subject: "${subject}"`);
-        const activeTransporter = await getTransporter();
-        const mailOptions = {
-            from: `"${process.env.SMTP_FROM_NAME || 'XeroxDosth'}" <${process.env.SMTP_FROM || 'rvetrivignesh01@gmail.com'}>`,
-            to,
-            subject,
-            html
+        const senderEmail = process.env.BREVO_SENDER_EMAIL || 'noreply@xeroxdosth.com';
+        const senderName = process.env.BREVO_SENDER_NAME || 'XeroxDosth';
+
+        console.log(`[Mail Service] Attempting to send Brevo email to: ${to} | Subject: "${subject}"`);
+
+        const client = getBrevoClient();
+
+        if (!client) {
+            console.warn(`[Mail Service] BREVO_API_KEY is not configured in environment variables. Logging email payload to console.`);
+            console.log(`--- BREVO EMAIL LOG (KEY NOT CONFIGURED) ---`);
+            console.log(`From: ${senderName} <${senderEmail}>`);
+            console.log(`To: ${recipientName} <${to}>`);
+            console.log(`Subject: ${subject}`);
+            console.log(`Body: ${html}`);
+            return { messageId: 'dummy-brevo-id' };
+        }
+
+        const sendData = {
+            sender: {
+                name: senderName,
+                email: senderEmail
+            },
+            to: [
+                {
+                    email: to,
+                    name: recipientName || to.split('@')[0]
+                }
+            ],
+            subject: subject,
+            htmlContent: html
         };
 
-        const info = await activeTransporter.sendMail(mailOptions);
-        console.log(`[Mail Service] Email successfully dispatched to ${to}: ${info.messageId}`);
-        
-        // Show test link if we are using Ethereal
-        const previewUrl = nodemailer.getTestMessageUrl(info);
-        if (previewUrl) {
-            console.log(`✉️ Ethereal Email Preview Link: ${previewUrl}`);
-        }
-        return info;
+        const response = await client.transactionalEmails.sendTransacEmail(sendData);
+        console.log(`[Mail Service] Brevo email successfully dispatched to ${to}. MessageId: ${response?.messageId || JSON.stringify(response)}`);
+        return response;
     } catch (error) {
-        console.error(`[Mail Service] Error occurred in mail delivery service to ${to}:`, error);
+        console.error(`[Mail Service] Error occurred in Brevo mail delivery service to ${to}:`, error);
         // We log the error but don't reject/crash so operations can continue normally
     }
 };

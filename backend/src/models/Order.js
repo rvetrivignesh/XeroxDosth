@@ -218,6 +218,56 @@ const orderSchema = new mongoose.Schema(
             type: Number,
             default: 0
         },
+        fulfillmentMethod: {
+            type: String,
+            enum: {
+                values: ['SHOP_PICKUP', 'HOME_DELIVERY', 'RECORD_PICKUP'],
+                message: 'Invalid fulfillment method'
+            }
+        },
+        deliveryType: {
+            type: String,
+            enum: {
+                values: ['STANDARD', 'EXPRESS', 'NONE'],
+                message: 'Invalid delivery type'
+            },
+            default: 'NONE'
+        },
+        deliveryCharge: {
+            type: Number,
+            default: 0
+        },
+        bwPerPagePrice: {
+            type: Number,
+            default: 0
+        },
+        bwSubtotal: {
+            type: Number,
+            default: 0
+        },
+        colorPerPagePrice: {
+            type: Number,
+            default: 0
+        },
+        colorSubtotal: {
+            type: Number,
+            default: 0
+        },
+        otherServiceCharges: {
+            type: Number,
+            default: 0
+        },
+        totalAmount: {
+            type: Number,
+            default: 0
+        },
+        paymentType: {
+            type: String,
+            enum: {
+                values: ['UPI', 'COD', 'ONLINE'],
+                message: 'Invalid payment type'
+            }
+        },
         finalPrice: {
             type: Number
         },

@@ -117,21 +117,38 @@ export const createOrderValidator = [
         .trim()
         .isEmail().withMessage('Please enter a valid email address'),
 
-    body('fulfillmentType')
+    body('fulfillmentMethod')
+        .trim()
+        .notEmpty().withMessage('Fulfillment method is required')
+        .isIn(['SHOP_PICKUP', 'HOME_DELIVERY', 'RECORD_PICKUP']).withMessage('Fulfillment method must be SHOP_PICKUP, HOME_DELIVERY or RECORD_PICKUP'),
+
+    body('deliveryType')
         .optional()
         .trim()
-        .isIn(['PICKUP', 'DELIVERY']).withMessage('Fulfillment type must be PICKUP or DELIVERY'),
+        .isIn(['STANDARD', 'EXPRESS', 'NONE']).withMessage('Delivery type must be STANDARD, EXPRESS or NONE'),
+
+    body('deliveryDistance')
+        .optional()
+        .isFloat({ min: 0 }).withMessage('Delivery distance must be a positive number'),
+
+    body('paymentType')
+        .trim()
+        .notEmpty().withMessage('Payment type is required')
+        .isIn(['UPI', 'COD', 'ONLINE']).withMessage('Payment type must be UPI, COD or ONLINE'),
 
     body('deliveryAddress')
-        .if(body('fulfillmentType').equals('DELIVERY'))
+        .if((value, { req }) => {
+            return req.body.fulfillmentMethod === 'HOME_DELIVERY' || 
+                   (req.body.fulfillmentMethod === 'RECORD_PICKUP' && ['STANDARD', 'EXPRESS'].includes(req.body.deliveryType));
+        })
         .trim()
         .notEmpty().withMessage('Delivery address is required when delivery is selected'),
 
-    // Ensure status and paymentStatus cannot be provided by the client
-    body(['status', 'paymentStatus'])
+    // Ensure status, paymentStatus, and backend pricing calculations cannot be provided by the client
+    body(['status', 'paymentStatus', 'bwSubtotal', 'colorSubtotal', 'totalAmount', 'deliveryCharge', 'otherServiceCharges', 'bwPerPagePrice', 'colorPerPagePrice'])
         .custom((val, { req, path }) => {
             if (req.body[path] !== undefined) {
-                throw new Error(`Field '${path}' cannot be specified directly when placing an order`);
+                throw new Error(`Field '${path}' is calculated on the backend and cannot be specified directly`);
             }
             return true;
         })

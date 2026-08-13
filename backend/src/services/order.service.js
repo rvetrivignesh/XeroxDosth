@@ -12,15 +12,22 @@ export const createOrder = async (userId, orderData, io) => {
         throw new ApiError(404, 'Shop not found');
     }
 
+    if (shop.owner && shop.owner._id.toString() === userId.toString()) {
+        throw new ApiError(400, 'You cannot place an order from your own shop');
+    }
+
     const customer = await User.findById(userId);
     if (!customer) {
         throw new ApiError(404, 'Customer user not found');
     }
 
+    const bwPrice = shop.pricing.bwPerPage || 1;
+    const colorPrice = shop.pricing.colorPerPage || 5;
+
     let totalBwPages = 0;
     let totalColorPages = 0;
-    let totalEstimatedCost = 0;
     let totalCopies = 1;
+    let otherServiceCharges = 0;
 
     // Check if we have individual document configurations
     const hasDocConfigs = orderData.documents && orderData.documents.length > 0 && orderData.documents.some(d => d.pageCount !== undefined);
@@ -38,10 +45,7 @@ export const createOrder = async (userId, orderData, io) => {
             if (doc.binding === 'SPIRAL') docBindingCost = shop.pricing.spiralBinding || 30;
             if (doc.binding === 'BOOK') docBindingCost = shop.pricing.bookBinding || 50;
 
-            const bwCost = docBw * (shop.pricing.bwPerPage || 1);
-            const colorCost = docColor * (shop.pricing.colorPerPage || 5);
-
-            totalEstimatedCost += (bwCost + colorCost + docBindingCost) * docCopies;
+            otherServiceCharges += docBindingCost * docCopies;
         }
     } else {
         totalBwPages = Number(orderData.bwPages || 0);
@@ -52,10 +56,7 @@ export const createOrder = async (userId, orderData, io) => {
         if (orderData.binding === 'SPIRAL') bindingCost = shop.pricing.spiralBinding || 30;
         if (orderData.binding === 'BOOK') bindingCost = shop.pricing.bookBinding || 50;
 
-        const bwCost = totalBwPages * (shop.pricing.bwPerPage || 1);
-        const colorCost = totalColorPages * (shop.pricing.colorPerPage || 5);
-
-        totalEstimatedCost = (bwCost + colorCost + bindingCost) * totalCopies;
+        otherServiceCharges = bindingCost * totalCopies;
     }
 
     const totalPages = totalBwPages + totalColorPages;
@@ -64,12 +65,53 @@ export const createOrder = async (userId, orderData, io) => {
         throw new ApiError(400, 'Order must contain at least 1 page');
     }
 
-    // Add delivery charge if applicable
+    const bwSubtotal = totalBwPages * bwPrice;
+    const colorSubtotal = totalColorPages * colorPrice;
+
+    // Calculate delivery charge dynamically
     let deliveryCharge = 0;
-    if (orderData.fulfillmentType === 'DELIVERY' && shop.isDeliveryAvailable) {
-        deliveryCharge = 15;
+    const isDelivery = (orderData.fulfillmentMethod === 'HOME_DELIVERY') || 
+                       (orderData.fulfillmentMethod === 'RECORD_PICKUP' && orderData.deliveryType && orderData.deliveryType !== 'NONE');
+
+    if (isDelivery) {
+        if (!shop.isDeliveryAvailable) {
+            throw new ApiError(400, 'Delivery is not available from this shop');
+        }
+
+        const deliveryDistance = Number(orderData.deliveryDistance || 0);
+        const deliveryType = orderData.deliveryType || 'STANDARD';
+
+        if (deliveryType === 'EXPRESS') {
+            if (shop.freeExpressDelivery) {
+                deliveryCharge = 0;
+            } else {
+                const slab = (shop.expressDeliveryCharges || []).find(
+                    s => deliveryDistance >= s.from && deliveryDistance <= s.to
+                );
+                if (slab) {
+                    deliveryCharge = slab.charge;
+                } else {
+                    throw new ApiError(400, `No express delivery pricing slab configured for distance: ${deliveryDistance} km`);
+                }
+            }
+        } else {
+            // STANDARD
+            if (shop.freeDelivery) {
+                deliveryCharge = 0;
+            } else {
+                const slab = (shop.deliveryCharges || []).find(
+                    s => deliveryDistance >= s.from && deliveryDistance <= s.to
+                );
+                if (slab) {
+                    deliveryCharge = slab.charge;
+                } else {
+                    throw new ApiError(400, `No standard delivery pricing slab configured for distance: ${deliveryDistance} km`);
+                }
+            }
+        }
     }
-    const estimatedCost = totalEstimatedCost + deliveryCharge;
+
+    const totalAmount = bwSubtotal + colorSubtotal + otherServiceCharges + deliveryCharge;
 
     const order = await Order.create({
         customer: userId,
@@ -81,15 +123,30 @@ export const createOrder = async (userId, orderData, io) => {
         copies: hasDocConfigs ? 1 : totalCopies,
         printSide: orderData.printSide || 'SINGLE_SIDE',
         binding: orderData.binding || 'NONE',
-        fulfillmentType: orderData.fulfillmentType || 'PICKUP',
-        deliveryAddress: orderData.fulfillmentType === 'DELIVERY' ? (orderData.deliveryAddress || '') : '',
+        
+        // New fields
+        fulfillmentMethod: orderData.fulfillmentMethod,
+        deliveryType: orderData.deliveryType || 'NONE',
+        deliveryCharge,
+        bwPerPagePrice: bwPrice,
+        bwSubtotal,
+        colorPerPagePrice: colorPrice,
+        colorSubtotal,
+        otherServiceCharges,
+        totalAmount,
+        paymentType: orderData.paymentType,
+
+        // Legacy fields for compatibility
+        fulfillmentType: isDelivery ? 'DELIVERY' : 'PICKUP',
+        deliveryAddress: isDelivery ? (orderData.deliveryAddress || '') : '',
         requiredBy: orderData.requiredBy,
         paymentStatus: 'UNPAID',
+        paymentMethod: orderData.paymentType, // Keep legacy paymentMethod in sync
         instructions: orderData.instructions || '',
         customerContact: orderData.customerContact || '',
         customerEmail: orderData.customerEmail || '',
         status: 'PENDING_SHOP_ACCEPTANCE',
-        estimatedCost
+        estimatedCost: totalAmount
     });
 
     // Notify Shop Owner
@@ -129,23 +186,6 @@ export const createOrder = async (userId, orderData, io) => {
             `
         });
 
-        // Also notify the Customer that order is successfully created
-        sendEmail({
-            to: order.customerEmail || customer.email,
-            subject: `[XeroxDosth] Order #${orderIdStr.slice(-6).toUpperCase()} Placed Successfully`,
-            html: `
-                <h3>Order Confirmation</h3>
-                <p>Hello <strong>${customer.name}</strong>,</p>
-                <p>Your print job order has been placed successfully and is awaiting shop review and acceptance.</p>
-                <ul>
-                    <li><strong>Order ID:</strong> #${orderIdStr.slice(-6).toUpperCase()}</li>
-                    <li><strong>Shop Name:</strong> ${shop.shopName}</li>
-                    <li><strong>Fulfillment Method:</strong> ${order.fulfillmentType}</li>
-                    <li><strong>Estimated Cost:</strong> ₹${order.estimatedCost}</li>
-                </ul>
-                <p>Thank you,<br/>XeroxDosth Team</p>
-            `
-        });
     }
 
     return order;
@@ -217,18 +257,19 @@ export const updateOrderStatus = async (userId, orderId, status, paymentStatus, 
             message: msg
         });
 
-        sendEmail({
-            to: order.customerEmail || order.customer.email,
-            subject: `[XeroxDosth] ${title}`,
-            html: `
-                <h3>Order Status Update</h3>
-                <p>Hello <strong>${order.customer.name}</strong>,</p>
-                <p>${msg}</p>
-                <p>Order ID: #${orderIdStr.slice(-6).toUpperCase()}</p>
-                <p>Fulfillment Type: ${order.fulfillmentType}</p>
-                <p>Thank you,<br/>XeroxDosth Team</p>
-            `
-        });
+        if (status === 'COMPLETED') {
+            sendEmail({
+                to: order.customerEmail || order.customer.email,
+                subject: `[XeroxDosth] ${title}`,
+                html: `
+                    <h3>Order Completed</h3>
+                    <p>Hello <strong>${order.customer.name}</strong>,</p>
+                    <p>${msg}</p>
+                    <p>Order ID: #${orderIdStr.slice(-6).toUpperCase()}</p>
+                    <p>Thank you for using XeroxDosth!</p>
+                `
+            });
+        }
     }
 
     if (paymentStatus === 'PAID') {
@@ -242,18 +283,6 @@ export const updateOrderStatus = async (userId, orderId, status, paymentStatus, 
             type: 'PAYMENT_CONFIRMED',
             title,
             message: msg
-        });
-
-        sendEmail({
-            to: order.customerEmail || order.customer.email,
-            subject: `[XeroxDosth] ${title}`,
-            html: `
-                <h3>Payment Confirmed</h3>
-                <p>Hello <strong>${order.customer.name}</strong>,</p>
-                <p>${msg}</p>
-                <p>Order ID: #${orderIdStr.slice(-6).toUpperCase()}</p>
-                <p>Thank you,<br/>XeroxDosth Team</p>
-            `
         });
     }
 
@@ -288,32 +317,57 @@ export const acceptOrder = async (userId, orderId, { finalPrice, estimatedDelive
     const paymentRequestUrl = `${process.env.FRONTEND_URL || 'https://rvetrivignesh.github.io/XeroxDosth'}/payment-request/${order._id}`;
 
     // Send notifications
+    const isCod = order.paymentType === 'COD' || order.paymentMethod === 'COD';
+    const notificationMsg = isCod 
+        ? `Shop accepted order #${orderIdStr.slice(-6).toUpperCase()}. Approved Price: ₹${finalPrice}. Please keep amount ready.`
+        : `Shop accepted order #${orderIdStr.slice(-6).toUpperCase()}. Approved Price: ₹${finalPrice}. Please complete payment.`;
+
     await createNotification(io, {
         recipient: order.customer._id,
         sender: userId,
         order: order._id,
         type: 'PAYMENT_REQUESTED',
-        title: 'Order Accepted & Payment Requested',
-        message: `Shop accepted order #${orderIdStr.slice(-6).toUpperCase()}. Approved Price: ₹${finalPrice}. Please complete payment.`
+        title: isCod ? 'Order Accepted' : 'Order Accepted & Payment Requested',
+        message: notificationMsg
     });
 
-    sendEmail({
-        to: order.customerEmail || order.customer.email,
-        subject: `[XeroxDosth] Order #${orderIdStr.slice(-6).toUpperCase()} Accepted - Payment Required`,
-        html: `
-            <h3>Your Order Has Been Approved!</h3>
-            <p>Hello <strong>${order.customer.name}</strong>,</p>
-            <p>The shop has reviewed and accepted your print job order.</p>
-            <ul>
-                <li><strong>Order ID:</strong> #${orderIdStr.slice(-6).toUpperCase()}</li>
-                <li><strong>Final Exact Price:</strong> ₹${finalPrice}</li>
-                <li><strong>Estimated Completion Time:</strong> ${estimatedDeliveryTime}</li>
-            </ul>
-            <p>To process this print order, please complete your payment on the Payment Request page:</p>
-            <p><a href="${paymentRequestUrl}" style="padding: 10px 15px; background-color: #10b981; color: white; text-decoration: none; border-radius: 5px; display: inline-block;">Go to Payment Request</a></p>
-            <p>Thank you,<br/>XeroxDosth Team</p>
-        `
-    });
+    if (isCod) {
+        sendEmail({
+            to: order.customerEmail || order.customer.email,
+            subject: `[XeroxDosth] Order #${orderIdStr.slice(-6).toUpperCase()} Accepted - COD Confirmation`,
+            html: `
+                <h3>Your Order Has Been Approved!</h3>
+                <p>Hello <strong>${order.customer.name}</strong>,</p>
+                <p>The shop has reviewed and accepted your print job order.</p>
+                <ul>
+                    <li><strong>Order ID:</strong> #${orderIdStr.slice(-6).toUpperCase()}</li>
+                    <li><strong>Payment Method:</strong> Cash on Delivery (COD)</li>
+                    <li><strong>Final Exact Price:</strong> ₹${finalPrice}</li>
+                    <li><strong>Estimated Completion Time:</strong> ${estimatedDeliveryTime}</li>
+                </ul>
+                <p>Please keep the amount ready during delivery/pickup.</p>
+                <p>Thank you,<br/>XeroxDosth Team</p>
+            `
+        });
+    } else {
+        sendEmail({
+            to: order.customerEmail || order.customer.email,
+            subject: `[XeroxDosth] Order #${orderIdStr.slice(-6).toUpperCase()} Accepted - Payment Required`,
+            html: `
+                <h3>Your Order Has Been Approved!</h3>
+                <p>Hello <strong>${order.customer.name}</strong>,</p>
+                <p>The shop has reviewed and accepted your print job order.</p>
+                <ul>
+                    <li><strong>Order ID:</strong> #${orderIdStr.slice(-6).toUpperCase()}</li>
+                    <li><strong>Final Exact Price:</strong> ₹${finalPrice}</li>
+                    <li><strong>Estimated Completion Time:</strong> ${estimatedDeliveryTime}</li>
+                </ul>
+                <p>To process this print order, please complete your payment on the Payment Request page:</p>
+                <p><a href="${paymentRequestUrl}" style="padding: 10px 15px; background-color: #10b981; color: white; text-decoration: none; border-radius: 5px; display: inline-block;">Go to Payment Request</a></p>
+                <p>Thank you,<br/>XeroxDosth Team</p>
+            `
+        });
+    }
 
     return order;
 };
@@ -475,18 +529,6 @@ export const approveCancellation = async (userId, orderId, io) => {
         message: `Your cancellation request for order #${orderIdStr.slice(-6).toUpperCase()} was approved.`
     });
 
-    sendEmail({
-        to: order.customerEmail || order.customer.email,
-        subject: `[XeroxDosth] Cancellation Request Approved - Order #${orderIdStr.slice(-6).toUpperCase()}`,
-        html: `
-            <h3>Cancellation Approved</h3>
-            <p>Hello <strong>${order.customer.name}</strong>,</p>
-            <p>Your cancellation request for order <strong>#${orderIdStr.slice(-6).toUpperCase()}</strong> has been approved by the shop owner.</p>
-            <p>The order status has been updated to cancelled, and refund procedures (if applicable) have been initiated.</p>
-            <p>Thank you,<br/>XeroxDosth Team</p>
-        `
-    });
-
     return order;
 };
 
@@ -522,18 +564,6 @@ export const rejectCancellation = async (userId, orderId, io) => {
         type: 'CANCELLATION_REJECTED',
         title: 'Cancellation Request Rejected',
         message: `Your cancellation request for order #${orderIdStr.slice(-6).toUpperCase()} was rejected as printing has started.`
-    });
-
-    sendEmail({
-        to: order.customerEmail || order.customer.email,
-        subject: `[XeroxDosth] Cancellation Request Rejected - Order #${orderIdStr.slice(-6).toUpperCase()}`,
-        html: `
-            <h3>Cancellation Request Rejected</h3>
-            <p>Hello <strong>${order.customer.name}</strong>,</p>
-            <p>Your cancellation request for order <strong>#${orderIdStr.slice(-6).toUpperCase()}</strong> was rejected by the shop owner.</p>
-            <p><strong>Reason:</strong> Printing has already started or is completed. The order will be completed and fulfilled.</p>
-            <p>Thank you,<br/>XeroxDosth Team</p>
-        `
     });
 
     return order;
@@ -603,23 +633,6 @@ export const payOrder = async (userId, orderId, { paymentMethod, transactionId, 
             `
         });
 
-        // Also notify the Customer that payment/COD details are received
-        sendEmail({
-            to: order.customerEmail || order.customer.email,
-            subject: `[XeroxDosth] Order #${orderIdStr.slice(-6).toUpperCase()} Payment Submitted`,
-            html: `
-                <h3>Payment Action Received</h3>
-                <p>Hello <strong>${order.customer?.name || 'Customer'}</strong>,</p>
-                <p>Your payment/COD confirmation details for order <strong>#${orderIdStr.slice(-6).toUpperCase()}</strong> have been successfully received and submitted to the shop.</p>
-                <ul>
-                    <li><strong>Fulfillment Shop:</strong> ${shop?.shopName || 'N/A'}</li>
-                    <li><strong>Payment Method:</strong> ${paymentMethod}</li>
-                    ${paymentMethod === 'UPI' ? `<li><strong>UPI Txn Ref ID:</strong> ${transactionId}</li>` : ''}
-                </ul>
-                <p>The shop will review your submission and proceed with printing.</p>
-                <p>Thank you,<br/>XeroxDosth Team</p>
-            `
-        });
     }
 
     return order;
