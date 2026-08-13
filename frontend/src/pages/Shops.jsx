@@ -3,8 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import API from '../services/api';
 import { useToast } from '../context/ToastContext';
 import Modal from '../components/Modal';
+import { useAuth } from '../context/AuthContext';
 
 export const Shops = () => {
+    const { user } = useAuth();
     const { showToast } = useToast();
     const navigate = useNavigate();
     const [shops, setShops] = useState([]);
@@ -15,7 +17,11 @@ export const Shops = () => {
         setLoading(true);
         try {
             const res = await API.get('/shops/approved');
-            setShops(res.data?.data || []);
+            let list = res.data?.data || [];
+            if (user) {
+                list = list.filter(s => s.owner !== user._id && s.owner?._id !== user._id);
+            }
+            setShops(list);
         } catch (err) {
             showToast(err.response?.data?.message || 'Failed to fetch shops', 'error');
         } finally {

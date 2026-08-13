@@ -70,7 +70,14 @@ export const PlaceOrder = () => {
         return d.toISOString().slice(0, 16);
     });
 
-    // Regular Print Fulfillment
+    // Advanced Fulfillment & Pricing State
+    const [fulfillmentMethod, setFulfillmentMethod] = useState('SHOP_PICKUP'); // 'SHOP_PICKUP' | 'HOME_DELIVERY' | 'RECORD_PICKUP'
+    const [deliveryType, setDeliveryType] = useState('NONE'); // 'STANDARD' | 'EXPRESS' | 'NONE'
+    const [deliveryDistance, setDeliveryDistance] = useState(0); 
+    const [selectedSlabIndex, setSelectedSlabIndex] = useState(-1);
+    const [paymentType, setPaymentType] = useState('UPI'); // 'UPI' | 'COD' | 'ONLINE'
+
+    // Regular Print Fulfillment (Legacy)
     const [fulfillmentType, setFulfillmentType] = useState('PICKUP');
     const [deliveryAddress, setDeliveryAddress] = useState('');
 
@@ -103,12 +110,56 @@ export const PlaceOrder = () => {
         }
     }, [user, customerContact, customerEmail]);
 
+    // Keep fulfillmentMethod & deliveryType in sync with Step 1 and Step 4 choices
+    useEffect(() => {
+        if (selectedShop) {
+            if (serviceType === 'DELIVERY') {
+                setFulfillmentMethod('HOME_DELIVERY');
+                if (selectedShop.homeDelivery) {
+                    setDeliveryType('STANDARD');
+                } else if (selectedShop.expressPrinting) {
+                    setDeliveryType('EXPRESS');
+                } else {
+                    setDeliveryType('NONE');
+                }
+            } else if (serviceType === 'RECORD') {
+                setFulfillmentMethod('RECORD_PICKUP');
+                if (recordDeliveryOption === 'DELIVERY') {
+                    if (selectedShop.homeDelivery) {
+                        setDeliveryType('STANDARD');
+                    } else if (selectedShop.expressPrinting) {
+                        setDeliveryType('EXPRESS');
+                    } else {
+                        setDeliveryType('NONE');
+                    }
+                } else {
+                    setDeliveryType('NONE');
+                }
+            } else {
+                setFulfillmentMethod('SHOP_PICKUP');
+                setDeliveryType('NONE');
+            }
+        }
+    }, [selectedShop, serviceType, recordDeliveryOption]);
+
+    // Reset slab selections when deliveryType changes
+    useEffect(() => {
+        setSelectedSlabIndex(-1);
+        setDeliveryDistance(0);
+    }, [deliveryType]);
+
     // Fetch approved shops
     useEffect(() => {
         const fetchShops = async () => {
             try {
                 const res = await API.get('/shops/approved');
-                const list = res.data?.data || [];
+                let list = res.data?.data || [];
+                
+                // Do not let a shop owner select their own shop
+                if (user) {
+                    list = list.filter(s => s.owner !== user._id && s.owner?._id !== user._id);
+                }
+                
                 setShops(list);
                 
                 const searchParams = new URLSearchParams(location.search);
@@ -383,6 +434,23 @@ export const PlaceOrder = () => {
         });
     }, [files]);
 
+    // Calculate dynamic delivery charge
+    const calculatedDeliveryCharge = useMemo(() => {
+        const isDelivery = (fulfillmentMethod === 'HOME_DELIVERY') || 
+                           (fulfillmentMethod === 'RECORD_PICKUP' && deliveryType !== 'NONE');
+        if (!isDelivery || !selectedShop) return 0;
+        
+        if (deliveryType === 'EXPRESS') {
+            if (selectedShop.freeExpressDelivery) return 0;
+            const slab = selectedShop.expressDeliveryCharges?.[selectedSlabIndex];
+            return slab ? slab.charge : 0;
+        } else {
+            if (selectedShop.freeDelivery) return 0;
+            const slab = selectedShop.deliveryCharges?.[selectedSlabIndex];
+            return slab ? slab.charge : 0;
+        }
+    }, [fulfillmentMethod, deliveryType, selectedSlabIndex, selectedShop]);
+
     // Calculate dynamic cost estimates
     const estimatedCost = useMemo(() => {
         if (!selectedShop || !selectedShop.pricing) return 0;
@@ -411,14 +479,8 @@ export const PlaceOrder = () => {
             if (recordBindingType === 'BOOK') recordBindingCost = p.bookBinding || 50;
         }
 
-        let deliveryCharge = 0;
-        const isDelivery = serviceType === 'RECORD' ? (recordDeliveryOption === 'DELIVERY') : (fulfillmentType === 'DELIVERY');
-        if (isDelivery && selectedShop.isDeliveryAvailable) {
-            deliveryCharge = 15;
-        }
-
-        return totalSubtotal + recordBindingCost + deliveryCharge;
-    }, [files, selectedShop, serviceType, recordBindingType, recordDeliveryOption, fulfillmentType]);
+        return totalSubtotal + recordBindingCost + calculatedDeliveryCharge;
+    }, [files, selectedShop, serviceType, recordBindingType, calculatedDeliveryCharge]);
 
     // Handle Order Submission
     const handlePlaceOrderSubmit = async () => {
@@ -456,6 +518,9 @@ export const PlaceOrder = () => {
             return;
         }
 
+        const isDelivery = (serviceType === 'DELIVERY') || 
+                           (serviceType === 'RECORD' && recordDeliveryOption === 'DELIVERY');
+
         if (serviceType === 'RECORD') {
             if (!recordPickupLocation.trim()) {
                 showToast('Please provide a record pickup location', 'error');
@@ -465,9 +530,19 @@ export const PlaceOrder = () => {
                 showToast('Please provide a delivery address', 'error');
                 return;
             }
-        } else {
-            if (fulfillmentType === 'DELIVERY' && !deliveryAddress.trim()) {
+        } else if (serviceType === 'DELIVERY') {
+            if (!deliveryAddress.trim()) {
                 showToast('Please provide a delivery address', 'error');
+                return;
+            }
+        }
+
+        // Validate distance slab selection if delivery is selected and not free
+        const isFree = deliveryType === 'EXPRESS' ? selectedShop?.freeExpressDelivery : selectedShop?.freeDelivery;
+        if (isDelivery && !isFree) {
+            const currentSlabs = deliveryType === 'EXPRESS' ? selectedShop?.expressDeliveryCharges : selectedShop?.deliveryCharges;
+            if (!currentSlabs?.length || selectedSlabIndex < 0) {
+                showToast('Please select a valid delivery distance range', 'error');
                 return;
             }
         }
@@ -492,21 +567,28 @@ export const PlaceOrder = () => {
             }));
 
             let finalInstructions = instructions;
-            let finalFulfillment = fulfillmentType;
-            let finalAddress = deliveryAddress.trim();
+            let finalAddress = '';
             let finalBinding = 'NONE';
+            let finalFulfillmentMethod = 'SHOP_PICKUP';
 
             if (serviceType === 'RECORD') {
+                finalFulfillmentMethod = 'RECORD_PICKUP';
                 finalInstructions = `[Record Pickup & Binding]
 - Record Pickup Location: ${recordPickupLocation}
 - Record Pickup Time: ${new Date(recordPickupTime).toLocaleString()}
 - Delivery Option: ${recordDeliveryOption === 'DELIVERY' ? 'Home Delivery' : 'Self Pickup'}
 - Instructions: ${instructions || 'None'}`;
 
-                finalFulfillment = recordDeliveryOption;
                 finalAddress = recordDeliveryOption === 'DELIVERY' ? recordDeliveryAddress.trim() : '';
                 finalBinding = recordBindingType;
+            } else if (serviceType === 'DELIVERY') {
+                finalFulfillmentMethod = 'HOME_DELIVERY';
+                finalAddress = deliveryAddress.trim();
             } else {
+                finalFulfillmentMethod = 'SHOP_PICKUP';
+            }
+
+            if (serviceType !== 'RECORD') {
                 const hasSpiral = documentsPayload.some(d => d.binding === 'SPIRAL');
                 const hasBook = documentsPayload.some(d => d.binding === 'BOOK');
                 if (hasSpiral) finalBinding = 'SPIRAL';
@@ -526,12 +608,20 @@ export const PlaceOrder = () => {
                 copies: rootCopies,
                 printSide: rootPrintSide,
                 binding: finalBinding,
-                fulfillmentType: finalFulfillment,
-                deliveryAddress: finalAddress,
                 requiredBy: new Date(requiredBy).toISOString(),
                 customerContact: customerContact.trim(),
                 customerEmail: customerEmail.trim(),
-                instructions: finalInstructions
+                instructions: finalInstructions,
+                
+                // Advanced Fulfillment & Pricing
+                fulfillmentMethod: finalFulfillmentMethod,
+                deliveryType: isDelivery ? deliveryType : 'NONE',
+                deliveryDistance: Number(deliveryDistance || 0),
+                paymentType: paymentType,
+
+                // Legacy fulfillmentType and address for backward compatibility
+                fulfillmentType: isDelivery ? 'DELIVERY' : 'PICKUP',
+                deliveryAddress: finalAddress
             };
 
             await API.post('/orders', payload);
@@ -606,7 +696,7 @@ export const PlaceOrder = () => {
                             }}
                         >
                             <div className="service-icon">🖨️</div>
-                            <h3>Direct Printing</h3>
+                            <h3>Shop Pickup</h3>
                             <p>Upload files online, configure page properties, and collect printed sheets directly from the shop.</p>
                             <button type="button" className="btn btn-secondary btn-sm">Select Service</button>
                         </div>
@@ -716,7 +806,6 @@ export const PlaceOrder = () => {
                         <h2>
                             {serviceType === 'RECORD' ? 'Step 1 — Upload Record PDF & Config' : 'Configure Printing Details'}
                         </h2>
-                        <br />
                     </div>
 
                     <div className="specs-layout-grid">
@@ -892,7 +981,9 @@ export const PlaceOrder = () => {
 
                                                         <div className="form-row" style={{ marginBottom: '1.25rem' }}>
                                                             <div className="form-group" style={{ marginBottom: 0 }}>
-                                                                <label style={{ fontSize: '0.85rem' }}>B&W Pages (Auto Calculated)</label>
+                                                                <label style={{ fontSize: '0.85rem' }}>
+                                                                    B&W Pages (Auto Calculated: ₹{fileObj.bwPages * (selectedShop?.pricing?.bwPerPage || 1)})
+                                                                </label>
                                                                 <input 
                                                                     type="number"
                                                                     readOnly
@@ -901,7 +992,9 @@ export const PlaceOrder = () => {
                                                                 />
                                                             </div>
                                                             <div className="form-group" style={{ marginBottom: 0 }}>
-                                                                <label style={{ fontSize: '0.85rem' }}>Color Pages (Auto Calculated)</label>
+                                                                <label style={{ fontSize: '0.85rem' }}>
+                                                                    Color Pages (Auto Calculated: ₹{fileObj.colorPages * (selectedShop?.pricing?.colorPerPage || 5)})
+                                                                </label>
                                                                 <input 
                                                                     type="number"
                                                                     readOnly
@@ -1051,7 +1144,7 @@ export const PlaceOrder = () => {
 
                     <div className="specs-layout-grid">
                         <div className="specs-form-container card" style={{ padding: '1.5rem' }}>
-                            {/* Fulfillment selector */}
+                            {/* Fulfillment method display / selection */}
                             {serviceType === 'RECORD' ? (
                                 <div className="form-row">
                                     <div className="form-group">
@@ -1069,51 +1162,93 @@ export const PlaceOrder = () => {
                             ) : (
                                 <div className="form-row">
                                     <div className="form-group">
-                                        <label htmlFor="fulfillmentType">Fulfillment Method *</label>
-                                        <select 
-                                            id="fulfillmentType" 
-                                            value={fulfillmentType} 
-                                            onChange={(e) => setFulfillmentType(e.target.value)}
-                                            disabled={serviceType === 'DELIVERY'}
-                                        >
-                                            <option value="PICKUP">Self Pickup from Shop</option>
-                                            {selectedShop?.isDeliveryAvailable && (
-                                                <option value="DELIVERY">Hostel/Room Delivery</option>
-                                            )}
-                                        </select>
+                                        <label>Fulfillment Method</label>
+                                        <div style={{ padding: '0.75rem', backgroundColor: 'var(--bg-hover)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', fontWeight: 600 }}>
+                                            {fulfillmentMethod === 'HOME_DELIVERY' ? '🚚 Home Delivery' : '🏪 Shop Pickup'}
+                                        </div>
                                     </div>
                                 </div>
                             )}
 
-                            {/* Delivery Address block */}
-                            {serviceType === 'RECORD' ? (
-                                recordDeliveryOption === 'DELIVERY' && (
+                            {/* Delivery Type & Distance Slab (if delivery is selected) */}
+                            {((serviceType === 'RECORD' && recordDeliveryOption === 'DELIVERY') || serviceType === 'DELIVERY') && (
+                                <>
+                                    {/* Delivery Address block */}
                                     <div className="form-group">
-                                        <label htmlFor="recordDeliveryAddress">Hostel / Room Delivery Address *</label>
+                                        <label htmlFor="deliveryAddressInput">Hostel / Room Delivery Address *</label>
                                         <textarea
-                                            id="recordDeliveryAddress"
+                                            id="deliveryAddressInput"
                                             rows={2}
                                             placeholder="Specify hostel block, room number, floor..."
-                                            value={recordDeliveryAddress}
-                                            onChange={(e) => setRecordDeliveryAddress(e.target.value)}
+                                            value={serviceType === 'RECORD' ? recordDeliveryAddress : deliveryAddress}
+                                            onChange={(e) => {
+                                                if (serviceType === 'RECORD') {
+                                                    setRecordDeliveryAddress(e.target.value);
+                                                } else {
+                                                    setDeliveryAddress(e.target.value);
+                                                }
+                                            }}
                                             required
                                         />
                                     </div>
-                                )
-                            ) : (
-                                fulfillmentType === 'DELIVERY' && (
-                                    <div className="form-group">
-                                        <label htmlFor="deliveryAddress">Hostel / Room Delivery Address *</label>
-                                        <textarea
-                                            id="deliveryAddress"
-                                            rows={2}
-                                            placeholder="Specify hostel block, room number, floor..."
-                                            value={deliveryAddress}
-                                            onChange={(e) => setDeliveryAddress(e.target.value)}
-                                            required
-                                        />
+
+                                    <div className="form-row">
+                                        <div className="form-group">
+                                            <label htmlFor="deliveryType">Delivery Option *</label>
+                                            <select
+                                                id="deliveryType"
+                                                value={deliveryType}
+                                                onChange={(e) => setDeliveryType(e.target.value)}
+                                            >
+                                                {selectedShop?.homeDelivery && <option value="STANDARD">Standard Delivery</option>}
+                                                {selectedShop?.expressPrinting && <option value="EXPRESS">Express Delivery</option>}
+                                            </select>
+                                        </div>
+                                        
+                                        {/* Distance Slab Selector */}
+                                        {((deliveryType === 'EXPRESS' && !selectedShop?.freeExpressDelivery) || 
+                                          (deliveryType === 'STANDARD' && !selectedShop?.freeDelivery)) ? (
+                                            <div className="form-group">
+                                                <label htmlFor="selectedSlab">Distance from Shop *</label>
+                                                {((deliveryType === 'EXPRESS' ? selectedShop?.expressDeliveryCharges : selectedShop?.deliveryCharges)?.length > 0) ? (
+                                                    <select
+                                                        id="selectedSlab"
+                                                        value={selectedSlabIndex}
+                                                        onChange={(e) => {
+                                                            const idx = Number(e.target.value);
+                                                            setSelectedSlabIndex(idx);
+                                                            const currentSlabs = deliveryType === 'EXPRESS' ? selectedShop?.expressDeliveryCharges : selectedShop?.deliveryCharges;
+                                                            if (idx >= 0 && currentSlabs?.[idx]) {
+                                                                setDeliveryDistance(currentSlabs[idx].from);
+                                                            } else {
+                                                                setDeliveryDistance(0);
+                                                            }
+                                                        }}
+                                                        required
+                                                    >
+                                                        <option value={-1}>-- Select Distance --</option>
+                                                        {(deliveryType === 'EXPRESS' ? selectedShop?.expressDeliveryCharges : selectedShop?.deliveryCharges)?.map((slab, idx) => (
+                                                            <option key={idx} value={idx}>
+                                                                {slab.from} - {slab.to} KM (₹{slab.charge})
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                ) : (
+                                                    <div style={{ padding: '0.75rem', backgroundColor: '#fef2f2', color: '#ef4444', border: '1px solid #fca5a5', borderRadius: 'var(--radius-sm)', fontSize: '0.85rem', fontWeight: 600 }}>
+                                                        ⚠️ No pricing slabs configured by shop
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <div className="form-group">
+                                                <label>Delivery Cost</label>
+                                                <div style={{ padding: '0.75rem', backgroundColor: 'var(--bg-hover)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', color: 'var(--success-color)', fontWeight: 600 }}>
+                                                    🆓 Free Delivery Included
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
-                                )
+                                </>
                             )}
 
                             {/* Contact Details */}
@@ -1140,6 +1275,24 @@ export const PlaceOrder = () => {
                                         onChange={(e) => setCustomerEmail(e.target.value)}
                                         required
                                     />
+                                </div>
+                            </div>
+
+                            {/* Payment Method Selector */}
+                            <div className="form-row">
+                                <div className="form-group">
+                                    <label htmlFor="paymentType">Intended Payment Method *</label>
+                                    <select
+                                        id="paymentType"
+                                        value={paymentType}
+                                        onChange={(e) => setPaymentType(e.target.value)}
+                                    >
+                                        <option value="UPI">📱 UPI Payment</option>
+                                        {selectedShop?.isCodAvailable && <option value="COD">💵 Cash on Delivery (COD)</option>}
+                                    </select>
+                                    <small style={{ display: 'block', marginTop: '0.25rem', color: 'var(--text-secondary)' }}>
+                                        Note: You will pay after the shop reviews and accepts the order.
+                                    </small>
                                 </div>
                             </div>
 
@@ -1181,9 +1334,14 @@ export const PlaceOrder = () => {
                                         !customerContact.trim() || 
                                         customerContact.length !== 10 ||
                                         !customerEmail.trim() ||
-                                        (serviceType === 'RECORD' && recordDeliveryOption === 'DELIVERY' && !recordDeliveryAddress.trim()) ||
-                                        (serviceType !== 'RECORD' && fulfillmentType === 'DELIVERY' && !deliveryAddress.trim()) ||
-                                        new Date(requiredBy) <= new Date()
+                                        new Date(requiredBy) <= new Date() ||
+                                        (((serviceType === 'DELIVERY') || (serviceType === 'RECORD' && recordDeliveryOption === 'DELIVERY')) && (
+                                            !(serviceType === 'RECORD' ? recordDeliveryAddress.trim() : deliveryAddress.trim()) ||
+                                            (((deliveryType === 'EXPRESS' && !selectedShop?.freeExpressDelivery) || (deliveryType === 'STANDARD' && !selectedShop?.freeDelivery)) && (
+                                                selectedSlabIndex < 0 ||
+                                                !(deliveryType === 'EXPRESS' ? selectedShop?.expressDeliveryCharges : selectedShop?.deliveryCharges)?.length
+                                            ))
+                                        ))
                                     }
                                 >
                                     Continue to Review →
@@ -1200,11 +1358,23 @@ export const PlaceOrder = () => {
                                     <div className="summary-row">
                                         <span>Fulfillment Option</span>
                                         <strong>
-                                            {serviceType === 'RECORD' 
-                                                ? (recordDeliveryOption === 'DELIVERY' ? 'Home Delivery' : 'Pickup')
-                                                : (fulfillmentType === 'DELIVERY' ? 'Home Delivery' : 'Self Pickup')
+                                            {fulfillmentMethod === 'HOME_DELIVERY' 
+                                                ? `Home Delivery (${deliveryType})` 
+                                                : fulfillmentMethod === 'RECORD_PICKUP'
+                                                    ? `Record Pickup (${recordDeliveryOption === 'DELIVERY' ? `Delivery - ${deliveryType}` : 'Pickup'})`
+                                                    : 'Shop Pickup'
                                             }
                                         </strong>
+                                    </div>
+                                    {((fulfillmentMethod === 'HOME_DELIVERY') || (fulfillmentMethod === 'RECORD_PICKUP' && recordDeliveryOption === 'DELIVERY')) && (
+                                        <div className="summary-row">
+                                            <span>Delivery Charge</span>
+                                            <strong>₹{calculatedDeliveryCharge}</strong>
+                                        </div>
+                                    )}
+                                    <div className="summary-row">
+                                        <span>Payment Intended</span>
+                                        <strong>{paymentType}</strong>
                                     </div>
                                     <div className="summary-row">
                                         <span>Deadline</span>
@@ -1260,17 +1430,33 @@ export const PlaceOrder = () => {
                                 <div className="review-grid-item">
                                     <span>Fulfillment Option</span>
                                     <strong>
-                                        {serviceType === 'RECORD'
-                                            ? (recordDeliveryOption === 'DELIVERY' ? 'Hostel/Room Delivery' : 'Self Pickup from Shop')
-                                            : (fulfillmentType === 'DELIVERY' ? 'Hostel/Room Delivery' : 'Self Pickup from Shop')
+                                        {fulfillmentMethod === 'HOME_DELIVERY' 
+                                            ? `Hostel/Room Delivery (${deliveryType})` 
+                                            : fulfillmentMethod === 'RECORD_PICKUP'
+                                                ? `Record Pickup (${recordDeliveryOption === 'DELIVERY' ? `Hostel/Room Delivery - ${deliveryType}` : 'Self Pickup from Shop'})`
+                                                : 'Self Pickup from Shop'
                                         }
                                     </strong>
                                 </div>
-                                {((serviceType === 'RECORD' && recordDeliveryOption === 'DELIVERY') || (serviceType !== 'RECORD' && fulfillmentType === 'DELIVERY')) && (
-                                    <div className="review-grid-item" style={{ gridColumn: '1 / -1' }}>
-                                        <span>Delivery Address</span>
-                                        <strong>{serviceType === 'RECORD' ? recordDeliveryAddress : deliveryAddress}</strong>
-                                    </div>
+                                {((fulfillmentMethod === 'HOME_DELIVERY') || (fulfillmentMethod === 'RECORD_PICKUP' && recordDeliveryOption === 'DELIVERY')) && (
+                                    <>
+                                        <div className="review-grid-item" style={{ gridColumn: '1 / -1' }}>
+                                            <span>Delivery Address</span>
+                                            <strong>{serviceType === 'RECORD' ? recordDeliveryAddress : deliveryAddress}</strong>
+                                        </div>
+                                        {!((deliveryType === 'EXPRESS' && selectedShop?.freeExpressDelivery) || (deliveryType === 'STANDARD' && selectedShop?.freeDelivery)) && (
+                                            <div className="review-grid-item">
+                                                <span>Distance Range</span>
+                                                <strong>
+                                                    {(() => {
+                                                        const currentSlabs = deliveryType === 'EXPRESS' ? selectedShop?.expressDeliveryCharges : selectedShop?.deliveryCharges;
+                                                        const slab = currentSlabs?.[selectedSlabIndex];
+                                                        return slab ? `${slab.from} - ${slab.to} KM` : 'N/A';
+                                                    })()}
+                                                </strong>
+                                            </div>
+                                        )}
+                                    </>
                                 )}
                                 {serviceType === 'RECORD' && (
                                     <>
@@ -1295,6 +1481,14 @@ export const PlaceOrder = () => {
                                 <div className="review-grid-item">
                                     <span>Email Address</span>
                                     <strong>{customerEmail}</strong>
+                                </div>
+                                <div className="review-grid-item">
+                                    <span>Intended Payment Method</span>
+                                    <strong>
+                                        {paymentType === 'UPI' && '📱 UPI Payment'}
+                                        {paymentType === 'ONLINE' && '💳 Online Payment'}
+                                        {paymentType === 'COD' && '💵 Cash on Delivery (COD)'}
+                                    </strong>
                                 </div>
                                 <div className="review-grid-item">
                                     <span>Deadline Needed By</span>
@@ -1337,21 +1531,19 @@ export const PlaceOrder = () => {
                         </div>
 
                         {/* D. Pricing & Costs Table */}
-                        <div className="review-section" style={{ backgroundColor: 'var(--bg-hover)' }}>
+                        <div className="review-section">
                             <h3>Cost Details</h3>
                             <div className="review-cost-table">
                                 <div className="review-cost-row">
-                                    <span>Document Printing Costs</span>
+                                    <span>Black & White Printing (₹{selectedShop?.pricing?.bwPerPage || 1}/pg)</span>
                                     <span>
-                                        ₹{files.reduce((sum, f) => {
-                                            if (f.status !== 'success') return sum;
-                                            const bw = Number(f.bwPages || 0);
-                                            const color = Number(f.colorPages || 0);
-                                            const copies = Number(f.copies || 1);
-                                            const bwCost = bw * (selectedShop.pricing.bwPerPage || 1);
-                                            const colorCost = color * (selectedShop.pricing.colorPerPage || 5);
-                                            return sum + (bwCost + colorCost) * copies;
-                                        }, 0)}
+                                        {files.reduce((sum, f) => sum + Number(f.bwPages || 0) * Number(f.copies || 1), 0)} pages = ₹{files.reduce((sum, f) => sum + Number(f.bwPages || 0) * Number(f.copies || 1) * (selectedShop?.pricing?.bwPerPage || 1), 0)}
+                                    </span>
+                                </div>
+                                <div className="review-cost-row">
+                                    <span>Color Printing (₹{selectedShop?.pricing?.colorPerPage || 5}/pg)</span>
+                                    <span>
+                                        {files.reduce((sum, f) => sum + Number(f.colorPages || 0) * Number(f.copies || 1), 0)} pages = ₹{files.reduce((sum, f) => sum + Number(f.colorPages || 0) * Number(f.copies || 1) * (selectedShop?.pricing?.colorPerPage || 5), 0)}
                                     </span>
                                 </div>
                                 <div className="review-cost-row">
@@ -1367,12 +1559,12 @@ export const PlaceOrder = () => {
                                         }, 0) + (serviceType === 'RECORD' ? (recordBindingType === 'SPIRAL' ? selectedShop.pricing.spiralBinding || 30 : selectedShop.pricing.bookBinding || 50) : 0)}
                                     </span>
                                 </div>
-                                <div className="review-cost-row">
-                                    <span>Delivery Charge</span>
-                                    <span>
-                                        ₹{((serviceType === 'RECORD' && recordDeliveryOption === 'DELIVERY') || (serviceType !== 'RECORD' && fulfillmentType === 'DELIVERY')) && selectedShop.isDeliveryAvailable ? 15 : 0}
-                                    </span>
-                                </div>
+                                {((fulfillmentMethod === 'HOME_DELIVERY') || (fulfillmentMethod === 'RECORD_PICKUP' && recordDeliveryOption === 'DELIVERY')) && (
+                                    <div className="review-cost-row">
+                                        <span>Delivery Charge ({deliveryType} Delivery)</span>
+                                        <span>₹{calculatedDeliveryCharge}</span>
+                                    </div>
+                                )}
                                 <div className="review-cost-row total">
                                     <span>Estimated Total</span>
                                     <span>₹{estimatedCost || 0}</span>
