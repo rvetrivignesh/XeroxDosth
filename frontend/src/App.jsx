@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
 import { ToastProvider } from './context/ToastContext';
 import { AuthProvider } from './context/AuthContext';
@@ -31,7 +31,7 @@ export function App() {
         <ThemeProvider>
             <ToastProvider>
                 <AuthProvider>
-                    <Router basename={import.meta.env.BASE_URL}>
+                    <Router>
                         <div className="app-layout">
                             <Navbar />
                             <main className="main-content">

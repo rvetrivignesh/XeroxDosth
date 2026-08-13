@@ -151,7 +151,7 @@ export const createOrder = async (userId, orderData, io) => {
 
     // Notify Shop Owner
     if (shop.owner) {
-        const dashboardUrl = `${process.env.FRONTEND_URL || 'https://rvetrivignesh.github.io/XeroxDosth'}/shop-orders`;
+        const dashboardUrl = `${process.env.FRONTEND_URL || 'https://rvetrivignesh.github.io/XeroxDosth/#'}/shop-orders`;
         const orderIdStr = order._id.toString();
         
         await createNotification(io, {
@@ -314,7 +314,7 @@ export const acceptOrder = async (userId, orderId, { finalPrice, estimatedDelive
     await order.save();
 
     const orderIdStr = order._id.toString();
-    const paymentRequestUrl = `${process.env.FRONTEND_URL || 'https://rvetrivignesh.github.io/XeroxDosth'}/payment-request/${order._id}`;
+    const paymentRequestUrl = `${process.env.FRONTEND_URL || 'https://rvetrivignesh.github.io/XeroxDosth/#'}/payment-request/${order._id}`;
 
     // Send notifications
     const isCod = order.paymentType === 'COD' || order.paymentMethod === 'COD';
@@ -708,7 +708,7 @@ export const requestPaymentAgain = async (userId, orderId, { reason }, io) => {
             <p>The shop owner for your order #${orderIdStr.slice(-6).toUpperCase()} has requested payment again.</p>
             ${reason ? `<p><strong>Reason:</strong> ${reason}</p>` : ''}
             <p>Please visit the payment request page to submit your payment details (transaction ID and screenshot):</p>
-            <p><a href="${process.env.FRONTEND_URL || 'https://rvetrivignesh.github.io/XeroxDosth'}/payment-request/${order._id}" style="padding: 10px 15px; background-color: #10b981; color: white; text-decoration: none; border-radius: 5px; display: inline-block;">Go to Payment Request</a></p>
+            <p><a href="${process.env.FRONTEND_URL || 'https://rvetrivignesh.github.io/XeroxDosth/#'}/payment-request/${order._id}" style="padding: 10px 15px; background-color: #10b981; color: white; text-decoration: none; border-radius: 5px; display: inline-block;">Go to Payment Request</a></p>
             <p>Thank you,<br/>XeroxDosth Team</p>
         `
     });

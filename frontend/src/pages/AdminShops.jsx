@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import API from '../services/api';
 import { useToast } from '../context/ToastContext';
 
 export const AdminShops = () => {
     const { showToast } = useToast();
+    const location = useLocation();
     const [shops, setShops] = useState([]);
     const [loading, setLoading] = useState(true);
     const [rejectionMap, setRejectionMap] = useState({});
     const [actionId, setActionId] = useState(null);
 
-    const isManageView = window.location.pathname.includes('manage-shops');
+    const isManageView = location.pathname.includes('manage-shops');
 
     const fetchShops = async () => {
         setLoading(true);
