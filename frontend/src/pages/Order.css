@@ -923,6 +923,16 @@
     align-items: center;
     gap: 0.75rem;
     min-width: 0;
+    flex: 1;
+}
+
+.file-card-icon {
+    font-size: 1.5rem;
+    line-height: 1;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .file-card-name-sec {
@@ -938,12 +948,14 @@
     font-size: 0.8rem;
     color: var(--text-muted);
     margin-top: 0.15rem;
+    line-height: 1.35;
 }
 
 .file-card-header-right {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 0.5rem;
+    flex-shrink: 0;
 }
 
 .file-card-body {
@@ -959,6 +971,42 @@
     font-size: 0.85rem;
     font-weight: 500;
     border-top: 1px solid #fee2e2;
+}
+
+/* Mobile responsive file card layout */
+@media (max-width: 640px) {
+    .file-card-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+        padding: 0.75rem 1rem;
+    }
+
+    .file-card-icon {
+        font-size: 1.2rem;
+    }
+
+    .file-card-name-sec {
+        font-size: 0.9rem;
+        word-break: break-word;
+        overflow-wrap: anywhere;
+        white-space: normal;
+    }
+
+    .file-card-summary-sec {
+        font-size: 0.75rem;
+    }
+
+    .file-card-header-right {
+        justify-content: flex-end;
+        width: 100%;
+        border-top: 1px dashed var(--border-color);
+        padding-top: 0.5rem;
+    }
+
+    .file-card-body {
+        padding: 1rem;
+    }
 }
 
 /* --- Review Order Page --- */

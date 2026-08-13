@@ -769,7 +769,7 @@ export const PlaceOrder = () => {
                                                     onClick={() => updateFileStatus(fileObj.id, { isCollapsed: !fileObj.isCollapsed })}
                                                 >
                                                     <div className="file-card-header-left">
-                                                        <span>{isImage ? '🖼️' : '📕'}</span>
+                                                        <span className="file-card-icon">{isImage ? '🖼️' : '📕'}</span>
                                                         <div style={{ minWidth: 0 }}>
                                                             <div className="file-card-name-sec" title={fileObj.file.name}>{fileObj.file.name}</div>
                                                             <div className="file-card-summary-sec">
