@@ -5,12 +5,28 @@ import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import './Order.css';
 
-// PDF Page count detector using lightweight binary/text regex search
-const detectPdfPages = async (file) => {
+// Enhanced fallback PDF Page count detector using lightweight binary/text regex search
+const fallbackDetectPdfPages = async (file) => {
     try {
-        const slice = file.slice(0, Math.min(file.size, 2 * 1024 * 1024)); // first 2MB
-        const buffer = await slice.arrayBuffer();
-        const text = new TextDecoder('ascii').decode(new Uint8Array(buffer));
+        let text = '';
+        const decoder = new TextDecoder('ascii');
+        
+        if (file.size <= 4 * 1024 * 1024) {
+            const buffer = await file.arrayBuffer();
+            text = decoder.decode(new Uint8Array(buffer));
+        } else {
+            // Read first 2MB
+            const sliceStart = file.slice(0, 2 * 1024 * 1024);
+            const bufStart = await sliceStart.arrayBuffer();
+            const textStart = decoder.decode(new Uint8Array(bufStart));
+            
+            // Read last 2MB
+            const sliceEnd = file.slice(file.size - 2 * 1024 * 1024);
+            const bufEnd = await sliceEnd.arrayBuffer();
+            const textEnd = decoder.decode(new Uint8Array(bufEnd));
+            
+            text = textStart + '\n=== SPLIT ===\n' + textEnd;
+        }
         
         const pagesMatches = [...text.matchAll(/\/Type\s*\/Pages[\s\S]*?\/Count\s*(\d+)/gi)];
         if (pagesMatches.length > 0) {
@@ -28,9 +44,40 @@ const detectPdfPages = async (file) => {
             }
         }
     } catch (err) {
-        console.error('Failed to auto-detect PDF page count:', err);
+        console.error('Failed to run fallback PDF page count detection:', err);
     }
     return null;
+};
+
+// PDF Page count detector using dynamic loading of PDF.js
+const detectPdfPages = async (file) => {
+    try {
+        // Dynamically load pdfjs-dist from a CDN if it's not already loaded
+        if (!window.pdfjsLib) {
+            await new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+                script.onload = () => {
+                    // Configure worker Src
+                    window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+                    resolve();
+                };
+                script.onerror = (err) => reject(new Error('Failed to load PDF.js CDN: ' + err.message));
+                document.head.appendChild(script);
+            });
+        }
+
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        if (pdf && typeof pdf.numPages === 'number') {
+            console.log(`[PDF Detector] PDF.js successfully detected ${pdf.numPages} pages.`);
+            return pdf.numPages;
+        }
+    } catch (err) {
+        console.warn('Failed to auto-detect PDF page count with PDF.js, falling back to regex:', err);
+    }
+    // Fallback to the enhanced regex-based count detection if PDF.js fails or is offline
+    return await fallbackDetectPdfPages(file);
 };
 
 const parseColorPageNumbers = (text) => {

@@ -289,6 +289,19 @@ export const updateOrderStatus = async (userId, orderId, status, paymentStatus, 
     return order;
 };
 
+const formatEstimatedTime = (timeStr) => {
+    if (!timeStr) return '';
+    const date = new Date(timeStr);
+    return isNaN(date.getTime()) ? timeStr : date.toLocaleString('en-US', {
+        weekday: 'short',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+};
+
 export const acceptOrder = async (userId, orderId, { finalPrice, estimatedDeliveryTime }, io) => {
     const shop = await Shop.findOne({ owner: userId });
     if (!shop) {
@@ -343,7 +356,7 @@ export const acceptOrder = async (userId, orderId, { finalPrice, estimatedDelive
                     <li><strong>Order ID:</strong> #${orderIdStr.slice(-6).toUpperCase()}</li>
                     <li><strong>Payment Method:</strong> Cash on Delivery (COD)</li>
                     <li><strong>Final Exact Price:</strong> ₹${finalPrice}</li>
-                    <li><strong>Estimated Completion Time:</strong> ${estimatedDeliveryTime}</li>
+                    <li><strong>Estimated Completion Time:</strong> ${formatEstimatedTime(estimatedDeliveryTime)}</li>
                 </ul>
                 <p>Please keep the amount ready during delivery/pickup.</p>
                 <p>Thank you,<br/>XeroxDosth Team</p>
@@ -360,7 +373,7 @@ export const acceptOrder = async (userId, orderId, { finalPrice, estimatedDelive
                 <ul>
                     <li><strong>Order ID:</strong> #${orderIdStr.slice(-6).toUpperCase()}</li>
                     <li><strong>Final Exact Price:</strong> ₹${finalPrice}</li>
-                    <li><strong>Estimated Completion Time:</strong> ${estimatedDeliveryTime}</li>
+                    <li><strong>Estimated Completion Time:</strong> ${formatEstimatedTime(estimatedDeliveryTime)}</li>
                 </ul>
                 <p>To process this print order, please complete your payment on the Payment Request page:</p>
                 <p><a href="${paymentRequestUrl}" style="padding: 10px 15px; background-color: #10b981; color: white; text-decoration: none; border-radius: 5px; display: inline-block;">Go to Payment Request</a></p>
@@ -437,18 +450,6 @@ export const cancelOrder = async (userId, orderId, io) => {
             type: 'CANCELLED_BY_USER',
             title: 'Order Cancelled by Customer',
             message: `Customer cancelled order #${orderIdStr.slice(-6).toUpperCase()} before acceptance.`
-        });
-
-        sendEmail({
-            to: shop.email || shop.owner.email,
-            subject: `[XeroxDosth] Order #${orderIdStr.slice(-6).toUpperCase()} Cancelled`,
-            html: `
-                <h3>Order Cancellation</h3>
-                <p>Hello <strong>${shop.shopName}</strong>,</p>
-                <p>Order #${orderIdStr.slice(-6).toUpperCase()} has been cancelled by the customer before shop acceptance.</p>
-                <p>No action is required.</p>
-                <p>Thank you,<br/>XeroxDosth Team</p>
-            `
         });
     }
 
@@ -579,6 +580,12 @@ export const payOrder = async (userId, orderId, { paymentMethod, transactionId, 
         throw new ApiError(400, 'Order is not in payment requested state.');
     }
 
+    // Force paymentMethod to match order's original paymentType
+    const originalPaymentType = order.paymentType || 'UPI';
+    if (paymentMethod !== originalPaymentType) {
+        throw new ApiError(400, `You cannot change the payment option. Original choice was ${originalPaymentType}.`);
+    }
+
     if (paymentMethod === 'UPI') {
         if (!transactionId || transactionId.trim() === '') {
             throw new ApiError(400, 'Transaction reference ID is required for UPI payments');
@@ -632,6 +639,21 @@ export const payOrder = async (userId, orderId, { paymentMethod, transactionId, 
                 <p>Thank you,<br/>XeroxDosth Team</p>
             `
         });
+
+        if (paymentMethod === 'COD') {
+            sendEmail({
+                to: order.customerEmail || order.customer.email,
+                subject: `[XeroxDosth] Order #${orderIdStr.slice(-6).toUpperCase()} COD Confirmed`,
+                html: `
+                    <h3>Cash on Delivery Confirmed</h3>
+                    <p>Hello <strong>${order.customer.name}</strong>,</p>
+                    <p>You have confirmed Cash on Delivery (COD) for your order <strong>#${orderIdStr.slice(-6).toUpperCase()}</strong>.</p>
+                    <p><strong>Final Amount to Pay:</strong> ₹${order.finalPrice}</p>
+                    <p>Please keep this amount ready during delivery/pickup.</p>
+                    <p>Thank you,<br/>XeroxDosth Team</p>
+                `
+            });
+        }
 
     }
 

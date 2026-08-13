@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -17,6 +17,19 @@ export const Navbar = () => {
     const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
     const [notifications, setNotifications] = useState([]);
     const [isNotifOpen, setIsNotifOpen] = useState(false);
+    const notifRef = useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (notifRef.current && !notifRef.current.contains(event.target)) {
+                setIsNotifOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
 
     const toggleNotifDropdown = () => {
         if (window.innerWidth < 768) {
@@ -131,7 +144,7 @@ export const Navbar = () => {
                         <ThemeToggle />
 
                         {user && (
-                            <div className="notif-wrapper" style={{ position: 'relative' }}>
+                            <div ref={notifRef} className="notif-wrapper" style={{ position: 'relative' }}>
                                 <button
                                     className="notif-bell-btn"
                                     onClick={toggleNotifDropdown}

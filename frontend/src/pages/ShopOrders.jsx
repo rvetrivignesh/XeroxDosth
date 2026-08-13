@@ -40,7 +40,17 @@ export const ShopOrders = () => {
     const handleAcceptClick = (order) => {
         setSelectedOrderId(order._id);
         setFinalPrice(order.estimatedCost || '');
-        setEstimatedDeliveryTime('Today within 2-3 hours');
+        
+        // Default to 2 hours from now formatted for datetime-local
+        const defaultTime = new Date();
+        defaultTime.setHours(defaultTime.getHours() + 2);
+        const year = defaultTime.getFullYear();
+        const month = String(defaultTime.getMonth() + 1).padStart(2, '0');
+        const day = String(defaultTime.getDate()).padStart(2, '0');
+        const hours = String(defaultTime.getHours()).padStart(2, '0');
+        const minutes = String(defaultTime.getMinutes()).padStart(2, '0');
+        setEstimatedDeliveryTime(`${year}-${month}-${day}T${hours}:${minutes}`);
+
         setAcceptModalOpen(true);
     };
 
@@ -530,8 +540,7 @@ export const ShopOrders = () => {
                         <label htmlFor="deliveryTimeline">Estimated Completion/Delivery Time *</label>
                         <input
                             id="deliveryTimeline"
-                            type="text"
-                            placeholder="e.g. Tomorrow by 12:00 PM, Today in 2 hours..."
+                            type="datetime-local"
                             value={estimatedDeliveryTime}
                             onChange={(e) => setEstimatedDeliveryTime(e.target.value)}
                             required

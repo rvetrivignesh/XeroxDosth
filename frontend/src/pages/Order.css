@@ -304,6 +304,7 @@
     align-items: baseline;
     font-size: 0.85rem;
     gap: 1rem;
+    flex-wrap: wrap;
 }
 
 .summary-row span {
@@ -314,6 +315,8 @@
     color: var(--text-primary);
     text-align: right;
     font-weight: 600;
+    word-break: break-word;
+    overflow-wrap: break-word;
 }
 
 .documents-preview-row {
@@ -676,6 +679,17 @@
     cursor: pointer;
 }
 
+.payment-option-choices.disabled-choices {
+    opacity: 0.9;
+}
+
+.payment-option-label.read-only {
+    opacity: 0.45;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+
 .upi-payment-form {
     padding: 1.25rem;
     border: 1px solid var(--border-color);
@@ -858,6 +872,9 @@
     .specs-card {
         padding: 1.25rem 1rem !important;
     }
+    .specs-form-container {
+        padding: 1.25rem 1rem !important;
+    }
     .summary-card {
         padding: 1.25rem 1rem !important;
     }
@@ -877,6 +894,9 @@
     .shop-card-actions button {
         width: 100%;
     }
+    .order-wizard-page .form-row {
+        grid-template-columns: 1fr !important;
+    }
 }
 
 /* Form Spacing: Give more gap between each input box inside details section */
@@ -884,10 +904,16 @@
     margin-bottom: 2.25rem !important; 
 }
 .order-wizard-page .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
     margin-bottom: 2.25rem !important;
 }
 .order-wizard-page .form-row .form-group {
     margin-bottom: 0 !important; /* Prevents nested element margin stacking */
+}
+.order-wizard-page .deadline-row-full {
+    grid-column: 1 / -1 !important;
 }
 
 /* --- Collapsible File Card Styles --- */

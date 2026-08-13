@@ -4,6 +4,19 @@ import API from '../services/api';
 import { useToast } from '../context/ToastContext';
 import './Order.css';
 
+const formatEstimatedTime = (timeStr) => {
+    if (!timeStr) return '';
+    const date = new Date(timeStr);
+    return isNaN(date.getTime()) ? timeStr : date.toLocaleString('en-US', {
+        weekday: 'short',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+};
+
 export const PaymentRequest = () => {
     const { orderId } = useParams();
     const navigate = useNavigate();
@@ -106,7 +119,11 @@ export const PaymentRequest = () => {
         setLoading(true);
         try {
             const res = await API.get(`/orders/${orderId}`);
-            setOrder(res.data?.data || null);
+            const orderData = res.data?.data || null;
+            setOrder(orderData);
+            if (orderData) {
+                setPaymentMethod(orderData.paymentType || 'UPI');
+            }
         } catch (err) {
             showToast(err.response?.data?.message || 'Failed to load order details', 'error');
         } finally {
@@ -259,7 +276,7 @@ export const PaymentRequest = () => {
                     </div>
                     {estimatedDeliveryTime && (
                         <div className="final-pricing-time">
-                            ⏰ Estimated Completion Time: <strong>{estimatedDeliveryTime}</strong>
+                            ⏰ Estimated Completion Time: <strong>{formatEstimatedTime(estimatedDeliveryTime)}</strong>
                         </div>
                     )}
                 </div>
@@ -268,30 +285,28 @@ export const PaymentRequest = () => {
                 {isAwaitingPayment ? (
                     <form onSubmit={handleSubmitPayment} className="order-form">
                         <div className="form-group payment-option-card">
-                            <label className="payment-option-heading">Choose Payment Option</label>
-                            <div className="payment-option-choices">
-                                <label className="payment-option-label">
+                            <label className="payment-option-heading">Payment Option (Locked to original choice)</label>
+                            <div className="payment-option-choices disabled-choices">
+                                <label className={`payment-option-label ${paymentMethod !== 'UPI' ? 'read-only' : ''}`}>
                                     <input
                                         type="radio"
                                         name="paymentMethod"
                                         value="UPI"
                                         checked={paymentMethod === 'UPI'}
-                                        onChange={(e) => setPaymentMethod(e.target.value)}
+                                        disabled
                                     />
                                     <span>UPI Payment (Online)</span>
                                 </label>
-                                {shop?.isCodAvailable && (
-                                    <label className="payment-option-label">
-                                        <input
-                                            type="radio"
-                                            name="paymentMethod"
-                                            value="COD"
-                                            checked={paymentMethod === 'COD'}
-                                            onChange={(e) => setPaymentMethod(e.target.value)}
-                                        />
-                                        <span>Cash on Delivery (COD)</span>
-                                    </label>
-                                )}
+                                <label className={`payment-option-label ${paymentMethod !== 'COD' ? 'read-only' : ''}`}>
+                                    <input
+                                        type="radio"
+                                        name="paymentMethod"
+                                        value="COD"
+                                        checked={paymentMethod === 'COD'}
+                                        disabled
+                                    />
+                                    <span>Cash on Delivery (COD)</span>
+                                </label>
                             </div>
                         </div>
 

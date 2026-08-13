@@ -4,6 +4,19 @@ import API from '../services/api';
 import Modal from '../components/Modal';
 import { useToast } from '../context/ToastContext';
 
+const formatEstimatedTime = (timeStr) => {
+    if (!timeStr) return '';
+    const date = new Date(timeStr);
+    return isNaN(date.getTime()) ? timeStr : date.toLocaleString('en-US', {
+        weekday: 'short',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+};
+
 export const MyOrders = () => {
     const { showToast } = useToast();
     const navigate = useNavigate();
@@ -163,7 +176,7 @@ export const MyOrders = () => {
                                     <div>📦 {order.printSide.replace(/_/g, ' ')} • {order.binding} Binding</div>
                                     <div>⏰ Deadline: <strong>{new Date(order.requiredBy).toLocaleString()}</strong></div>
                                     {order.estimatedDeliveryTime && (
-                                        <div style={{ color: 'var(--accent-color)', fontWeight: 600 }}>⏰ Shop Delivery Time: {order.estimatedDeliveryTime}</div>
+                                        <div style={{ color: 'var(--accent-color)', fontWeight: 600 }}>⏰ Shop Delivery Time: {formatEstimatedTime(order.estimatedDeliveryTime)}</div>
                                     )}
                                     <div style={{ borderTop: '1px dashed var(--border-color)', paddingTop: '0.5rem', marginTop: '0.25rem', fontWeight: 600 }}>
                                         Price: {order.finalPrice ? `₹${order.finalPrice} (Exact)` : `₹${order.estimatedCost} (Est.)`}
@@ -262,7 +275,7 @@ export const MyOrders = () => {
                                     Estimated Delivery/Completion Time
                                 </strong>
                                 <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', margin: 0 }}>
-                                    {selectedOrder.estimatedDeliveryTime}
+                                    {formatEstimatedTime(selectedOrder.estimatedDeliveryTime)}
                                 </p>
                             </div>
                         )}
