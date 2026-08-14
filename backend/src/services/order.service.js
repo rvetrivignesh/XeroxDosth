@@ -151,8 +151,8 @@ export const createOrder = async (userId, orderData, io) => {
 
     // Notify Shop Owner
     if (shop.owner) {
-        const orderUrl = `${process.env.FRONTEND_URL || 'https://rvetrivignesh.github.io/XeroxDosth/#'}/shop-orders?orderId=${orderIdStr}`;
         const orderIdStr = order._id.toString();
+        const orderUrl = `${process.env.FRONTEND_URL || 'https://rvetrivignesh.github.io/XeroxDosth/#'}/shop-orders?orderId=${orderIdStr}`;
         
         await createNotification(io, {
             recipient: shop.owner._id,
