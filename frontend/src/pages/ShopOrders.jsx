@@ -36,6 +36,31 @@ export const ShopOrders = () => {
         fetchOrders();
     }, []);
 
+    useEffect(() => {
+        if (!loading && orders.length > 0) {
+            const hash = window.location.hash;
+            const queryIndex = hash.indexOf('?');
+            if (queryIndex !== -1) {
+                const searchParams = new URLSearchParams(hash.slice(queryIndex));
+                const orderId = searchParams.get('orderId');
+                if (orderId) {
+                    setTimeout(() => {
+                        const element = document.getElementById(`order-${orderId}`);
+                        if (element) {
+                            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            element.style.outline = '3px solid var(--accent-color)';
+                            element.style.outlineOffset = '4px';
+                            element.style.transition = 'outline 0.5s ease';
+                            setTimeout(() => {
+                                element.style.outline = 'none';
+                            }, 4000);
+                        }
+                    }, 300);
+                }
+            }
+        }
+    }, [loading, orders]);
+
     // Workflow actions
     const handleAcceptClick = (order) => {
         setSelectedOrderId(order._id);
@@ -309,7 +334,7 @@ export const ShopOrders = () => {
                         const isCancelled = ['CANCELLED', 'CANCELLED_BY_USER', 'CANCELLATION_APPROVED'].includes(order.status);
 
                         return (
-                            <div key={order._id} className="card" style={{ padding: '1.5rem' }}>
+                            <div key={order._id} id={`order-${order._id}`} className="card" style={{ padding: '1.5rem' }}>
                                 <div style={{
                                     display: 'flex',
                                     justifyContent: 'space-between',

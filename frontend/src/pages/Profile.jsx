@@ -30,11 +30,6 @@ export const Profile = () => {
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                     <div style={{ padding: '0.85rem 1rem', backgroundColor: 'var(--bg-input)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
-                        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block' }}>User ID</span>
-                        <strong style={{ fontSize: '0.95rem', color: 'var(--text-primary)' }}>{user?._id}</strong>
-                    </div>
-
-                    <div style={{ padding: '0.85rem 1rem', backgroundColor: 'var(--bg-input)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
                         <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block' }}>Account Role</span>
                         <span className="badge badge-accepted" style={{ marginTop: '0.25rem' }}>{user?.role}</span>
                     </div>

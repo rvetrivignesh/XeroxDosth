@@ -151,7 +151,7 @@ export const createOrder = async (userId, orderData, io) => {
 
     // Notify Shop Owner
     if (shop.owner) {
-        const dashboardUrl = `${process.env.FRONTEND_URL || 'https://rvetrivignesh.github.io/XeroxDosth/#'}/shop-orders`;
+        const orderUrl = `${process.env.FRONTEND_URL || 'https://rvetrivignesh.github.io/XeroxDosth/#'}/shop-orders?orderId=${orderIdStr}`;
         const orderIdStr = order._id.toString();
         
         await createNotification(io, {
@@ -181,7 +181,7 @@ export const createOrder = async (userId, orderData, io) => {
                     <li><strong>Fulfillment Method:</strong> ${order.fulfillmentType}</li>
                     <li><strong>Estimated Cost:</strong> ₹${order.estimatedCost}</li>
                 </ul>
-                <p><a href="${dashboardUrl}" style="padding: 10px 15px; background-color: #3b82f6; color: white; text-decoration: none; border-radius: 5px; display: inline-block;">View Order in Dashboard</a></p>
+                <p><a href="${orderUrl}" style="padding: 10px 15px; background-color: #3b82f6; color: white; text-decoration: none; border-radius: 5px; display: inline-block;">View Order Details</a></p>
                 <p>Thank you,<br/>XeroxDosth Team</p>
             `
         });
@@ -269,6 +269,21 @@ export const updateOrderStatus = async (userId, orderId, status, paymentStatus, 
                     <p>Thank you for using XeroxDosth!</p>
                 `
             });
+        } else if (status === 'OUT_FOR_DELIVERY') {
+            const orderConfirmationUrl = `${process.env.FRONTEND_URL || 'https://rvetrivignesh.github.io/XeroxDosth/#'}/my-orders?orderId=${orderIdStr}`;
+            sendEmail({
+                to: order.customerEmail || order.customer.email,
+                subject: `[XeroxDosth] ${title}`,
+                html: `
+                    <h3>Order Out for Delivery</h3>
+                    <p>Hello <strong>${order.customer.name}</strong>,</p>
+                    <p>Good news! ${msg}</p>
+                    <p>Order ID: #${orderIdStr.slice(-6).toUpperCase()}</p>
+                    <p>You can track the progress of your order here:</p>
+                    <p><a href="${orderConfirmationUrl}" style="padding: 10px 15px; background-color: #3b82f6; color: white; text-decoration: none; border-radius: 5px; display: inline-block;">Track Order Status</a></p>
+                    <p>Thank you for using XeroxDosth!</p>
+                `
+            });
         }
     }
 
@@ -283,6 +298,21 @@ export const updateOrderStatus = async (userId, orderId, status, paymentStatus, 
             type: 'PAYMENT_CONFIRMED',
             title,
             message: msg
+        });
+
+        const orderConfirmationUrl = `${process.env.FRONTEND_URL || 'https://rvetrivignesh.github.io/XeroxDosth/#'}/my-orders?orderId=${orderIdStr}`;
+        sendEmail({
+            to: order.customerEmail || order.customer.email,
+            subject: `[XeroxDosth] ${title} for Order #${orderIdStr.slice(-6).toUpperCase()}`,
+            html: `
+                <h3>Payment Confirmed</h3>
+                <p>Hello <strong>${order.customer.name}</strong>,</p>
+                <p>${msg}</p>
+                <p><strong>Amount Paid:</strong> ₹${order.finalPrice || order.estimatedCost}</p>
+                <p>You can track the progress of your order here:</p>
+                <p><a href="${orderConfirmationUrl}" style="padding: 10px 15px; background-color: #10b981; color: white; text-decoration: none; border-radius: 5px; display: inline-block;">View Order Details</a></p>
+                <p>Thank you for using XeroxDosth!</p>
+            `
         });
     }
 
@@ -347,7 +377,7 @@ export const acceptOrder = async (userId, orderId, { finalPrice, estimatedDelive
     if (isCod) {
         sendEmail({
             to: order.customerEmail || order.customer.email,
-            subject: `[XeroxDosth] Order #${orderIdStr.slice(-6).toUpperCase()} Accepted - COD Confirmation`,
+            subject: `[XeroxDosth] Order #${orderIdStr.slice(-6).toUpperCase()} Accepted - COD Confirmation Required`,
             html: `
                 <h3>Your Order Has Been Approved!</h3>
                 <p>Hello <strong>${order.customer.name}</strong>,</p>
@@ -358,7 +388,8 @@ export const acceptOrder = async (userId, orderId, { finalPrice, estimatedDelive
                     <li><strong>Final Exact Price:</strong> ₹${finalPrice}</li>
                     <li><strong>Estimated Completion Time:</strong> ${formatEstimatedTime(estimatedDeliveryTime)}</li>
                 </ul>
-                <p>Please keep the amount ready during delivery/pickup.</p>
+                <p>To process this print order, please confirm your Cash on Delivery (COD) selection on the Payment Request page:</p>
+                <p><a href="${paymentRequestUrl}" style="padding: 10px 15px; background-color: #10b981; color: white; text-decoration: none; border-radius: 5px; display: inline-block;">Confirm Cash on Delivery</a></p>
                 <p>Thank you,<br/>XeroxDosth Team</p>
             `
         });
@@ -483,6 +514,7 @@ export const requestCancellation = async (userId, orderId, { cancellationReason 
             message: `User requested cancellation for #${orderIdStr.slice(-6).toUpperCase()}. Reason: ${order.cancellationReason}`
         });
 
+        const orderUrl = `${process.env.FRONTEND_URL || 'https://rvetrivignesh.github.io/XeroxDosth/#'}/shop-orders?orderId=${orderIdStr}`;
         sendEmail({
             to: shop.email || shop.owner.email,
             subject: `[XeroxDosth] Cancellation Request for Order #${orderIdStr.slice(-6).toUpperCase()}`,
@@ -491,7 +523,8 @@ export const requestCancellation = async (userId, orderId, { cancellationReason 
                 <p>Hello <strong>${shop.shopName}</strong>,</p>
                 <p>The customer has requested to cancel their order <strong>#${orderIdStr.slice(-6).toUpperCase()}</strong>.</p>
                 <p><strong>Reason:</strong> ${order.cancellationReason}</p>
-                <p>If printing has NOT started, please approve this cancellation request from your shop dashboard.</p>
+                <p>If printing has NOT started, please approve this cancellation request from your shop dashboard:</p>
+                <p><a href="${orderUrl}" style="padding: 10px 15px; background-color: #3b82f6; color: white; text-decoration: none; border-radius: 5px; display: inline-block;">View Cancellation Request</a></p>
                 <p>Thank you,<br/>XeroxDosth Team</p>
             `
         });
@@ -622,6 +655,9 @@ export const payOrder = async (userId, orderId, { paymentMethod, transactionId, 
                 : `Payment reference submitted for order #${orderIdStr.slice(-6).toUpperCase()}.`
         });
 
+        const orderUrl = `${process.env.FRONTEND_URL || 'https://rvetrivignesh.github.io/XeroxDosth/#'}/shop-orders?orderId=${orderIdStr}`;
+        const orderConfirmationUrl = `${process.env.FRONTEND_URL || 'https://rvetrivignesh.github.io/XeroxDosth/#'}/my-orders?orderId=${orderIdStr}`;
+
         sendEmail({
             to: shop.email || shop.owner.email,
             subject: `[XeroxDosth] Order #${orderIdStr.slice(-6).toUpperCase()} Payment/COD Confirmed`,
@@ -635,7 +671,8 @@ export const payOrder = async (userId, orderId, { paymentMethod, transactionId, 
                     ${paymentMethod === 'UPI' && order.paymentScreenshot ? `<li><strong>Screenshot:</strong> <a href="${order.paymentScreenshot}">View Screenshot</a></li>` : ''}
                     <li><strong>Order Status:</strong> ${order.status}</li>
                 </ul>
-                <p>Please check your dashboard and start printing.</p>
+                <p>Please check your dashboard to process the order:</p>
+                <p><a href="${orderUrl}" style="padding: 10px 15px; background-color: #3b82f6; color: white; text-decoration: none; border-radius: 5px; display: inline-block;">View Order Details</a></p>
                 <p>Thank you,<br/>XeroxDosth Team</p>
             `
         });
@@ -650,6 +687,22 @@ export const payOrder = async (userId, orderId, { paymentMethod, transactionId, 
                     <p>You have confirmed Cash on Delivery (COD) for your order <strong>#${orderIdStr.slice(-6).toUpperCase()}</strong>.</p>
                     <p><strong>Final Amount to Pay:</strong> ₹${order.finalPrice}</p>
                     <p>Please keep this amount ready during delivery/pickup.</p>
+                    <p>You can track your order status here:</p>
+                    <p><a href="${orderConfirmationUrl}" style="padding: 10px 15px; background-color: #3b82f6; color: white; text-decoration: none; border-radius: 5px; display: inline-block;">View Order Status</a></p>
+                    <p>Thank you,<br/>XeroxDosth Team</p>
+                `
+            });
+        } else if (paymentMethod === 'UPI') {
+            sendEmail({
+                to: order.customerEmail || order.customer.email,
+                subject: `[XeroxDosth] Order #${orderIdStr.slice(-6).toUpperCase()} Payment Submitted`,
+                html: `
+                    <h3>Payment Details Submitted</h3>
+                    <p>Hello <strong>${order.customer.name}</strong>,</p>
+                    <p>Your payment details for print order <strong>#${orderIdStr.slice(-6).toUpperCase()}</strong> have been submitted to the shop owner for verification.</p>
+                    <p><strong>UPI Transaction Ref ID:</strong> ${order.transactionId}</p>
+                    <p>You can view and track your order status here:</p>
+                    <p><a href="${orderConfirmationUrl}" style="padding: 10px 15px; background-color: #3b82f6; color: white; text-decoration: none; border-radius: 5px; display: inline-block;">View Order Status</a></p>
                     <p>Thank you,<br/>XeroxDosth Team</p>
                 `
             });

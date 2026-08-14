@@ -205,6 +205,20 @@ input:focus, select:focus, textarea:focus {
     transition: all var(--transition-fast);
 }
 
+.btn-xs {
+    padding: 0.3rem 0.65rem;
+    font-size: 0.75rem;
+    border-radius: var(--radius-sm);
+    white-space: nowrap;
+}
+
+.btn-sm {
+    padding: 0.45rem 0.9rem;
+    font-size: 0.85rem;
+    border-radius: var(--radius-sm);
+    white-space: nowrap;
+}
+
 .btn-primary {
     background-color: var(--accent-color);
     color: #ffffff;
@@ -221,6 +235,17 @@ input:focus, select:focus, textarea:focus {
     background-color: var(--bg-hover);
     color: var(--text-primary);
     border-color: var(--border-color);
+}
+
+[data-theme="dark"] .btn-secondary {
+    background-color: rgba(255, 255, 255, 0.08);
+    border-color: #6b7280;
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .btn-secondary:hover:not(:disabled) {
+    background-color: rgba(255, 255, 255, 0.15);
+    border-color: var(--text-primary);
 }
 
 .btn-secondary:hover:not(:disabled) {

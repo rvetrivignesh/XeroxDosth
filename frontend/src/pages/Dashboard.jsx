@@ -52,9 +52,6 @@ export const Dashboard = () => {
                 <div className="banner-info">
                     <h2>Welcome back, {user?.name}!</h2>
                     <p>
-                        Role: <strong style={{ textTransform: 'uppercase' }}>{user?.role}</strong> 
-                    </p>
-                    <p>
                         Account Status: <span className="badge badge-approved">{user?.accountStatus}</span>
                     </p>
                 </div>

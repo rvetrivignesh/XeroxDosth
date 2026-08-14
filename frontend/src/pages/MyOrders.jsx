@@ -48,6 +48,23 @@ export const MyOrders = () => {
         fetchOrders();
     }, []);
 
+    useEffect(() => {
+        if (!loading && orders.length > 0) {
+            const hash = window.location.hash;
+            const queryIndex = hash.indexOf('?');
+            if (queryIndex !== -1) {
+                const searchParams = new URLSearchParams(hash.slice(queryIndex));
+                const orderId = searchParams.get('orderId');
+                if (orderId) {
+                    const matchedOrder = orders.find(o => o._id === orderId);
+                    if (matchedOrder) {
+                        setSelectedOrder(matchedOrder);
+                    }
+                }
+            }
+        }
+    }, [loading, orders]);
+
     const handleCancelImmediately = async (orderId) => {
         if (!window.confirm('Are you sure you want to cancel this order immediately?')) return;
         try {
@@ -187,7 +204,7 @@ export const MyOrders = () => {
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                                 {isAwaitingPayment && (
                                     <Link to={`/payment-request/${order._id}`} className="btn btn-primary btn-sm text-center" style={{ display: 'block', textDecoration: 'none' }}>
-                                        💳 Complete Payment / COD
+                                        💳 Confirm Payment / COD
                                     </Link>
                                 )}
 

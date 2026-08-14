@@ -907,7 +907,21 @@ export const PlaceOrder = () => {
                                                     <div className="file-card-header-left">
                                                         <span className="file-card-icon">{isImage ? '🖼️' : '📕'}</span>
                                                         <div style={{ minWidth: 0 }}>
-                                                            <div className="file-card-name-sec" title={fileObj.file.name}>{fileObj.file.name}</div>
+                                                            {fileObj.status === 'success' && fileObj.metadata?.url ? (
+                                                                <a 
+                                                                    href={fileObj.metadata.url} 
+                                                                    target="_blank" 
+                                                                    rel="noopener noreferrer"
+                                                                    className="file-card-name-sec"
+                                                                    style={{ textDecoration: 'underline', color: 'inherit', fontWeight: 'inherit', display: 'block' }}
+                                                                    title={fileObj.file.name}
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                >
+                                                                    {fileObj.file.name} ↗
+                                                                </a>
+                                                            ) : (
+                                                                <div className="file-card-name-sec" title={fileObj.file.name}>{fileObj.file.name}</div>
+                                                            )}
                                                             <div className="file-card-summary-sec">
                                                                 {fileObj.status === 'success' ? (
                                                                     <span>
@@ -923,17 +937,18 @@ export const PlaceOrder = () => {
                                                     </div>
                                                     
                                                     <div className="file-card-header-right" onClick={(e) => e.stopPropagation()}>
-                                                        <button 
-                                                            type="button" 
-                                                            className="btn btn-secondary btn-xs"
-                                                            onClick={() => updateFileStatus(fileObj.id, { isCollapsed: !fileObj.isCollapsed })}
-                                                        >
-                                                            {fileObj.isCollapsed ? 'Expand ⚙️' : 'Collapse ▴'}
-                                                        </button>
+                                                        {fileObj.status === 'success' && (
+                                                            <button 
+                                                                type="button" 
+                                                                className="btn btn-secondary btn-xs"
+                                                                onClick={() => updateFileStatus(fileObj.id, { isCollapsed: !fileObj.isCollapsed })}
+                                                            >
+                                                                {fileObj.isCollapsed ? 'Expand ⚙️' : 'Collapse ▴'}
+                                                            </button>
+                                                        )}
                                                         <button 
                                                             type="button" 
                                                             className="btn btn-danger btn-xs" 
-                                                            style={{ backgroundColor: '#fee2e2', color: '#ef4444', border: '1px solid #fca5a5' }}
                                                             onClick={() => handleRemoveFile(fileObj)}
                                                         >
                                                             Remove 🗑️
@@ -1561,16 +1576,30 @@ export const PlaceOrder = () => {
                                         <div key={idx} className="review-doc-card">
                                             <div className="review-doc-details">
                                                 <strong style={{ fontSize: '0.95rem' }}>
-                                                    {isPdf ? '📕' : '🖼️'} {fileObj.file.name}
+                                                    {isPdf ? '📕' : '🖼️'}{' '}
+                                                    {fileObj.status === 'success' && fileObj.metadata?.url ? (
+                                                        <a 
+                                                            href={fileObj.metadata.url} 
+                                                            target="_blank" 
+                                                            rel="noopener noreferrer"
+                                                            style={{ textDecoration: 'underline', color: 'inherit' }}
+                                                        >
+                                                            {fileObj.file.name} ↗
+                                                        </a>
+                                                    ) : (
+                                                        fileObj.file.name
+                                                    )}
                                                 </strong>
                                                 <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
                                                     Pages: {fileObj.startPage}–{fileObj.lastPage} ({fileObj.pageCount} total) • B&W: {fileObj.bwPages} • Color: {fileObj.colorPages} 
                                                     {fileObj.colorPageNumbersText ? ` [Pages: ${fileObj.colorPageNumbersText}]` : ''} • Copies: {fileObj.copies} • Print Side: {fileObj.printSide === 'SINGLE_SIDE' ? 'Single-Sided' : 'Double-Sided'} • Binding: {fileObj.binding}
                                                 </span>
                                             </div>
-                                            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                                                {(fileObj.file.size / (1024 * 1024)).toFixed(2)} MB
-                                            </span>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                                                    {(fileObj.file.size / (1024 * 1024)).toFixed(2)} MB
+                                                </span>
+                                            </div>
                                         </div>
                                     );
                                 })}
