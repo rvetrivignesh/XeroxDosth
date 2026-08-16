@@ -520,6 +520,11 @@ export const PlaceOrder = () => {
         }
         
         const p = selectedShop.pricing;
+        const rates = selectedShop.printingRates || {};
+        const bwSingleRate = rates.bwSingle ?? p.bwPerPage ?? 1;
+        const bwDoubleRate = rates.bwDouble ?? p.bwPerPage ?? 1.5;
+        const colourSingleRate = rates.colourSingle ?? p.colorPerPage ?? 5;
+
         let totalPages = 0;
         let bwSheets = 0;
         let colorSheets = 0;
@@ -527,6 +532,9 @@ export const PlaceOrder = () => {
         let colorCost = 0;
         let bindingCost = 0;
         
+        let doubleBwSheetsTotal = 0;
+        let singleBwSheetsTotal = 0;
+
         let hasDouble = false;
         let hasSingle = false;
 
@@ -545,8 +553,20 @@ export const PlaceOrder = () => {
             bwSheets += docBwSheets * copies;
             colorSheets += docColorSheets * copies;
 
-            bwCost += docBwSheets * (p.bwPerPage || 1.50) * copies;
-            colorCost += docColorSheets * (p.colorPerPage || 5) * copies;
+            let docBwCost = 0;
+            if (printSide === 'DOUBLE_SIDE') {
+                const dSheets = Math.floor(bw / 2) * copies;
+                const sSheets = (bw % 2) * copies;
+                doubleBwSheetsTotal += dSheets;
+                singleBwSheetsTotal += sSheets;
+                docBwCost = dSheets * bwDoubleRate + sSheets * bwSingleRate;
+            } else {
+                const sSheets = bw * copies;
+                singleBwSheetsTotal += sSheets;
+                docBwCost = sSheets * bwSingleRate;
+            }
+            bwCost += docBwCost;
+            colorCost += docColorSheets * colourSingleRate * copies;
 
             let fileBindingCost = 0;
             if (f.binding === 'SPIRAL') fileBindingCost = p.spiralBinding || 30;
@@ -579,7 +599,9 @@ export const PlaceOrder = () => {
             deliveryCharge: calculatedDeliveryCharge,
             total,
             hasColor: colorSheets > 0,
-            printSideStr
+            printSideStr,
+            doubleBwSheetsTotal,
+            singleBwSheetsTotal
         };
     }, [files, selectedShop, serviceType, recordBindingType, calculatedDeliveryCharge]);
 
@@ -776,6 +798,19 @@ export const PlaceOrder = () => {
                 })}
             </div>
         );
+    };
+
+    const bwSingleRate = selectedShop?.printingRates?.bwSingle ?? selectedShop?.pricing?.bwPerPage ?? 1;
+    const bwDoubleRate = selectedShop?.printingRates?.bwDouble ?? selectedShop?.pricing?.bwPerPage ?? 1.5;
+    const colourSingleRate = selectedShop?.printingRates?.colourSingle ?? selectedShop?.pricing?.colorPerPage ?? 5;
+
+    const getFileBwCost = (fileObj) => {
+        const bw = Number(fileObj.bwPages || 0);
+        if (fileObj.printSide === 'DOUBLE_SIDE') {
+            return Math.floor(bw / 2) * bwDoubleRate + (bw % 2) * bwSingleRate;
+        } else {
+            return bw * bwSingleRate;
+        }
     };
 
     return (
@@ -1100,7 +1135,7 @@ export const PlaceOrder = () => {
                                                         <div className="form-row" style={{ marginBottom: '1.25rem' }}>
                                                             <div className="form-group" style={{ marginBottom: 0 }}>
                                                                 <label style={{ fontSize: '0.85rem' }}>
-                                                                    B&W Pages (Auto Calculated: ₹{fileObj.bwPages * (selectedShop?.pricing?.bwPerPage || 1)})
+                                                                    B&W Pages (Auto Calculated: ₹{getFileBwCost(fileObj).toFixed(2)})
                                                                 </label>
                                                                 <input 
                                                                     type="number"
@@ -1111,7 +1146,7 @@ export const PlaceOrder = () => {
                                                             </div>
                                                             <div className="form-group" style={{ marginBottom: 0 }}>
                                                                 <label style={{ fontSize: '0.85rem' }}>
-                                                                    Color Pages (Auto Calculated: ₹{fileObj.colorPages * (selectedShop?.pricing?.colorPerPage || 5)})
+                                                                    Color Pages (Auto Calculated: ₹{(fileObj.colorPages * colourSingleRate).toFixed(2)})
                                                                 </label>
                                                                 <input 
                                                                     type="number"
@@ -1178,8 +1213,8 @@ export const PlaceOrder = () => {
                                                                     value={fileObj.printSide}
                                                                     onChange={(e) => updateFileStatus(fileObj.id, { printSide: e.target.value })}
                                                                 >
-                                                                    <option value="SINGLE_SIDE">Single-Sided</option>
-                                                                    <option value="DOUBLE_SIDE">Double-Sided</option>
+                                                                    <option value="SINGLE_SIDE">Single-Sided (₹{bwSingleRate}/page)</option>
+                                                                    <option value="DOUBLE_SIDE">Double-Sided (₹{bwDoubleRate}/sheet)</option>
                                                                 </select>
                                                             </div>
                                                             <div className="form-group" style={{ marginBottom: 0 }}>
@@ -1722,14 +1757,25 @@ export const PlaceOrder = () => {
                                     <strong style={{ color: 'var(--text-primary)' }}>{priceDetails.bwSheets + priceDetails.colorSheets}</strong>
                                 </div>
 
-                                {priceDetails.bwSheets > 0 && (
+                                {priceDetails.bwCost > 0 && (
                                     <div className="review-cost-row" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                             <span style={{ color: 'var(--text-secondary)' }}>B&W Printing</span>
                                             <strong style={{ color: 'var(--text-primary)' }}>₹{priceDetails.bwCost.toFixed(2)}</strong>
                                         </div>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                                            <span>{priceDetails.bwSheets} sheet(s) × ₹{(selectedShop?.pricing?.bwPerPage || 1.50).toFixed(2)}</span>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                                            {priceDetails.doubleBwSheetsTotal > 0 && (
+                                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                                    <span>{priceDetails.doubleBwSheetsTotal} double-sided sheet(s) × ₹{bwDoubleRate.toFixed(2)}</span>
+                                                    <span>₹{(priceDetails.doubleBwSheetsTotal * bwDoubleRate).toFixed(2)}</span>
+                                                </div>
+                                            )}
+                                            {priceDetails.singleBwSheetsTotal > 0 && (
+                                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                                    <span>{priceDetails.singleBwSheetsTotal} single-sided page(s) × ₹{bwSingleRate.toFixed(2)}</span>
+                                                    <span>₹{(priceDetails.singleBwSheetsTotal * bwSingleRate).toFixed(2)}</span>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 )}
