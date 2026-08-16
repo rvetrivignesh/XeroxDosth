@@ -1,21 +1,22 @@
 import asyncHandler from '../../utils/asyncHandler.js';
 import ApiResponse from '../../utils/ApiResponse.js';
+import ApiError from '../../utils/ApiError.js';
 import * as authService from '../../services/auth/auth.service.js';
 import { verifyGoogleToken } from '../../services/auth/googleAuth.service.js';
 
 export const register = asyncHandler(async (req, res) => {
     const { name, email, password } = req.body;
-    
+
     // Call service to register user
     const data = await authService.registerUser(name, email, password);
-    
+
     // Set cookie if option is desired (e.g. for cookie based auth compatibility)
     res.cookie('token', data.token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
-    
+
     return res
         .status(201)
         .json(new ApiResponse(201, data, "User registered successfully"));
@@ -23,17 +24,17 @@ export const register = asyncHandler(async (req, res) => {
 
 export const login = asyncHandler(async (req, res) => {
     const { email, password } = req.body;
-    
+
     // Call service to authenticate user
     const data = await authService.loginUser(email, password);
-    
+
     // Set cookie
     res.cookie('token', data.token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
-    
+
     return res
         .status(200)
         .json(new ApiResponse(200, data, "Logged in successfully"));
@@ -42,7 +43,7 @@ export const login = asyncHandler(async (req, res) => {
 export const logout = asyncHandler(async (req, res) => {
     // Clear JWT cookie
     res.clearCookie('token');
-    
+
     return res
         .status(200)
         .json(new ApiResponse(200, null, "Successfully logged out"));
@@ -102,5 +103,27 @@ export const googleLogin = asyncHandler(async (req, res) => {
     return res
         .status(200)
         .json(new ApiResponse(200, data, "Google authentication successful"));
+});
+
+export const searchUserForPromotion = asyncHandler(async (req, res) => {
+    const { email } = req.query;
+    if (!email) {
+        throw new ApiError(400, "Email query parameter is required");
+    }
+    const data = await authService.searchUserByEmail(email);
+    return res
+        .status(200)
+        .json(new ApiResponse(200, data, "User found successfully"));
+});
+
+export const promoteUserToAdmin = asyncHandler(async (req, res) => {
+    const { email } = req.body;
+    if (!email) {
+        throw new ApiError(400, "Email is required");
+    }
+    const data = await authService.promoteToAdmin(email);
+    return res
+        .status(200)
+        .json(new ApiResponse(200, data, "User promoted to Admin successfully"));
 });
 

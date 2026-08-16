@@ -351,66 +351,80 @@ export const acceptOrder = async (userId, orderId, { finalPrice, estimatedDelive
         throw new ApiError(400, 'Please specify an estimated delivery/completion timeline');
     }
 
-    order.status = 'PAYMENT_REQUESTED';
+    const previousStatus = order.status;
+    const isCod = order.paymentType === 'COD' || order.paymentMethod === 'COD';
+
+    if (isCod) {
+        order.status = 'IN_PROGRESS';
+        order.paymentMethod = 'COD';
+        order.paymentStatus = 'UNPAID';
+    } else {
+        order.status = 'PAYMENT_REQUESTED';
+    }
+
     order.finalPrice = finalPrice;
     order.estimatedDeliveryTime = estimatedDeliveryTime;
     await order.save();
 
     const orderIdStr = order._id.toString();
     const paymentRequestUrl = `${process.env.FRONTEND_URL || 'https://rvetrivignesh.github.io/XeroxDosth/#'}/payment-request/${order._id}`;
+    const orderConfirmationUrl = `${process.env.FRONTEND_URL || 'https://rvetrivignesh.github.io/XeroxDosth/#'}/my-orders?orderId=${orderIdStr}`;
 
-    // Send notifications
-    const isCod = order.paymentType === 'COD' || order.paymentMethod === 'COD';
-    const notificationMsg = isCod 
-        ? `Shop accepted order #${orderIdStr.slice(-6).toUpperCase()}. Approved Price: ₹${finalPrice}. Please keep amount ready.`
-        : `Shop accepted order #${orderIdStr.slice(-6).toUpperCase()}. Approved Price: ₹${finalPrice}. Please complete payment.`;
+    // Only send notification/email if transitioning from PENDING_SHOP_ACCEPTANCE
+    // This avoids duplicate notifications/emails if the order details are resubmitted.
+    if (previousStatus === 'PENDING_SHOP_ACCEPTANCE') {
+        const notificationMsg = isCod 
+            ? `Shop accepted order #${orderIdStr.slice(-6).toUpperCase()}. Approved Price: ₹${finalPrice}. Printing is in progress.`
+            : `Shop accepted order #${orderIdStr.slice(-6).toUpperCase()}. Approved Price: ₹${finalPrice}. Please complete payment.`;
 
-    await createNotification(io, {
-        recipient: order.customer._id,
-        sender: userId,
-        order: order._id,
-        type: 'PAYMENT_REQUESTED',
-        title: isCod ? 'Order Accepted' : 'Order Accepted & Payment Requested',
-        message: notificationMsg
-    });
-
-    if (isCod) {
-        sendEmail({
-            to: order.customerEmail || order.customer.email,
-            subject: `[XeroxDosth] Order #${orderIdStr.slice(-6).toUpperCase()} Accepted - COD Confirmation Required`,
-            html: `
-                <h3>Your Order Has Been Approved!</h3>
-                <p>Hello <strong>${order.customer.name}</strong>,</p>
-                <p>The shop has reviewed and accepted your print job order.</p>
-                <ul>
-                    <li><strong>Order ID:</strong> #${orderIdStr.slice(-6).toUpperCase()}</li>
-                    <li><strong>Payment Method:</strong> Cash on Delivery (COD)</li>
-                    <li><strong>Final Exact Price:</strong> ₹${finalPrice}</li>
-                    <li><strong>Estimated Completion Time:</strong> ${formatEstimatedTime(estimatedDeliveryTime)}</li>
-                </ul>
-                <p>To process this print order, please confirm your Cash on Delivery (COD) selection on the Payment Request page:</p>
-                <p><a href="${paymentRequestUrl}" style="padding: 10px 15px; background-color: #10b981; color: white; text-decoration: none; border-radius: 5px; display: inline-block;">Confirm Cash on Delivery</a></p>
-                <p>Thank you,<br/>XeroxDosth Team</p>
-            `
+        await createNotification(io, {
+            recipient: order.customer?._id || order.customer,
+            sender: userId,
+            order: order._id,
+            type: isCod ? 'IN_PROGRESS' : 'PAYMENT_REQUESTED',
+            title: isCod ? 'Order Confirmed (COD)' : 'Order Accepted & Payment Requested',
+            message: notificationMsg
         });
-    } else {
-        sendEmail({
-            to: order.customerEmail || order.customer.email,
-            subject: `[XeroxDosth] Order #${orderIdStr.slice(-6).toUpperCase()} Accepted - Payment Required`,
-            html: `
-                <h3>Your Order Has Been Approved!</h3>
-                <p>Hello <strong>${order.customer.name}</strong>,</p>
-                <p>The shop has reviewed and accepted your print job order.</p>
-                <ul>
-                    <li><strong>Order ID:</strong> #${orderIdStr.slice(-6).toUpperCase()}</li>
-                    <li><strong>Final Exact Price:</strong> ₹${finalPrice}</li>
-                    <li><strong>Estimated Completion Time:</strong> ${formatEstimatedTime(estimatedDeliveryTime)}</li>
-                </ul>
-                <p>To process this print order, please complete your payment on the Payment Request page:</p>
-                <p><a href="${paymentRequestUrl}" style="padding: 10px 15px; background-color: #10b981; color: white; text-decoration: none; border-radius: 5px; display: inline-block;">Go to Payment Request</a></p>
-                <p>Thank you,<br/>XeroxDosth Team</p>
-            `
-        });
+
+        if (isCod) {
+            sendEmail({
+                to: order.customerEmail || order.customer.email,
+                subject: `[XeroxDosth] Order #${orderIdStr.slice(-6).toUpperCase()} Accepted & In Progress (COD)`,
+                html: `
+                    <h3>Your Order Has Been Approved!</h3>
+                    <p>Hello <strong>${order.customer.name}</strong>,</p>
+                    <p>The shop has reviewed and accepted your print job order. Printing is now in progress!</p>
+                    <ul>
+                        <li><strong>Order ID:</strong> #${orderIdStr.slice(-6).toUpperCase()}</li>
+                        <li><strong>Payment Method:</strong> Cash on Delivery (COD)</li>
+                        <li><strong>Final Exact Price:</strong> ₹${finalPrice}</li>
+                        <li><strong>Estimated Completion Time:</strong> ${formatEstimatedTime(estimatedDeliveryTime)}</li>
+                    </ul>
+                    <p>Please keep this amount ready during delivery/pickup.</p>
+                    <p>You can track your order status here:</p>
+                    <p><a href="${orderConfirmationUrl}" style="padding: 10px 15px; background-color: #3b82f6; color: white; text-decoration: none; border-radius: 5px; display: inline-block;">View Order Status</a></p>
+                    <p>Thank you,<br/>XeroxDosth Team</p>
+                `
+            });
+        } else {
+            sendEmail({
+                to: order.customerEmail || order.customer.email,
+                subject: `[XeroxDosth] Order #${orderIdStr.slice(-6).toUpperCase()} Accepted - Payment Required`,
+                html: `
+                    <h3>Your Order Has Been Approved!</h3>
+                    <p>Hello <strong>${order.customer.name}</strong>,</p>
+                    <p>The shop has reviewed and accepted your print job order.</p>
+                    <ul>
+                        <li><strong>Order ID:</strong> #${orderIdStr.slice(-6).toUpperCase()}</li>
+                        <li><strong>Final Exact Price:</strong> ₹${finalPrice}</li>
+                        <li><strong>Estimated Completion Time:</strong> ${formatEstimatedTime(estimatedDeliveryTime)}</li>
+                    </ul>
+                    <p>To process this print order, please complete your payment on the Payment Request page:</p>
+                    <p><a href="${paymentRequestUrl}" style="padding: 10px 15px; background-color: #10b981; color: white; text-decoration: none; border-radius: 5px; display: inline-block;">Go to Payment Request</a></p>
+                    <p>Thank you,<br/>XeroxDosth Team</p>
+                `
+            });
+        }
     }
 
     return order;

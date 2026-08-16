@@ -140,7 +140,7 @@ export const PaymentRequest = () => {
     const handleSubmitPayment = async (e) => {
         e.preventDefault();
 
-        if (paymentMethod === 'UPI' && !transactionId.trim()) {
+        if (!transactionId.trim()) {
             showToast('Please enter the 12-digit UPI transaction reference ID', 'error');
             return;
         }
@@ -148,17 +148,12 @@ export const PaymentRequest = () => {
         setSubmitting(true);
         try {
             await API.patch(`/orders/${orderId}/pay`, {
-                paymentMethod,
-                transactionId: paymentMethod === 'UPI' ? transactionId.trim() : '',
-                paymentScreenshot: paymentMethod === 'UPI' ? screenshotUrl : ''
+                paymentMethod: 'UPI',
+                transactionId: transactionId.trim(),
+                paymentScreenshot: screenshotUrl
             });
 
-            showToast(
-                paymentMethod === 'UPI' 
-                    ? 'UPI payment reference submitted successfully!' 
-                    : 'Cash on Delivery selection confirmed!',
-                'success'
-            );
+            showToast('UPI payment reference submitted successfully!', 'success');
             navigate('/my-orders');
         } catch (err) {
             showToast(err.response?.data?.message || 'Failed to submit payment details', 'error');
@@ -284,117 +279,80 @@ export const PaymentRequest = () => {
                 {/* Interactive Payment Section */}
                 {isAwaitingPayment ? (
                     <form onSubmit={handleSubmitPayment} className="order-form">
-                        <div className="form-group payment-option-card">
-                            <label className="payment-option-heading">Payment Option (Locked to original choice)</label>
-                            <div className="payment-option-choices disabled-choices">
-                                <label className={`payment-option-label ${paymentMethod !== 'UPI' ? 'read-only' : ''}`}>
-                                    <input
-                                        type="radio"
-                                        name="paymentMethod"
-                                        value="UPI"
-                                        checked={paymentMethod === 'UPI'}
-                                        disabled
-                                    />
-                                    <span>UPI Payment (Online)</span>
-                                </label>
-                                <label className={`payment-option-label ${paymentMethod !== 'COD' ? 'read-only' : ''}`}>
-                                    <input
-                                        type="radio"
-                                        name="paymentMethod"
-                                        value="COD"
-                                        checked={paymentMethod === 'COD'}
-                                        disabled
-                                    />
-                                    <span>Cash on Delivery (COD)</span>
-                                </label>
-                            </div>
-                        </div>
-
-                        {paymentMethod === 'UPI' ? (
-                            <div className="upi-payment-form">
-                                <div>
-                                    <small className="upi-id-label">Shop UPI ID</small>
-                                    <div className="upi-id-row">
-                                        <span className="upi-id-val">
-                                            {shop?.upiId || 'Not configured'}
-                                        </span>
-                                        {shop?.upiId && (
-                                            <button 
-                                                type="button" 
-                                                onClick={handleCopyUpi} 
-                                                className="btn btn-secondary btn-xs copy-upi-btn"
-                                            >
-                                                📋 Copy UPI
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
-
-                                {getQrCodeUrl() && (
-                                    <div className="qr-code-wrapper">
-                                        <small className="qr-code-label">Scan QR to Pay (Click to zoom)</small>
-                                        <img
-                                            src={getQrCodeUrl()}
-                                            alt="UPI QR Code"
-                                            onClick={() => setIsQrZoomed(true)}
-                                            className="qr-code-image"
-                                        />
+                        <div className="upi-payment-form">
+                            <div>
+                                <small className="upi-id-label">Shop UPI ID</small>
+                                <div className="upi-id-row">
+                                    <span className="upi-id-val">
+                                        {shop?.upiId || 'Not configured'}
+                                    </span>
+                                    {shop?.upiId && (
                                         <button 
                                             type="button" 
-                                            onClick={handleDownloadQr} 
-                                            className="btn btn-secondary btn-xs download-qr-btn"
+                                            onClick={handleCopyUpi} 
+                                            className="btn btn-secondary btn-xs copy-upi-btn"
                                         >
-                                            📥 Download QR Code
+                                            📋 Copy UPI
                                         </button>
-                                    </div>
-                                )}
-
-                                <div className="form-group">
-                                    <label htmlFor="transactionId">UPI Transaction Ref ID / UTR *</label>
-                                    <input
-                                        id="transactionId"
-                                        type="text"
-                                        placeholder="Enter the 12-digit transaction ID from UPI app"
-                                        value={transactionId}
-                                        onChange={(e) => setTransactionId(e.target.value)}
-                                        required
-                                    />
-                                    <small className="field-help">
-                                        Enter the reference number after making payment in your UPI app (GPay, PhonePe, Paytm, etc.).
-                                    </small>
-                                </div>
-
-                                <div className="form-group">
-                                    <label htmlFor="paymentScreenshot">Attach Payment Screenshot (Optional)</label>
-                                    <input
-                                        id="paymentScreenshot"
-                                        type="file"
-                                        accept="image/*"
-                                        onChange={handleScreenshotChange}
-                                        style={{ marginTop: '0.25rem', display: 'block' }}
-                                    />
-                                    {uploadingScreenshot && <small className="field-help" style={{ color: 'var(--accent-color)', fontWeight: 600 }}>Uploading screenshot...</small>}
-                                    {screenshotUrl && (
-                                        <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'flex-start' }}>
-                                            <img src={screenshotUrl} alt="Payment Screenshot Preview" style={{ maxWidth: '180px', maxHeight: '180px', objectFit: 'contain', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }} />
-                                            <button type="button" className="btn btn-danger btn-xs" onClick={handleRemoveScreenshot}>Remove Screenshot</button>
-                                        </div>
                                     )}
                                 </div>
                             </div>
-                        ) : (
-                            <div className="cod-payment-info">
-                                <div className="cod-payment-heading">
-                                    <span>🚚</span> Cash on Delivery Selected
+
+                            {getQrCodeUrl() && (
+                                <div className="qr-code-wrapper">
+                                    <small className="qr-code-label">Scan QR to Pay (Click to zoom)</small>
+                                    <img
+                                        src={getQrCodeUrl()}
+                                        alt="UPI QR Code"
+                                        onClick={() => setIsQrZoomed(true)}
+                                        className="qr-code-image"
+                                    />
+                                    <button 
+                                        type="button" 
+                                        onClick={handleDownloadQr} 
+                                        className="btn btn-secondary btn-xs download-qr-btn"
+                                    >
+                                        📥 Download QR Code
+                                    </button>
                                 </div>
-                                <p className="cod-payment-desc">
-                                    Please keep the exact amount (<strong>₹{finalPrice}</strong>) ready at the time of delivery or pickup.
-                                </p>
+                            )}
+
+                            <div className="form-group">
+                                <label htmlFor="transactionId">UPI Transaction Ref ID / UTR *</label>
+                                <input
+                                    id="transactionId"
+                                    type="text"
+                                    placeholder="Enter the 12-digit transaction ID from UPI app"
+                                    value={transactionId}
+                                    onChange={(e) => setTransactionId(e.target.value)}
+                                    required
+                                />
+                                <small className="field-help">
+                                    Enter the reference number after making payment in your UPI app (GPay, PhonePe, Paytm, etc.).
+                                </small>
                             </div>
-                        )}
+
+                            <div className="form-group">
+                                <label htmlFor="paymentScreenshot">Attach Payment Screenshot (Optional)</label>
+                                <input
+                                    id="paymentScreenshot"
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleScreenshotChange}
+                                    style={{ marginTop: '0.25rem', display: 'block' }}
+                                />
+                                {uploadingScreenshot && <small className="field-help" style={{ color: 'var(--accent-color)', fontWeight: 600 }}>Uploading screenshot...</small>}
+                                {screenshotUrl && (
+                                    <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', alignItems: 'flex-start' }}>
+                                        <img src={screenshotUrl} alt="Payment Screenshot Preview" style={{ maxWidth: '180px', maxHeight: '180px', objectFit: 'contain', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }} />
+                                        <button type="button" className="btn btn-danger btn-xs" onClick={handleRemoveScreenshot}>Remove Screenshot</button>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
 
                         <button type="submit" className="btn btn-primary submit-btn" disabled={submitting}>
-                            {submitting ? <div className="spinner"></div> : paymentMethod === 'UPI' ? 'Submit UPI Payment Details' : 'Confirm Cash on Delivery'}
+                            {submitting ? <div className="spinner"></div> : 'Submit UPI Payment Details'}
                         </button>
                     </form>
                 ) : (

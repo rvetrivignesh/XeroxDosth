@@ -17,7 +17,7 @@ export const AdminShops = () => {
     const [searchEmail, setSearchEmail] = useState('');
     const [searching, setSearching] = useState(false);
     const [foundUser, setFoundUser] = useState(null);
-    
+
     // Form fields for promotion
     const [promoShopName, setPromoShopName] = useState('');
     const [promoPhone, setPromoPhone] = useState('');
@@ -65,7 +65,7 @@ export const AdminShops = () => {
                 upiId: promoUpiId.trim()
             });
             showToast('User successfully promoted to Shop Owner and shop created!', 'success');
-            
+
             // Reset state
             setSearchEmail('');
             setFoundUser(null);

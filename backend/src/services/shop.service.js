@@ -71,7 +71,7 @@ export const applyForShop = async (userId, shopData) => {
 export const mapShopForBackwardCompatibility = (shop) => {
     if (!shop) return null;
     const shopObj = typeof shop.toObject === 'function' ? shop.toObject() : shop;
-    
+
     // Fallback: If printingRates is missing, build it from pricing
     if (!shopObj.printingRates && shopObj.pricing) {
         shopObj.printingRates = {
@@ -83,12 +83,12 @@ export const mapShopForBackwardCompatibility = (shop) => {
             bookBinding: shopObj.pricing.bookBinding ?? 50
         };
     }
-    
+
     // Fallback for homeDelivery
     if (shopObj.homeDelivery === undefined && shopObj.isDeliveryAvailable !== undefined) {
         shopObj.homeDelivery = shopObj.isDeliveryAvailable;
     }
-    
+
     return shopObj;
 };
 
@@ -154,7 +154,7 @@ export const updateMyShopDetails = async (userId, updateData) => {
         if (updateData.openTiming.close) shop.openTiming.close = updateData.openTiming.close;
     }
     if (updateData.openDays) shop.openDays = updateData.openDays;
-    
+
     // Update new printing rates & delivery range tables
     if (updateData.printingRates) {
         shop.printingRates = {
