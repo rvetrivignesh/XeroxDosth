@@ -73,13 +73,16 @@ export const ManageAdmins = () => {
     }, []);
 
     const handleDemote = async (adminId, adminName) => {
-        if (!window.confirm(`Are you sure you want to demote Admin ${adminName} to standard User?`)) {
+        const reason = window.prompt(`Please enter the reason for demoting Admin ${adminName}:`);
+        if (reason === null) return; // User cancelled
+        if (!reason.trim()) {
+            showToast('A reason is required to demote this admin.', 'error');
             return;
         }
 
         setActionId(adminId);
         try {
-            await API.patch(`/auth/demote-admin/${adminId}`);
+            await API.patch(`/auth/demote-admin/${adminId}`, { demotionReason: reason.trim() });
             showToast(`Demoted ${adminName} to standard User`, 'info');
             fetchAdmins();
         } catch (err) {

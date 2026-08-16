@@ -1,6 +1,8 @@
 import Shop from '../models/Shop.js';
 import User from '../models/users/user.model.js';
 import ApiError from '../utils/ApiError.js';
+import { createNotification } from './notification.service.js';
+import { sendEmail } from './mail.service.js';
 
 export const applyForShop = async (userId, shopData) => {
     const user = await User.findById(userId);
@@ -193,7 +195,7 @@ export const getAllApprovedShops = async () => {
     return shops.map(mapShopForBackwardCompatibility);
 };
 
-export const updateShopStatus = async (adminId, shopId, status, rejectionReason) => {
+export const updateShopStatus = async (adminId, shopId, status, rejectionReason, io) => {
     const shop = await Shop.findById(shopId);
     if (!shop) {
         throw new ApiError(404, "Shop not found");
@@ -213,9 +215,34 @@ export const updateShopStatus = async (adminId, shopId, status, rejectionReason)
         }
     } else if (status === 'REJECTED') {
         const owner = await User.findById(shop.owner);
-        if (owner && owner.role === 'SHOP') {
-            owner.role = 'USER';
-            await owner.save();
+        if (owner) {
+            if (owner.role === 'SHOP') {
+                owner.role = 'USER';
+                await owner.save();
+            }
+
+            // Send notification
+            await createNotification(io, {
+                recipient: owner._id,
+                sender: adminId,
+                type: 'ROLE_DEMOTION',
+                title: 'Shop Partner Privileges Revoked',
+                message: `Your shop partner privileges for "${shop.shopName}" have been revoked by the admin. Reason: ${rejectionReason || 'Demoted by administrator'}`
+            });
+
+            // Send email
+            sendEmail({
+                to: owner.email,
+                subject: `[XeroxDosth] Shop Partner Privileges Revoked - ${shop.shopName}`,
+                html: `
+                    <h3>Shop Partner Privileges Revoked</h3>
+                    <p>Hello <strong>${owner.name}</strong>,</p>
+                    <p>Your shop partner privileges for <strong>${shop.shopName}</strong> have been revoked, and your account has been demoted to standard User status.</p>
+                    <p><strong>Reason:</strong> ${rejectionReason || 'Demoted by administrator'}</p>
+                    <p>If you believe this was in error, please contact the platform administrators.</p>
+                    <p>Thank you,<br/>XeroxDosth Team</p>
+                `
+            });
         }
     }
 

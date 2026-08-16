@@ -106,14 +106,18 @@ export const AdminShops = () => {
         }
 
         if (isManageView && status === 'REJECTED') {
-            if (!window.confirm('Are you sure you want to demote this shop to a regular User? This will remove their shop partnering privileges.')) {
+            const reason = window.prompt('Please enter the reason for demoting this shop partner:');
+            if (reason === null) return; // Cancelled
+            if (!reason.trim()) {
+                showToast('A reason is required to demote this shop partner.', 'error');
                 return;
             }
+            customReason = reason;
         }
 
         setActionId(id);
         try {
-            const finalReason = isManageView && status === 'REJECTED' ? 'Demoted by administrator' : rejectionReason;
+            const finalReason = isManageView && status === 'REJECTED' ? customReason.trim() : rejectionReason;
             await API.patch(`/shops/admin/${id}/status`, { status, rejectionReason: finalReason });
             showToast(isManageView ? 'Shop owner demoted to standard user' : `Shop status updated to ${status}`, 'success');
             fetchShops();

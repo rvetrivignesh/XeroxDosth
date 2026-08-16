@@ -40,7 +40,7 @@ export const getAllShopsAdmin = asyncHandler(async (req, res) => {
 
 export const updateShopStatusAdmin = asyncHandler(async (req, res) => {
     const { status, rejectionReason } = req.body;
-    const data = await shopService.updateShopStatus(req.user._id, req.params.id, status, rejectionReason);
+    const data = await shopService.updateShopStatus(req.user._id, req.params.id, status, rejectionReason, req.app.get('io'));
     return res
          .status(200)
          .json(new ApiResponse(200, data, `Shop status updated to ${status}`));

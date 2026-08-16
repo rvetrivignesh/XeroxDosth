@@ -71,7 +71,11 @@ export const getAdmins = asyncHandler(async (req, res) => {
 });
 
 export const demoteAdmin = asyncHandler(async (req, res) => {
-    const demotedUser = await authService.demoteAdmin(req.params.id);
+    const { demotionReason } = req.body;
+    if (!demotionReason || !demotionReason.trim()) {
+        throw new ApiError(400, "Reason is required to demote an administrator");
+    }
+    const demotedUser = await authService.demoteAdmin(req.user._id, req.params.id, demotionReason.trim(), req.app.get('io'));
     return res
         .status(200)
         .json(new ApiResponse(200, demotedUser, "Admin successfully demoted to User"));

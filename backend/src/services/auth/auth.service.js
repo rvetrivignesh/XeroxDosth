@@ -2,6 +2,8 @@ import User from '../../models/users/user.model.js';
 import Shop from '../../models/Shop.js';
 import ApiError from '../../utils/ApiError.js';
 import generateToken from '../../utils/generateToken.js';
+import { createNotification } from '../notification.service.js';
+import { sendEmail } from '../mail.service.js';
 
 export const registerUser = async (name, email, password) => {
     const normalizedEmail = email.trim().toLowerCase();
@@ -96,13 +98,37 @@ export const getAdmins = async () => {
     return admins;
 };
 
-export const demoteAdmin = async (adminIdToDemote) => {
+export const demoteAdmin = async (adminId, adminIdToDemote, demotionReason, io) => {
     const user = await User.findById(adminIdToDemote);
     if (!user) {
         throw new ApiError(404, "User not found");
     }
     user.role = 'USER';
     await user.save();
+
+    // Send notification
+    await createNotification(io, {
+        recipient: user._id,
+        sender: adminId,
+        type: 'ROLE_DEMOTION',
+        title: 'Admin Role Demoted',
+        message: `Your Administrator privileges have been revoked by the system. Reason: ${demotionReason}`
+    });
+
+    // Send email
+    sendEmail({
+        to: user.email,
+        subject: '[XeroxDosth] Administrative Access Revoked',
+        html: `
+            <h3>Administrative Access Revoked</h3>
+            <p>Hello <strong>${user.name}</strong>,</p>
+            <p>Your Administrator privileges have been revoked, and your account has been demoted to standard User status.</p>
+            <p><strong>Reason:</strong> ${demotionReason}</p>
+            <p>If you believe this was in error, please contact the platform owner.</p>
+            <p>Thank you,<br/>XeroxDosth Team</p>
+        `
+    });
+
     return user;
 };
 
