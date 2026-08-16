@@ -540,18 +540,10 @@ export const PlaceOrder = () => {
                 if (allAssigned.length !== pageRangeCount) {
                     return `Please assign all pages (${advStart}–${advLast}) or select "Apply for rest of the pages" for either Single-Sided B&W or Double-Sided B&W.`;
                 }
-            } else {
-                if (f.applyRestOption === 'bwDouble') {
-                    const remainingPages = [];
-                    for (let p = advStart; p <= advLast; p++) {
-                        if (!colSingleRes.includes(p) && !colDoubleRes.includes(p) && !bwSingleRes.includes(p)) {
-                            remainingPages.push(p);
-                        }
-                    }
-                    const bwDoubleErr = validateDuplexPairs(remainingPages, "Double-Sided B&W (Remaining)");
-                    if (bwDoubleErr) return bwDoubleErr;
-                }
             }
+            // When applyRestOption is 'bwSingle' or 'bwDouble', remaining pages are accepted as-is.
+            // Odd remainders in 'bwDouble' are priced as a single-sided sheet — no pair validation needed.
+
 
             return null;
         }
@@ -1096,6 +1088,84 @@ export const PlaceOrder = () => {
         }
     };
 
+    const getAdvancedFileCosts = (f) => {
+        if (!selectedShop || f.printingMode !== 'advanced') return {
+            bwSinglePagesCount: 0,
+            bwSingleCost: 0,
+            bwDoublePagesCount: 0,
+            bwDoubleCost: 0,
+            colorSinglePagesCount: 0,
+            colorSingleCost: 0,
+            colorDoublePagesCount: 0,
+            colorDoubleCost: 0,
+            bindingCost: 0
+        };
+
+        const bwSingle = parsePageList(f.bwSinglePagesText);
+        const bwDouble = parsePageList(f.bwDoublePagesText);
+        const colSingle = parsePageList(f.colorSinglePagesText);
+        const colDouble = parsePageList(f.colorDoublePagesText);
+
+        const totalCount = Number(f.pageCount || 1);
+        const advStart = Number(f.advStartPage ?? 1);
+        const advLast = Number(f.advLastPage ?? totalCount);
+        const copies = Number(f.copies || 1);
+
+        let resolvedBwSingle = [...bwSingle];
+        let resolvedBwDouble = [...bwDouble];
+
+        if (f.applyRestOption === 'bwSingle') {
+            const remaining = [];
+            for (let p = advStart; p <= advLast; p++) {
+                if (!colSingle.includes(p) && !colDouble.includes(p) && !bwDouble.includes(p)) {
+                    remaining.push(p);
+                }
+            }
+            resolvedBwSingle = remaining;
+        } else if (f.applyRestOption === 'bwDouble') {
+            const remaining = [];
+            for (let p = advStart; p <= advLast; p++) {
+                if (!colSingle.includes(p) && !colDouble.includes(p) && !bwSingle.includes(p)) {
+                    remaining.push(p);
+                }
+            }
+            resolvedBwDouble = remaining;
+        }
+
+        const bwSingleCost = resolvedBwSingle.length * bwSingleRate * copies;
+
+        const bwDoubleSheets = Math.floor(resolvedBwDouble.length / 2);
+        const bwDoubleOdd = resolvedBwDouble.length % 2;
+        const bwDoubleCost = (bwDoubleSheets * bwDoubleRate + bwDoubleOdd * bwSingleRate) * copies;
+
+        const colorSingleCost = colSingle.length * colourSingleRate * copies;
+
+        const colorDoubleSheets = Math.floor(colDouble.length / 2);
+        const colorDoubleOdd = colDouble.length % 2;
+        const colorDoubleCost = (colorDoubleSheets * colourDoubleRate + colorDoubleOdd * colourSingleRate) * copies;
+
+        let bindingCost = 0;
+        if (f.binding === 'SPIRAL') bindingCost = spiralBindingRate * copies;
+        else if (f.binding === 'BOOK') bindingCost = bookBindingRate * copies;
+
+        return {
+            bwSinglePagesCount: resolvedBwSingle.length,
+            bwSingleCost,
+            bwDoublePagesCount: resolvedBwDouble.length,
+            bwDoubleSheets,
+            bwDoubleOdd,
+            bwDoubleCost,
+            colorSinglePagesCount: colSingle.length,
+            colorSingleCost,
+            colorDoublePagesCount: colDouble.length,
+            colorDoubleSheets,
+            colorDoubleOdd,
+            colorDoubleCost,
+            bindingCost
+        };
+    };
+
+
     return (
         <div className="order-wizard-page">
             {renderStepper()}
@@ -1267,6 +1337,8 @@ export const PlaceOrder = () => {
                                     {files.map((fileObj) => {
                                         const validationError = getFileValidationError(fileObj);
                                         const isImage = fileObj.file.type.startsWith('image/') || !fileObj.file.name.toLowerCase().endsWith('.pdf');
+                                        const advCosts = getAdvancedFileCosts(fileObj);
+
                                         
                                         return (
                                             <div 
@@ -1389,6 +1461,9 @@ export const PlaceOrder = () => {
                                                                     <small className="field-help" style={{ fontSize: '0.75rem' }}>
                                                                         Individual color page numbers, separated by commas.
                                                                     </small>
+                                                                    <small style={{ color: 'var(--text-success)', fontWeight: 'bold', display: 'block', marginTop: '0.25rem' }}>
+                                                                        Cost: ₹{advCosts.colorSingleCost.toFixed(2)} ({advCosts.colorSinglePagesCount} pages)
+                                                                    </small>
                                                                 </div>
 
                                                                 {/* 2. Double-Sided Color Pages */}
@@ -1402,6 +1477,42 @@ export const PlaceOrder = () => {
                                                                     />
                                                                     <small className="field-help" style={{ fontSize: '0.75rem' }}>
                                                                         Continuous page pairs, e.g. 2,3,6,7.
+                                                                    </small>
+                                                                    <small style={{ color: 'var(--text-success)', fontWeight: 'bold', display: 'block', marginTop: '0.25rem' }}>
+                                                                        Cost: ₹{advCosts.colorDoubleCost.toFixed(2)} ({advCosts.colorDoubleSheets} pages)
+                                                                    </small>
+                                                                </div>
+
+                                                                {/* 4. Single-Sided B&W Pages */}
+                                                                <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+                                                                    <label style={{ fontSize: '0.85rem', fontWeight: 600 }}>Single-Sided B&W Pages</label>
+                                                                    <input
+                                                                        type="text"
+                                                                        placeholder="e.g. 4, 9, 11, 25"
+                                                                        value={fileObj.bwSinglePagesText}
+                                                                        disabled={fileObj.applyRestOption === 'bwSingle'}
+                                                                        style={fileObj.applyRestOption === 'bwSingle' ? { backgroundColor: 'var(--bg-input)', cursor: 'not-allowed', opacity: 0.7 } : {}}
+                                                                        onChange={(e) => updateFileStatus(fileObj.id, { bwSinglePagesText: e.target.value })}
+                                                                    />
+                                                                    <div style={{ marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                                                        <input
+                                                                            type="radio"
+                                                                            id={`applyRestBwSingle-${fileObj.id}`}
+                                                                            name={`applyRestBw-${fileObj.id}`}
+                                                                            checked={fileObj.applyRestOption === 'bwSingle'}
+                                                                            onChange={(e) => {
+                                                                                if (e.target.checked) {
+                                                                                    updateFileStatus(fileObj.id, { applyRestOption: 'bwSingle', bwSinglePagesText: '' });
+                                                                                }
+                                                                            }}
+                                                                            style={{ width: 'auto', margin: 0 }}
+                                                                        />
+                                                                        <label htmlFor={`applyRestBwSingle-${fileObj.id}`} style={{ fontSize: '0.75rem', cursor: 'pointer', fontWeight: 600 }}>
+                                                                            Apply for rest of the pages
+                                                                        </label>
+                                                                    </div>
+                                                                    <small style={{ color: 'var(--text-success)', fontWeight: 'bold', display: 'block', marginTop: '0.25rem' }}>
+                                                                        Cost: ₹{advCosts.bwSingleCost.toFixed(2)} ({advCosts.bwSinglePagesCount} pages)
                                                                     </small>
                                                                 </div>
 
@@ -1433,36 +1544,9 @@ export const PlaceOrder = () => {
                                                                             Apply for rest of the pages
                                                                         </label>
                                                                     </div>
-                                                                </div>
-
-                                                                {/* 4. Single-Sided B&W Pages */}
-                                                                <div className="form-group" style={{ marginBottom: '1.25rem' }}>
-                                                                    <label style={{ fontSize: '0.85rem', fontWeight: 600 }}>Single-Sided B&W Pages</label>
-                                                                    <input
-                                                                        type="text"
-                                                                        placeholder="e.g. 4, 9, 11, 25"
-                                                                        value={fileObj.bwSinglePagesText}
-                                                                        disabled={fileObj.applyRestOption === 'bwSingle'}
-                                                                        style={fileObj.applyRestOption === 'bwSingle' ? { backgroundColor: 'var(--bg-input)', cursor: 'not-allowed', opacity: 0.7 } : {}}
-                                                                        onChange={(e) => updateFileStatus(fileObj.id, { bwSinglePagesText: e.target.value })}
-                                                                    />
-                                                                    <div style={{ marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                                                        <input
-                                                                            type="radio"
-                                                                            id={`applyRestBwSingle-${fileObj.id}`}
-                                                                            name={`applyRestBw-${fileObj.id}`}
-                                                                            checked={fileObj.applyRestOption === 'bwSingle'}
-                                                                            onChange={(e) => {
-                                                                                if (e.target.checked) {
-                                                                                    updateFileStatus(fileObj.id, { applyRestOption: 'bwSingle', bwSinglePagesText: '' });
-                                                                                }
-                                                                            }}
-                                                                            style={{ width: 'auto', margin: 0 }}
-                                                                        />
-                                                                        <label htmlFor={`applyRestBwSingle-${fileObj.id}`} style={{ fontSize: '0.75rem', cursor: 'pointer', fontWeight: 600 }}>
-                                                                            Apply for rest of the pages
-                                                                        </label>
-                                                                    </div>
+                                                                    <small style={{ color: 'var(--text-success)', fontWeight: 'bold', display: 'block', marginTop: '0.25rem' }}>
+                                                                        Cost: ₹{advCosts.bwDoubleCost.toFixed(2)} ({advCosts.bwDoubleSheets} pages)
+                                                                    </small>
                                                                 </div>
 
                                                                 {/* Advanced: Copies & Binding */}
@@ -1486,8 +1570,12 @@ export const PlaceOrder = () => {
                                                                             <option value="SPIRAL">Spiral Binding</option>
                                                                             <option value="BOOK">Book Binding</option>
                                                                         </select>
+                                                                        <small style={{ color: 'var(--text-success)', fontWeight: 'bold', display: 'block', marginTop: '0.25rem' }}>
+                                                                            Cost: ₹{advCosts.bindingCost.toFixed(2)}
+                                                                        </small>
                                                                     </div>
                                                                 </div>
+
                                                             </div>
                                                         ) : (
                                                             <div>
