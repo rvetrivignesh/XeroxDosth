@@ -91,6 +91,10 @@ export const mapShopForBackwardCompatibility = (shop) => {
         shopObj.homeDelivery = shopObj.isDeliveryAvailable;
     }
 
+    if (shopObj.isShopPickupAvailable === undefined) {
+        shopObj.isShopPickupAvailable = true;
+    }
+
     return shopObj;
 };
 
@@ -168,6 +172,7 @@ export const updateMyShopDetails = async (userId, updateData) => {
             bookBinding: Number(updateData.printingRates.bookBinding ?? 0)
         };
     }
+    if (updateData.isShopPickupAvailable !== undefined) shop.isShopPickupAvailable = !!updateData.isShopPickupAvailable;
     if (updateData.homeDelivery !== undefined) shop.homeDelivery = !!updateData.homeDelivery;
     if (updateData.freeDelivery !== undefined) shop.freeDelivery = !!updateData.freeDelivery;
     if (updateData.deliveryCharges !== undefined) shop.deliveryCharges = updateData.deliveryCharges;

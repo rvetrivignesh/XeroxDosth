@@ -38,6 +38,9 @@ export const UpdateShop = () => {
     const [spiralBinding, setSpiralBinding] = useState('30');
     const [bookBinding, setBookBinding] = useState('50');
 
+    // Shop Pickup Availability state
+    const [isShopPickupAvailable, setIsShopPickupAvailable] = useState(true);
+
     // Home Delivery state
     const [homeDelivery, setHomeDelivery] = useState(false);
     const [freeDelivery, setFreeDelivery] = useState(false);
@@ -108,7 +111,8 @@ export const UpdateShop = () => {
                 setSpiralBinding(shop.printingRates?.spiralBinding ?? (shop.pricing?.spiralBinding ?? 30));
                 setBookBinding(shop.printingRates?.bookBinding ?? (shop.pricing?.bookBinding ?? 50));
 
-                // Delivery Loading
+                // Pickup & Delivery Loading
+                setIsShopPickupAvailable(shop.isShopPickupAvailable !== false);
                 setHomeDelivery(!!shop.homeDelivery);
                 setFreeDelivery(!!shop.freeDelivery);
                 setDeliveryCharges(shop.deliveryCharges || []);
@@ -199,6 +203,7 @@ export const UpdateShop = () => {
                     spiralBinding: Number(spiralBinding || 0),
                     bookBinding: Number(bookBinding || 0)
                 },
+                isShopPickupAvailable,
                 homeDelivery,
                 freeDelivery,
                 deliveryCharges: freeDelivery ? [] : deliveryCharges.map(c => ({
@@ -243,6 +248,15 @@ export const UpdateShop = () => {
 
                 <form onSubmit={handleSubmit} className="shop-form">
                     <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '1.5rem', backgroundColor: 'var(--bg-input)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', flexWrap: 'wrap' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: 600, flex: '1 1 auto', minWidth: '200px' }}>
+                            <input
+                                type="checkbox"
+                                checked={isShopPickupAvailable}
+                                onChange={(e) => setIsShopPickupAvailable(e.target.checked)}
+                                style={{ width: 'auto', margin: 0 }}
+                            />
+                            <span>Enable Shop Pickup</span>
+                        </label>
                         <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: 600, flex: '1 1 auto', minWidth: '200px' }}>
                             <input
                                 type="checkbox"

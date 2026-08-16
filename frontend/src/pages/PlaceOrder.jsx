@@ -251,6 +251,9 @@ export const PlaceOrder = () => {
             if (serviceType === 'DELIVERY') {
                 return matchesSearch && shop.isDeliveryAvailable;
             }
+            if (serviceType === 'PRINT') {
+                return matchesSearch && shop.isShopPickupAvailable !== false;
+            }
             return matchesSearch;
         });
     }, [shops, shopSearch, serviceType]);
@@ -335,6 +338,7 @@ export const PlaceOrder = () => {
                 copies: 1,
                 printSide: 'SINGLE_SIDE',
                 binding: 'NONE',
+                printColorDoubleSide: false,
                 isCollapsed: false // Expand initially for settings config
             };
             
@@ -515,15 +519,22 @@ export const PlaceOrder = () => {
                 deliveryCharge: 0,
                 total: 0,
                 hasColor: false,
-                printSideStr: 'Single-Sided'
+                printSideStr: 'Single-Sided',
+                doubleBwSheetsTotal: 0,
+                singleBwSheetsTotal: 0,
+                doubleColourSheetsTotal: 0,
+                singleColourSheetsTotal: 0
             };
         }
         
         const p = selectedShop.pricing;
         const rates = selectedShop.printingRates || {};
-        const bwSingleRate = rates.bwSingle ?? p.bwPerPage ?? 1;
-        const bwDoubleRate = rates.bwDouble ?? p.bwPerPage ?? 1.5;
-        const colourSingleRate = rates.colourSingle ?? p.colorPerPage ?? 5;
+        const bwSingleRate = rates.bwSingle ?? p.bwPerPage ?? 0;
+        const bwDoubleRate = rates.bwDouble ?? p.bwPerPage ?? 0;
+        const colourSingleRate = rates.colourSingle ?? p.colorPerPage ?? 0;
+        const colourDoubleRate = rates.colourDouble ?? p.colorPerPage ?? 0;
+        const spiralBindingRate = rates.spiralBinding ?? p.spiralBinding ?? 0;
+        const bookBindingRate = rates.bookBinding ?? p.bookBinding ?? 0;
 
         let totalPages = 0;
         let bwSheets = 0;
@@ -534,6 +545,8 @@ export const PlaceOrder = () => {
         
         let doubleBwSheetsTotal = 0;
         let singleBwSheetsTotal = 0;
+        let doubleColourSheetsTotal = 0;
+        let singleColourSheetsTotal = 0;
 
         let hasDouble = false;
         let hasSingle = false;
@@ -548,7 +561,22 @@ export const PlaceOrder = () => {
             totalPages += (bw + color) * copies;
 
             const docBwSheets = printSide === 'DOUBLE_SIDE' ? Math.ceil(bw / 2) : bw;
-            const docColorSheets = color; // color is always single-sided
+            
+            let docColorSheets = color;
+            let docColorCost = 0;
+            if (f.printColorDoubleSide && color >= 2) {
+                const { doubleSheets, singlePages } = groupConsecutivePages(f.colorPageNumbersText);
+                docColorSheets = doubleSheets + singlePages;
+                doubleColourSheetsTotal += doubleSheets * copies;
+                singleColourSheetsTotal += singlePages * copies;
+                docColorCost = (doubleSheets * colourDoubleRate + singlePages * colourSingleRate) * copies;
+                if (doubleSheets > 0) hasDouble = true;
+                if (singlePages > 0) hasSingle = true;
+            } else {
+                singleColourSheetsTotal += color * copies;
+                docColorCost = color * colourSingleRate * copies;
+                if (color > 0) hasSingle = true;
+            }
 
             bwSheets += docBwSheets * copies;
             colorSheets += docColorSheets * copies;
@@ -560,17 +588,20 @@ export const PlaceOrder = () => {
                 doubleBwSheetsTotal += dSheets;
                 singleBwSheetsTotal += sSheets;
                 docBwCost = dSheets * bwDoubleRate + sSheets * bwSingleRate;
+                if (dSheets > 0) hasDouble = true;
+                if (sSheets > 0) hasSingle = true;
             } else {
                 const sSheets = bw * copies;
                 singleBwSheetsTotal += sSheets;
                 docBwCost = sSheets * bwSingleRate;
+                if (sSheets > 0) hasSingle = true;
             }
             bwCost += docBwCost;
-            colorCost += docColorSheets * colourSingleRate * copies;
+            colorCost += docColorCost;
 
             let fileBindingCost = 0;
-            if (f.binding === 'SPIRAL') fileBindingCost = p.spiralBinding || 30;
-            if (f.binding === 'BOOK') fileBindingCost = p.bookBinding || 50;
+            if (f.binding === 'SPIRAL') fileBindingCost = spiralBindingRate;
+            if (f.binding === 'BOOK') fileBindingCost = bookBindingRate;
 
             bindingCost += fileBindingCost * copies;
 
@@ -579,8 +610,8 @@ export const PlaceOrder = () => {
         });
 
         if (serviceType === 'RECORD') {
-            if (recordBindingType === 'SPIRAL') bindingCost += p.spiralBinding || 30;
-            if (recordBindingType === 'BOOK') bindingCost += p.bookBinding || 50;
+            if (recordBindingType === 'SPIRAL') bindingCost += spiralBindingRate;
+            if (recordBindingType === 'BOOK') bindingCost += bookBindingRate;
         }
 
         let printSideStr = 'Single-Sided';
@@ -601,7 +632,9 @@ export const PlaceOrder = () => {
             hasColor: colorSheets > 0,
             printSideStr,
             doubleBwSheetsTotal,
-            singleBwSheetsTotal
+            singleBwSheetsTotal,
+            doubleColourSheetsTotal,
+            singleColourSheetsTotal
         };
     }, [files, selectedShop, serviceType, recordBindingType, calculatedDeliveryCharge]);
 
@@ -688,7 +721,8 @@ export const PlaceOrder = () => {
                 colorPageNumbersText: f.colorPageNumbersText,
                 copies: Number(f.copies),
                 printSide: f.printSide,
-                binding: f.binding
+                binding: f.binding,
+                printColorDoubleSide: !!f.printColorDoubleSide
             }));
 
             let finalInstructions = instructions;
@@ -800,9 +834,34 @@ export const PlaceOrder = () => {
         );
     };
 
-    const bwSingleRate = selectedShop?.printingRates?.bwSingle ?? selectedShop?.pricing?.bwPerPage ?? 1;
-    const bwDoubleRate = selectedShop?.printingRates?.bwDouble ?? selectedShop?.pricing?.bwPerPage ?? 1.5;
-    const colourSingleRate = selectedShop?.printingRates?.colourSingle ?? selectedShop?.pricing?.colorPerPage ?? 5;
+    const bwSingleRate = selectedShop?.printingRates?.bwSingle ?? selectedShop?.pricing?.bwPerPage ?? 0;
+    const bwDoubleRate = selectedShop?.printingRates?.bwDouble ?? selectedShop?.pricing?.bwPerPage ?? 0;
+    const colourSingleRate = selectedShop?.printingRates?.colourSingle ?? selectedShop?.pricing?.colorPerPage ?? 0;
+    const colourDoubleRate = selectedShop?.printingRates?.colourDouble ?? selectedShop?.pricing?.colorPerPage ?? 0;
+    const spiralBindingRate = selectedShop?.printingRates?.spiralBinding ?? selectedShop?.pricing?.spiralBinding ?? 0;
+    const bookBindingRate = selectedShop?.printingRates?.bookBinding ?? selectedShop?.pricing?.bookBinding ?? 0;
+
+    const groupConsecutivePages = (text) => {
+        if (!text || !text.trim()) return { doubleSheets: 0, singlePages: 0 };
+        const pages = text.split(',')
+            .map(p => parseInt(p.trim(), 10))
+            .filter(p => !isNaN(p))
+            .sort((a, b) => a - b);
+        
+        let doubleSheets = 0;
+        let singlePages = 0;
+        let i = 0;
+        while (i < pages.length) {
+            if (i + 1 < pages.length && pages[i + 1] === pages[i] + 1) {
+                doubleSheets++;
+                i += 2;
+            } else {
+                singlePages++;
+                i++;
+            }
+        }
+        return { doubleSheets, singlePages };
+    };
 
     const getFileBwCost = (fileObj) => {
         const bw = Number(fileObj.bwPages || 0);
@@ -1130,6 +1189,20 @@ export const PlaceOrder = () => {
                                                             <small className="field-help" style={{ fontSize: '0.75rem' }}>
                                                                 Specify page numbers separated by commas. Leave empty for B&W only.
                                                             </small>
+                                                            {fileObj.colorPages >= 2 && (
+                                                                 <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                                     <input 
+                                                                         type="checkbox"
+                                                                         id={`colorDoubleSide-${fileObj.id}`}
+                                                                         checked={fileObj.printColorDoubleSide || false}
+                                                                         onChange={(e) => updateFileStatus(fileObj.id, { printColorDoubleSide: e.target.checked })}
+                                                                         style={{ width: 'auto', margin: 0 }}
+                                                                     />
+                                                                     <label htmlFor={`colorDoubleSide-${fileObj.id}`} style={{ fontSize: '0.85rem', cursor: 'pointer', fontWeight: 600 }}>
+                                                                         print double side where possible (Double-sided rate: ₹{colourDoubleRate.toFixed(2)}/sheet)
+                                                                     </label>
+                                                                 </div>
+                                                             )}
                                                         </div>
 
                                                         <div className="form-row" style={{ marginBottom: '1.25rem' }}>
@@ -1780,14 +1853,25 @@ export const PlaceOrder = () => {
                                     </div>
                                 )}
 
-                                {priceDetails.colorSheets > 0 && (
+                                {priceDetails.colorCost > 0 && (
                                     <div className="review-cost-row" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                             <span style={{ color: 'var(--text-secondary)' }}>Color Printing</span>
                                             <strong style={{ color: 'var(--text-primary)' }}>₹{priceDetails.colorCost.toFixed(2)}</strong>
                                         </div>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                                            <span>{priceDetails.colorSheets} sheet(s) × ₹{(selectedShop?.pricing?.colorPerPage || 5.00).toFixed(2)}</span>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                                            {priceDetails.doubleColourSheetsTotal > 0 && (
+                                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                                    <span>{priceDetails.doubleColourSheetsTotal} double-sided sheet(s) × ₹{colourDoubleRate.toFixed(2)}</span>
+                                                    <span>₹{(priceDetails.doubleColourSheetsTotal * colourDoubleRate).toFixed(2)}</span>
+                                                </div>
+                                            )}
+                                            {priceDetails.singleColourSheetsTotal > 0 && (
+                                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                                    <span>{priceDetails.singleColourSheetsTotal} single-sided page(s) × ₹{colourSingleRate.toFixed(2)}</span>
+                                                    <span>₹{(priceDetails.singleColourSheetsTotal * colourSingleRate).toFixed(2)}</span>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 )}

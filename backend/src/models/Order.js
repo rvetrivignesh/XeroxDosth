@@ -59,6 +59,10 @@ const documentSchema = new mongoose.Schema(
             enum: ['SINGLE_SIDE', 'DOUBLE_SIDE'],
             default: 'SINGLE_SIDE'
         },
+        printColorDoubleSide: {
+            type: Boolean,
+            default: false
+        },
         binding: {
             type: String,
             enum: ['NONE', 'SPIRAL', 'BOOK'],

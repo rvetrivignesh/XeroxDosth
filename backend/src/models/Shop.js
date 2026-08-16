@@ -189,6 +189,10 @@ const shopSchema = new mongoose.Schema(
             type: String,
             default: null
         },
+        isShopPickupAvailable: {
+            type: Boolean,
+            default: true
+        },
         isDeliveryAvailable: {
             type: Boolean,
             default: false

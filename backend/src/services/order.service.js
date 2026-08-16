@@ -5,6 +5,28 @@ import ApiError from '../utils/ApiError.js';
 import { sendEmail } from './mail.service.js';
 import { createNotification } from './notification.service.js';
 
+const groupConsecutivePages = (text) => {
+    if (!text || !text.trim()) return { doubleSheets: 0, singlePages: 0 };
+    const pages = text.split(',')
+        .map(p => parseInt(p.trim(), 10))
+        .filter(p => !isNaN(p))
+        .sort((a, b) => a - b);
+    
+    let doubleSheets = 0;
+    let singlePages = 0;
+    let i = 0;
+    while (i < pages.length) {
+        if (i + 1 < pages.length && pages[i + 1] === pages[i] + 1) {
+            doubleSheets++;
+            i += 2;
+        } else {
+            singlePages++;
+            i++;
+        }
+    }
+    return { doubleSheets, singlePages };
+};
+
 export const createOrder = async (userId, orderData, io) => {
     // Verify that target shop exists
     const shop = await Shop.findById(orderData.shop).populate('owner');
@@ -21,9 +43,11 @@ export const createOrder = async (userId, orderData, io) => {
         throw new ApiError(404, 'Customer user not found');
     }
 
-    const bwSingleRate = shop.printingRates?.bwSingle ?? shop.pricing?.bwPerPage ?? 1;
-    const bwDoubleRate = shop.printingRates?.bwDouble ?? shop.pricing?.bwPerPage ?? 1.5;
-    const colourSingleRate = shop.printingRates?.colourSingle ?? shop.pricing?.colorPerPage ?? 5;
+    const bwSingleRate = shop.printingRates?.bwSingle ?? shop.pricing?.bwPerPage ?? 0;
+    const bwDoubleRate = shop.printingRates?.bwDouble ?? shop.pricing?.bwPerPage ?? 0;
+    const colourSingleRate = shop.printingRates?.colourSingle ?? shop.pricing?.colorPerPage ?? 0;
+    const spiralBindingRate = shop.printingRates?.spiralBinding ?? shop.pricing?.spiralBinding ?? 0;
+    const bookBindingRate = shop.printingRates?.bookBinding ?? shop.pricing?.bookBinding ?? 0;
 
     let totalBwPages = 0;
     let totalColorPages = 0;
@@ -56,14 +80,20 @@ export const createOrder = async (userId, orderData, io) => {
             } else {
                 docBwCost = docBw * bwSingleRate * docCopies;
             }
-            const docColorCost = docColor * colourSingleRate * docCopies;
+            let docColorCost = 0;
+            if (doc.printColorDoubleSide && docColor >= 2) {
+                const { doubleSheets, singlePages } = groupConsecutivePages(doc.colorPageNumbersText);
+                docColorCost = (doubleSheets * colourDoubleRate + singlePages * colourSingleRate) * docCopies;
+            } else {
+                docColorCost = docColor * colourSingleRate * docCopies;
+            }
 
             bwSubtotal += docBwCost;
             colorSubtotal += docColorCost;
 
             let docBindingCost = 0;
-            if (doc.binding === 'SPIRAL') docBindingCost = shop.pricing.spiralBinding || 30;
-            if (doc.binding === 'BOOK') docBindingCost = shop.pricing.bookBinding || 50;
+            if (doc.binding === 'SPIRAL') docBindingCost = spiralBindingRate;
+            if (doc.binding === 'BOOK') docBindingCost = bookBindingRate;
 
             otherServiceCharges += docBindingCost * docCopies;
         }
@@ -83,14 +113,20 @@ export const createOrder = async (userId, orderData, io) => {
         } else {
             rootBwCost = totalBwPages * bwSingleRate * totalCopies;
         }
-        const rootColorCost = totalColorPages * colourSingleRate * totalCopies;
+        let rootColorCost = 0;
+        if (orderData.printColorDoubleSide && totalColorPages >= 2) {
+            const { doubleSheets, singlePages } = groupConsecutivePages(orderData.colorPageNumbersText);
+            rootColorCost = (doubleSheets * colourDoubleRate + singlePages * colourSingleRate) * totalCopies;
+        } else {
+            rootColorCost = totalColorPages * colourSingleRate * totalCopies;
+        }
 
         bwSubtotal = rootBwCost;
         colorSubtotal = rootColorCost;
 
         let bindingCost = 0;
-        if (orderData.binding === 'SPIRAL') bindingCost = shop.pricing.spiralBinding || 30;
-        if (orderData.binding === 'BOOK') bindingCost = shop.pricing.bookBinding || 50;
+        if (orderData.binding === 'SPIRAL') bindingCost = spiralBindingRate;
+        if (orderData.binding === 'BOOK') bindingCost = bookBindingRate;
 
         otherServiceCharges = bindingCost * totalCopies;
     }
