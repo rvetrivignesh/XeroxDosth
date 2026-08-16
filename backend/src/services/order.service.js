@@ -21,15 +21,17 @@ export const createOrder = async (userId, orderData, io) => {
         throw new ApiError(404, 'Customer user not found');
     }
 
-    const bwPrice = shop.pricing.bwPerPage || 1;
-    const colorPrice = shop.pricing.colorPerPage || 5;
+    const bwSingleRate = shop.printingRates?.bwSingle ?? shop.pricing?.bwPerPage ?? 1;
+    const bwDoubleRate = shop.printingRates?.bwDouble ?? shop.pricing?.bwPerPage ?? 1.5;
+    const colourSingleRate = shop.printingRates?.colourSingle ?? shop.pricing?.colorPerPage ?? 5;
 
     let totalBwPages = 0;
     let totalColorPages = 0;
     let totalCopies = 1;
     let otherServiceCharges = 0;
-    let totalBwSheets = 0;
-    let totalColorSheets = 0;
+    
+    let bwSubtotal = 0;
+    let colorSubtotal = 0;
 
     // Check if we have individual document configurations
     const hasDocConfigs = orderData.documents && orderData.documents.length > 0 && orderData.documents.some(d => d.pageCount !== undefined);
@@ -48,11 +50,16 @@ export const createOrder = async (userId, orderData, io) => {
             totalBwPages += docBw * docCopies;
             totalColorPages += docColor * docCopies;
 
-            const docBwSheets = docPrintSide === 'DOUBLE_SIDE' ? Math.ceil(docBw / 2) : docBw;
-            const docColorSheets = docColor;
+            let docBwCost = 0;
+            if (docPrintSide === 'DOUBLE_SIDE') {
+                docBwCost = (Math.floor(docBw / 2) * bwDoubleRate + (docBw % 2) * bwSingleRate) * docCopies;
+            } else {
+                docBwCost = docBw * bwSingleRate * docCopies;
+            }
+            const docColorCost = docColor * colourSingleRate * docCopies;
 
-            totalBwSheets += docBwSheets * docCopies;
-            totalColorSheets += docColorSheets * docCopies;
+            bwSubtotal += docBwCost;
+            colorSubtotal += docColorCost;
 
             let docBindingCost = 0;
             if (doc.binding === 'SPIRAL') docBindingCost = shop.pricing.spiralBinding || 30;
@@ -70,11 +77,16 @@ export const createOrder = async (userId, orderData, io) => {
             throw new ApiError(400, 'Color printing is only available for single-sided printing.');
         }
 
-        const rootBwSheets = rootPrintSide === 'DOUBLE_SIDE' ? Math.ceil(totalBwPages / 2) : totalBwPages;
-        const rootColorSheets = totalColorPages;
+        let rootBwCost = 0;
+        if (rootPrintSide === 'DOUBLE_SIDE') {
+            rootBwCost = (Math.floor(totalBwPages / 2) * bwDoubleRate + (totalBwPages % 2) * bwSingleRate) * totalCopies;
+        } else {
+            rootBwCost = totalBwPages * bwSingleRate * totalCopies;
+        }
+        const rootColorCost = totalColorPages * colourSingleRate * totalCopies;
 
-        totalBwSheets = rootBwSheets * totalCopies;
-        totalColorSheets = rootColorSheets * totalCopies;
+        bwSubtotal = rootBwCost;
+        colorSubtotal = rootColorCost;
 
         let bindingCost = 0;
         if (orderData.binding === 'SPIRAL') bindingCost = shop.pricing.spiralBinding || 30;
@@ -88,9 +100,6 @@ export const createOrder = async (userId, orderData, io) => {
     if (totalPages < 1) {
         throw new ApiError(400, 'Order must contain at least 1 page');
     }
-
-    const bwSubtotal = totalBwSheets * bwPrice;
-    const colorSubtotal = totalColorSheets * colorPrice;
 
     // Calculate delivery charge dynamically
     let deliveryCharge = 0;
@@ -152,9 +161,9 @@ export const createOrder = async (userId, orderData, io) => {
         fulfillmentMethod: orderData.fulfillmentMethod,
         deliveryType: orderData.deliveryType || 'NONE',
         deliveryCharge,
-        bwPerPagePrice: bwPrice,
+        bwPerPagePrice: bwSingleRate,
         bwSubtotal,
-        colorPerPagePrice: colorPrice,
+        colorPerPagePrice: colourSingleRate,
         colorSubtotal,
         otherServiceCharges,
         totalAmount,
