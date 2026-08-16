@@ -89,6 +89,15 @@ const parseColorPageNumbers = (text) => {
         .filter(num => !isNaN(num));
 };
 
+const parsePageList = (text) => {
+    if (!text || !text.trim()) return [];
+    return text.split(',')
+        .map(p => p.trim())
+        .filter(Boolean)
+        .map(p => parseInt(p, 10))
+        .filter(num => !isNaN(num));
+};
+
 export const PlaceOrder = () => {
     const { user } = useAuth();
     const { showToast } = useToast();
@@ -339,6 +348,12 @@ export const PlaceOrder = () => {
                 printSide: 'SINGLE_SIDE',
                 binding: 'NONE',
                 printColorDoubleSide: false,
+                printingMode: 'regular',
+                bwSinglePagesText: '',
+                bwDoublePagesText: '',
+                colorSinglePagesText: '',
+                colorDoublePagesText: '',
+                applyRestOption: 'none',
                 isCollapsed: false // Expand initially for settings config
             };
             
@@ -428,10 +443,108 @@ export const PlaceOrder = () => {
     const getFileValidationError = (f) => {
         if (f.status !== 'success') return null;
 
+        const copies = Number(f.copies || 1);
+        if (copies < 1) return "Copies must be at least 1.";
+
+        if (f.printingMode === 'advanced') {
+            const count = Number(f.pageCount || 1);
+
+            const parsePageListWithErrors = (text, fieldName) => {
+                if (!text || !text.trim()) return [];
+                const parts = text.split(',').map(p => p.trim());
+                const nums = [];
+                for (const part of parts) {
+                    if (!part) continue;
+                    const num = parseInt(part, 10);
+                    if (isNaN(num) || num.toString() !== part) {
+                        return { error: `Invalid page number format: "${part}" in ${fieldName}. Must be valid integers.` };
+                    }
+                    if (num < 1 || num > count) {
+                        return { error: `Page number ${num} in ${fieldName} is out of range [1-${count}].` };
+                    }
+                    nums.push(num);
+                }
+                return nums;
+            };
+
+            const colSingleRes = parsePageListWithErrors(f.colorSinglePagesText, "Single-Sided Color");
+            if (colSingleRes.error) return colSingleRes.error;
+            const colDoubleRes = parsePageListWithErrors(f.colorDoublePagesText, "Double-Sided Color");
+            if (colDoubleRes.error) return colDoubleRes.error;
+            const bwDoubleRes = parsePageListWithErrors(f.bwDoublePagesText, "Double-Sided B&W");
+            if (bwDoubleRes.error) return bwDoubleRes.error;
+            const bwSingleRes = parsePageListWithErrors(f.bwSinglePagesText, "Single-Sided B&W");
+            if (bwSingleRes.error) return bwSingleRes.error;
+
+            if ([...new Set(colSingleRes)].length !== colSingleRes.length) {
+                return "Duplicate page numbers are not allowed in Single-Sided Color.";
+            }
+            if ([...new Set(colDoubleRes)].length !== colDoubleRes.length) {
+                return "Duplicate page numbers are not allowed in Double-Sided Color.";
+            }
+            if ([...new Set(bwDoubleRes)].length !== bwDoubleRes.length) {
+                return "Duplicate page numbers are not allowed in Double-Sided B&W.";
+            }
+            if ([...new Set(bwSingleRes)].length !== bwSingleRes.length) {
+                return "Duplicate page numbers are not allowed in Single-Sided B&W.";
+            }
+
+            const allAssigned = [...colSingleRes, ...colDoubleRes, ...bwDoubleRes, ...bwSingleRes];
+            const uniqueAssigned = [...new Set(allAssigned)];
+            if (uniqueAssigned.length !== allAssigned.length) {
+                const seen = new Set();
+                for (const p of allAssigned) {
+                    if (seen.has(p)) {
+                        return `Page ${p} has already been assigned to another printing option. Each page can only have one printing type.`;
+                    }
+                    seen.add(p);
+                }
+            }
+
+            const validateDuplexPairs = (list, categoryName) => {
+                const sorted = [...list].sort((a, b) => a - b);
+                if (sorted.length % 2 !== 0) {
+                    return `Double-sided pages must be entered as continuous pairs, e.g. 2,3,6,7,9,10.`;
+                }
+                for (let k = 0; k < sorted.length; k += 2) {
+                    if (sorted[k + 1] !== sorted[k] + 1) {
+                        return `Double-sided pages must be entered as continuous pairs, e.g. 2,3,6,7,9,10.`;
+                    }
+                }
+                return null;
+            };
+
+            const colDoubleErr = validateDuplexPairs(colDoubleRes, "Double-Sided Color");
+            if (colDoubleErr) return colDoubleErr;
+
+            if (f.applyRestOption !== 'bwDouble') {
+                const bwDoubleErr = validateDuplexPairs(bwDoubleRes, "Double-Sided B&W");
+                if (bwDoubleErr) return bwDoubleErr;
+            }
+
+            if (f.applyRestOption === 'none') {
+                if (allAssigned.length !== count) {
+                    return `Please assign all pages or select "Apply for rest of the pages" for either Single-Sided B&W or Double-Sided B&W.`;
+                }
+            } else {
+                if (f.applyRestOption === 'bwDouble') {
+                    const remainingPages = [];
+                    for (let p = 1; p <= count; p++) {
+                        if (!colSingleRes.includes(p) && !colDoubleRes.includes(p) && !bwSingleRes.includes(p)) {
+                            remainingPages.push(p);
+                        }
+                    }
+                    const bwDoubleErr = validateDuplexPairs(remainingPages, "Double-Sided B&W (Remaining)");
+                    if (bwDoubleErr) return bwDoubleErr;
+                }
+            }
+
+            return null;
+        }
+
         const start = Number(f.startPage || 1);
         const last = Number(f.lastPage || 1);
         const count = Number(f.pageCount || 1);
-        const copies = Number(f.copies || 1);
 
         if (start < 1) return "Start page must be at least 1.";
         if (last > count) return `Last page cannot exceed document total (${count}).`;
@@ -471,8 +584,6 @@ export const PlaceOrder = () => {
         if (f.printSide === 'DOUBLE_SIDE' && (f.colorPages || 0) > 0) {
             return "Color printing is only available for single-sided printing. Please select Single-Sided or clear color pages.";
         }
-
-        if (copies < 1) return "Copies must be at least 1.";
 
         return null;
     };
@@ -553,60 +664,112 @@ export const PlaceOrder = () => {
 
         files.forEach(f => {
             if (f.status !== 'success') return;
-            const bw = Number(f.bwPages || 0);
-            const color = Number(f.colorPages || 0);
             const copies = Number(f.copies || 1);
-            const printSide = f.printSide || 'SINGLE_SIDE';
 
-            totalPages += (bw + color) * copies;
+            if (f.printingMode === 'advanced') {
+                const bwSingle = parsePageList(f.bwSinglePagesText);
+                const bwDouble = parsePageList(f.bwDoublePagesText);
+                const colSingle = parsePageList(f.colorSinglePagesText);
+                const colDouble = parsePageList(f.colorDoublePagesText);
 
-            const docBwSheets = printSide === 'DOUBLE_SIDE' ? Math.ceil(bw / 2) : bw;
-            
-            let docColorSheets = color;
-            let docColorCost = 0;
-            if (f.printColorDoubleSide && color >= 2) {
-                const { doubleSheets, singlePages } = groupConsecutivePages(f.colorPageNumbersText);
-                docColorSheets = doubleSheets + singlePages;
-                doubleColourSheetsTotal += doubleSheets * copies;
-                singleColourSheetsTotal += singlePages * copies;
-                docColorCost = (doubleSheets * colourDoubleRate + singlePages * colourSingleRate) * copies;
-                if (doubleSheets > 0) hasDouble = true;
-                if (singlePages > 0) hasSingle = true;
+                const count = Number(f.pageCount || 1);
+                let resolvedBwSingle = [...bwSingle];
+                let resolvedBwDouble = [...bwDouble];
+
+                if (f.applyRestOption === 'bwSingle') {
+                    const remaining = [];
+                    for (let p = 1; p <= count; p++) {
+                        if (!colSingle.includes(p) && !colDouble.includes(p) && !bwDouble.includes(p)) {
+                            remaining.push(p);
+                        }
+                    }
+                    resolvedBwSingle = remaining;
+                } else if (f.applyRestOption === 'bwDouble') {
+                    const remaining = [];
+                    for (let p = 1; p <= count; p++) {
+                        if (!colSingle.includes(p) && !colDouble.includes(p) && !bwSingle.includes(p)) {
+                            remaining.push(p);
+                        }
+                    }
+                    resolvedBwDouble = remaining;
+                }
+
+                const docBwSheets = resolvedBwSingle.length + Math.ceil(resolvedBwDouble.length / 2);
+                const docColorSheets = colSingle.length + Math.ceil(colDouble.length / 2);
+
+                bwSheets += docBwSheets * copies;
+                colorSheets += docColorSheets * copies;
+                totalPages += (resolvedBwSingle.length + resolvedBwDouble.length + colSingle.length + colDouble.length) * copies;
+
+                const dBwSheets = Math.floor(resolvedBwDouble.length / 2) * copies;
+                const sBwSheets = (resolvedBwDouble.length % 2) * copies + resolvedBwSingle.length * copies;
+                doubleBwSheetsTotal += dBwSheets;
+                singleBwSheetsTotal += sBwSheets;
+                bwCost += (dBwSheets * bwDoubleRate + sBwSheets * bwSingleRate);
+
+                const dColSheets = Math.floor(colDouble.length / 2) * copies;
+                const sColSheets = (colDouble.length % 2) * copies + colSingle.length * copies;
+                doubleColourSheetsTotal += dColSheets;
+                singleColourSheetsTotal += sColSheets;
+                colorCost += (dColSheets * colourDoubleRate + sColSheets * colourSingleRate);
+
+                if (resolvedBwDouble.length > 0 || colDouble.length > 0) hasDouble = true;
+                if (resolvedBwSingle.length > 0 || colSingle.length > 0) hasSingle = true;
             } else {
-                singleColourSheetsTotal += color * copies;
-                docColorCost = color * colourSingleRate * copies;
-                if (color > 0) hasSingle = true;
-            }
+                const bw = Number(f.bwPages || 0);
+                const color = Number(f.colorPages || 0);
+                const printSide = f.printSide || 'SINGLE_SIDE';
 
-            bwSheets += docBwSheets * copies;
-            colorSheets += docColorSheets * copies;
+                totalPages += (bw + color) * copies;
 
-            let docBwCost = 0;
-            if (printSide === 'DOUBLE_SIDE') {
-                const dSheets = Math.floor(bw / 2) * copies;
-                const sSheets = (bw % 2) * copies;
-                doubleBwSheetsTotal += dSheets;
-                singleBwSheetsTotal += sSheets;
-                docBwCost = dSheets * bwDoubleRate + sSheets * bwSingleRate;
-                if (dSheets > 0) hasDouble = true;
-                if (sSheets > 0) hasSingle = true;
-            } else {
-                const sSheets = bw * copies;
-                singleBwSheetsTotal += sSheets;
-                docBwCost = sSheets * bwSingleRate;
-                if (sSheets > 0) hasSingle = true;
+                const docBwSheets = printSide === 'DOUBLE_SIDE' ? Math.ceil(bw / 2) : bw;
+                
+                let docColorSheets = color;
+                let docColorCost = 0;
+                if (f.printColorDoubleSide && color >= 2) {
+                    const { doubleSheets, singlePages } = groupConsecutivePages(f.colorPageNumbersText);
+                    docColorSheets = doubleSheets + singlePages;
+                    doubleColourSheetsTotal += doubleSheets * copies;
+                    singleColourSheetsTotal += singlePages * copies;
+                    docColorCost = (doubleSheets * colourDoubleRate + singlePages * colourSingleRate) * copies;
+                    if (doubleSheets > 0) hasDouble = true;
+                    if (singlePages > 0) hasSingle = true;
+                } else {
+                    singleColourSheetsTotal += color * copies;
+                    docColorCost = color * colourSingleRate * copies;
+                    if (color > 0) hasSingle = true;
+                }
+
+                bwSheets += docBwSheets * copies;
+                colorSheets += docColorSheets * copies;
+
+                let docBwCost = 0;
+                if (printSide === 'DOUBLE_SIDE') {
+                    const dSheets = Math.floor(bw / 2) * copies;
+                    const sSheets = (bw % 2) * copies;
+                    doubleBwSheetsTotal += dSheets;
+                    singleBwSheetsTotal += sSheets;
+                    docBwCost = dSheets * bwDoubleRate + sSheets * bwSingleRate;
+                    if (dSheets > 0) hasDouble = true;
+                    if (sSheets > 0) hasSingle = true;
+                } else {
+                    const sSheets = bw * copies;
+                    singleBwSheetsTotal += sSheets;
+                    docBwCost = sSheets * bwSingleRate;
+                    if (sSheets > 0) hasSingle = true;
+                }
+                bwCost += docBwCost;
+                colorCost += docColorCost;
+
+                if (printSide === 'DOUBLE_SIDE') hasDouble = true;
+                if (printSide === 'SINGLE_SIDE') hasSingle = true;
             }
-            bwCost += docBwCost;
-            colorCost += docColorCost;
 
             let fileBindingCost = 0;
             if (f.binding === 'SPIRAL') fileBindingCost = spiralBindingRate;
             if (f.binding === 'BOOK') fileBindingCost = bookBindingRate;
 
             bindingCost += fileBindingCost * copies;
-
-            if (printSide === 'DOUBLE_SIDE') hasDouble = true;
-            if (printSide === 'SINGLE_SIDE') hasSingle = true;
         });
 
         if (serviceType === 'RECORD') {
@@ -707,23 +870,66 @@ export const PlaceOrder = () => {
 
         setLoading(true);
         try {
-            const documentsPayload = uploadedDocs.map(f => ({
-                publicId: f.metadata.publicId,
-                url: f.metadata.url,
-                originalName: f.metadata.originalName,
-                size: f.metadata.size,
-                mimeType: f.metadata.mimeType,
-                pageCount: Number(f.pageCount),
-                startPage: Number(f.startPage),
-                lastPage: Number(f.lastPage),
-                bwPages: Number(f.bwPages),
-                colorPages: Number(f.colorPages),
-                colorPageNumbersText: f.colorPageNumbersText,
-                copies: Number(f.copies),
-                printSide: f.printSide,
-                binding: f.binding,
-                printColorDoubleSide: !!f.printColorDoubleSide
-            }));
+            const documentsPayload = uploadedDocs.map(f => {
+                let resolvedBwSingle = [];
+                let resolvedBwDouble = [];
+                let resolvedColSingle = [];
+                let resolvedColDouble = [];
+
+                if (f.printingMode === 'advanced') {
+                    const bwSingle = parsePageList(f.bwSinglePagesText);
+                    const bwDouble = parsePageList(f.bwDoublePagesText);
+                    const colSingle = parsePageList(f.colorSinglePagesText);
+                    const colDouble = parsePageList(f.colorDoublePagesText);
+
+                    const count = Number(f.pageCount || 1);
+                    resolvedBwSingle = [...bwSingle];
+                    resolvedBwDouble = [...bwDouble];
+                    resolvedColSingle = [...colSingle];
+                    resolvedColDouble = [...colDouble];
+
+                    if (f.applyRestOption === 'bwSingle') {
+                        const remaining = [];
+                        for (let p = 1; p <= count; p++) {
+                            if (!colSingle.includes(p) && !colDouble.includes(p) && !bwDouble.includes(p)) {
+                                remaining.push(p);
+                            }
+                        }
+                        resolvedBwSingle = remaining;
+                    } else if (f.applyRestOption === 'bwDouble') {
+                        const remaining = [];
+                        for (let p = 1; p <= count; p++) {
+                            if (!colSingle.includes(p) && !colDouble.includes(p) && !bwSingle.includes(p)) {
+                                remaining.push(p);
+                            }
+                        }
+                        resolvedBwDouble = remaining;
+                    }
+                }
+
+                return {
+                    publicId: f.metadata.publicId,
+                    url: f.metadata.url,
+                    originalName: f.metadata.originalName,
+                    size: f.metadata.size,
+                    mimeType: f.metadata.mimeType,
+                    pageCount: Number(f.pageCount),
+                    startPage: Number(f.startPage),
+                    lastPage: Number(f.lastPage),
+                    bwPages: f.printingMode === 'advanced' ? (resolvedBwSingle.length + resolvedBwDouble.length) : Number(f.bwPages),
+                    colorPages: f.printingMode === 'advanced' ? (resolvedColSingle.length + resolvedColDouble.length) : Number(f.colorPages),
+                    colorPageNumbersText: f.colorPageNumbersText,
+                    copies: Number(f.copies),
+                    printSide: f.printSide,
+                    binding: f.binding,
+                    printColorDoubleSide: !!f.printColorDoubleSide,
+                    printingMode: f.printingMode,
+                    bwSinglePages: resolvedBwSingle,
+                    bwDoublePages: resolvedBwDouble,
+                    colorSinglePages: resolvedColSingle,
+                    colorDoublePages: resolvedColDouble
+                };
+            });
 
             let finalInstructions = instructions;
             let finalAddress = '';
@@ -1116,192 +1322,330 @@ export const PlaceOrder = () => {
                                                 {/* Body (Expanded View) */}
                                                 {!fileObj.isCollapsed && fileObj.status === 'success' && (
                                                     <div className="file-card-body">
-                                                        {/* 1. Page Print Range */}
-                                                        <div className="form-row" style={{ marginBottom: '1.25rem' }}>
-                                                            <div className="form-group" style={{ marginBottom: 0 }}>
-                                                                <label style={{ fontSize: '0.85rem' }}>Start Page</label>
+                                                        {/* Advanced Printing Toggle */}
+                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginBottom: '1.25rem', padding: '0.75rem', backgroundColor: 'var(--bg-hover)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+                                                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 'bold', cursor: 'pointer' }}>
                                                                 <input 
-                                                                    type="number" 
-                                                                    min={1} 
-                                                                    max={fileObj.pageCount}
-                                                                    value={fileObj.startPage}
-                                                                    onChange={(e) => {
-                                                                        const startVal = Math.max(1, Number(e.target.value));
-                                                                        const rangeSize = fileObj.lastPage - startVal + 1;
-                                                                        const colorNumbers = parseColorPageNumbers(fileObj.colorPageNumbersText);
-                                                                        const colorCount = colorNumbers.length;
-                                                                        const bwCount = Math.max(0, rangeSize - colorCount);
-                                                                        updateFileStatus(fileObj.id, { 
-                                                                            startPage: startVal,
-                                                                            bwPages: bwCount,
-                                                                            colorPages: colorCount
-                                                                        });
-                                                                    }}
+                                                                    type="checkbox"
+                                                                    checked={fileObj.printingMode === 'advanced'}
+                                                                    onChange={(e) => updateFileStatus(fileObj.id, { printingMode: e.target.checked ? 'advanced' : 'regular' })}
+                                                                    style={{ width: 'auto', margin: 0 }}
                                                                 />
-                                                            </div>
-                                                            <div className="form-group" style={{ marginBottom: 0 }}>
-                                                                <label style={{ fontSize: '0.85rem' }}>Last Page</label>
-                                                                <input 
-                                                                    type="number" 
-                                                                    min={1} 
-                                                                    max={fileObj.pageCount}
-                                                                    value={fileObj.lastPage}
-                                                                    onChange={(e) => {
-                                                                        const lastVal = Math.max(1, Number(e.target.value));
-                                                                        const rangeSize = lastVal - fileObj.startPage + 1;
-                                                                        const colorNumbers = parseColorPageNumbers(fileObj.colorPageNumbersText);
-                                                                        const colorCount = colorNumbers.length;
-                                                                        const bwCount = Math.max(0, rangeSize - colorCount);
-                                                                        updateFileStatus(fileObj.id, { 
-                                                                            lastPage: lastVal,
-                                                                            bwPages: bwCount,
-                                                                            colorPages: colorCount
-                                                                        });
-                                                                    }}
-                                                                />
-                                                            </div>
-                                                        </div>
-                                                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
-                                                            Total pages in document: <strong>{fileObj.pageCount}</strong>
-                                                        </div>
-
-                                                        {/* 2. Color Settings & Page Numbers */}
-                                                        <div className="form-group" style={{ marginBottom: '1.25rem' }}>
-                                                            <label style={{ fontSize: '0.85rem' }}>Color Page Numbers (Optional)</label>
-                                                            <input 
-                                                                type="text" 
-                                                                placeholder="e.g. 5, 12, 27"
-                                                                value={fileObj.colorPageNumbersText}
-                                                                onChange={(e) => {
-                                                                    const text = e.target.value;
-                                                                    const rangeSize = fileObj.lastPage - fileObj.startPage + 1;
-                                                                    const colorNumbers = parseColorPageNumbers(text);
-                                                                    const colorCount = colorNumbers.length;
-                                                                    const bwCount = Math.max(0, rangeSize - colorCount);
-                                                                    
-                                                                    updateFileStatus(fileObj.id, { 
-                                                                        colorPageNumbersText: text,
-                                                                        colorPages: colorCount,
-                                                                        bwPages: bwCount
-                                                                    });
-                                                                }}
-                                                            />
-                                                            <small className="field-help" style={{ fontSize: '0.75rem' }}>
-                                                                Specify page numbers separated by commas. Leave empty for B&W only.
+                                                                <span>Advanced Printing Options</span>
+                                                            </label>
+                                                            <small style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
+                                                                Enable to assign specific page numbers to B&W/Color single-sided and double-sided categories.
                                                             </small>
-                                                            {fileObj.colorPages >= 2 && (
-                                                                 <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                                     <input 
-                                                                         type="checkbox"
-                                                                         id={`colorDoubleSide-${fileObj.id}`}
-                                                                         checked={fileObj.printColorDoubleSide || false}
-                                                                         onChange={(e) => updateFileStatus(fileObj.id, { printColorDoubleSide: e.target.checked })}
-                                                                         style={{ width: 'auto', margin: 0 }}
-                                                                     />
-                                                                     <label htmlFor={`colorDoubleSide-${fileObj.id}`} style={{ fontSize: '0.85rem', cursor: 'pointer', fontWeight: 600 }}>
-                                                                         print double side where possible (Double-sided rate: ₹{colourDoubleRate.toFixed(2)}/sheet)
-                                                                     </label>
-                                                                 </div>
-                                                             )}
                                                         </div>
 
-                                                        <div className="form-row" style={{ marginBottom: '1.25rem' }}>
-                                                            <div className="form-group" style={{ marginBottom: 0 }}>
-                                                                <label style={{ fontSize: '0.85rem' }}>
-                                                                    B&W Pages (Auto Calculated: ₹{getFileBwCost(fileObj).toFixed(2)})
-                                                                </label>
-                                                                <input 
-                                                                    type="number"
-                                                                    readOnly
-                                                                    value={fileObj.bwPages}
-                                                                    style={{ backgroundColor: 'var(--bg-input)', cursor: 'not-allowed' }}
-                                                                />
-                                                            </div>
-                                                            <div className="form-group" style={{ marginBottom: 0 }}>
-                                                                <label style={{ fontSize: '0.85rem' }}>
-                                                                    Color Pages (Auto Calculated: ₹{(fileObj.colorPages * colourSingleRate).toFixed(2)})
-                                                                </label>
-                                                                <input 
-                                                                    type="number"
-                                                                    readOnly
-                                                                    value={fileObj.colorPages}
-                                                                    style={{ backgroundColor: 'var(--bg-input)', cursor: 'not-allowed' }}
-                                                                />
-                                                            </div>
-                                                        </div>
+                                                        {fileObj.printingMode === 'advanced' ? (
+                                                            <div>
+                                                                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+                                                                    Total pages in document: <strong>{fileObj.pageCount}</strong>
+                                                                </div>
 
-                                                         {fileObj.printSide === 'DOUBLE_SIDE' && fileObj.colorPages > 0 && (
-                                                             <div className="warning-banner" style={{
-                                                                 backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                                                                 border: '1px solid #ef4444',
-                                                                 color: '#ef4444',
-                                                                 borderRadius: 'var(--radius-sm)',
-                                                                 padding: '0.75rem',
-                                                                 marginBottom: '1.25rem',
-                                                                 fontSize: '0.85rem'
-                                                             }}>
-                                                                 <strong>Color printing is only available for single-sided printing. Please select Single-Sided to print color pages.</strong>
-                                                                 <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-                                                                     <button 
-                                                                         type="button" 
-                                                                         className="btn btn-secondary btn-xs"
-                                                                         onClick={() => updateFileStatus(fileObj.id, { printSide: 'SINGLE_SIDE' })}
-                                                                         style={{ border: '1px solid #ef4444', color: '#ef4444', background: 'transparent' }}
-                                                                     >
-                                                                         Switch to Single-Sided
-                                                                     </button>
-                                                                     <button 
-                                                                         type="button" 
-                                                                         className="btn btn-danger btn-xs"
-                                                                         onClick={() => {
-                                                                             const rangeSize = fileObj.lastPage - fileObj.startPage + 1;
-                                                                             updateFileStatus(fileObj.id, { 
-                                                                                 colorPageNumbersText: '',
-                                                                                 colorPages: 0,
-                                                                                 bwPages: rangeSize
-                                                                             });
-                                                                         }}
-                                                                         style={{ backgroundColor: '#ef4444', color: 'white', border: 'none' }}
-                                                                     >
-                                                                         Clear Color Pages
-                                                                     </button>
-                                                                 </div>
-                                                             </div>
-                                                         )}
+                                                                {/* 1. Single-Sided Color Pages */}
+                                                                <div className="form-group" style={{ marginBottom: '1rem' }}>
+                                                                    <label style={{ fontSize: '0.85rem', fontWeight: 600 }}>Single-Sided Color Pages</label>
+                                                                    <input 
+                                                                        type="text" 
+                                                                        placeholder="e.g. 4, 9, 11, 27"
+                                                                        value={fileObj.colorSinglePagesText}
+                                                                        onChange={(e) => updateFileStatus(fileObj.id, { colorSinglePagesText: e.target.value })}
+                                                                    />
+                                                                    <small className="field-help" style={{ fontSize: '0.75rem' }}>
+                                                                        Individual color page numbers, separated by commas.
+                                                                    </small>
+                                                                </div>
 
-                                                         {/* 3. General Print Configs */}
-                                                        <div className="form-row" style={{ marginBottom: 0 }}>
-                                                            <div className="form-group" style={{ marginBottom: 0 }}>
-                                                                <label style={{ fontSize: '0.85rem' }}>Copies</label>
-                                                                <input 
-                                                                    type="number" 
-                                                                    min={1} 
-                                                                    value={fileObj.copies}
-                                                                    onChange={(e) => updateFileStatus(fileObj.id, { copies: Math.max(1, Number(e.target.value)) })}
-                                                                />
+                                                                {/* 2. Double-Sided Color Pages */}
+                                                                <div className="form-group" style={{ marginBottom: '1rem' }}>
+                                                                    <label style={{ fontSize: '0.85rem', fontWeight: 600 }}>Double-Sided Color Pages (Continuous Pairs)</label>
+                                                                    <input 
+                                                                        type="text" 
+                                                                        placeholder="e.g. 2,3,6,7,9,10"
+                                                                        value={fileObj.colorDoublePagesText}
+                                                                        onChange={(e) => updateFileStatus(fileObj.id, { colorDoublePagesText: e.target.value })}
+                                                                    />
+                                                                    <small className="field-help" style={{ fontSize: '0.75rem' }}>
+                                                                        Continuous page pairs, e.g. 2,3,6,7.
+                                                                    </small>
+                                                                </div>
+
+                                                                {/* 3. Double-Sided B&W Pages */}
+                                                                <div className="form-group" style={{ marginBottom: '1rem' }}>
+                                                                    <label style={{ fontSize: '0.85rem', fontWeight: 600 }}>Double-Sided B&W Pages (Continuous Pairs)</label>
+                                                                    <input 
+                                                                        type="text" 
+                                                                        placeholder="e.g. 2,3,6,7,9,10"
+                                                                        value={fileObj.bwDoublePagesText}
+                                                                        disabled={fileObj.applyRestOption === 'bwDouble'}
+                                                                        style={fileObj.applyRestOption === 'bwDouble' ? { backgroundColor: 'var(--bg-input)', cursor: 'not-allowed', opacity: 0.7 } : {}}
+                                                                        onChange={(e) => updateFileStatus(fileObj.id, { bwDoublePagesText: e.target.value })}
+                                                                    />
+                                                                    <div style={{ marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                                                        <input 
+                                                                            type="radio" 
+                                                                            id={`applyRestBwDouble-${fileObj.id}`}
+                                                                            name={`applyRestBw-${fileObj.id}`}
+                                                                            checked={fileObj.applyRestOption === 'bwDouble'}
+                                                                            onChange={(e) => {
+                                                                                if (e.target.checked) {
+                                                                                    updateFileStatus(fileObj.id, { applyRestOption: 'bwDouble', bwDoublePagesText: '' });
+                                                                                }
+                                                                            }}
+                                                                            style={{ width: 'auto', margin: 0 }}
+                                                                        />
+                                                                        <label htmlFor={`applyRestBwDouble-${fileObj.id}`} style={{ fontSize: '0.75rem', cursor: 'pointer', fontWeight: 600 }}>
+                                                                            Apply for rest of the pages
+                                                                        </label>
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* 4. Single-Sided B&W Pages */}
+                                                                <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+                                                                    <label style={{ fontSize: '0.85rem', fontWeight: 600 }}>Single-Sided B&W Pages</label>
+                                                                    <input 
+                                                                        type="text" 
+                                                                        placeholder="e.g. 4, 9, 11, 25"
+                                                                        value={fileObj.bwSinglePagesText}
+                                                                        disabled={fileObj.applyRestOption === 'bwSingle'}
+                                                                        style={fileObj.applyRestOption === 'bwSingle' ? { backgroundColor: 'var(--bg-input)', cursor: 'not-allowed', opacity: 0.7 } : {}}
+                                                                        onChange={(e) => updateFileStatus(fileObj.id, { bwSinglePagesText: e.target.value })}
+                                                                    />
+                                                                    <div style={{ marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                                                        <input 
+                                                                            type="radio" 
+                                                                            id={`applyRestBwSingle-${fileObj.id}`}
+                                                                            name={`applyRestBw-${fileObj.id}`}
+                                                                            checked={fileObj.applyRestOption === 'bwSingle'}
+                                                                            onChange={(e) => {
+                                                                                if (e.target.checked) {
+                                                                                    updateFileStatus(fileObj.id, { applyRestOption: 'bwSingle', bwSinglePagesText: '' });
+                                                                                }
+                                                                            }}
+                                                                            style={{ width: 'auto', margin: 0 }}
+                                                                        />
+                                                                        <label htmlFor={`applyRestBwSingle-${fileObj.id}`} style={{ fontSize: '0.75rem', cursor: 'pointer', fontWeight: 600 }}>
+                                                                            Apply for rest of the pages
+                                                                        </label>
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* Copies & Binding selection in advanced mode */}
+                                                                <div className="form-row" style={{ marginBottom: 0 }}>
+                                                                    <div className="form-group" style={{ marginBottom: 0 }}>
+                                                                        <label style={{ fontSize: '0.85rem' }}>Copies</label>
+                                                                        <input 
+                                                                            type="number" 
+                                                                            min={1} 
+                                                                            value={fileObj.copies}
+                                                                            onChange={(e) => updateFileStatus(fileObj.id, { copies: Math.max(1, Number(e.target.value)) })}
+                                                                        />
+                                                                    </div>
+                                                                    <div className="form-group" style={{ marginBottom: 0 }}>
+                                                                        <label style={{ fontSize: '0.85rem' }}>Binding</label>
+                                                                        <select 
+                                                                            value={fileObj.binding}
+                                                                            onChange={(e) => updateFileStatus(fileObj.id, { binding: e.target.value })}
+                                                                        >
+                                                                            <option value="NONE">None</option>
+                                                                            <option value="SPIRAL">Spiral Binding</option>
+                                                                            <option value="BOOK">Book Binding</option>
+                                                                        </select>
+                                                                    </div>
+                                                                </div>
                                                             </div>
-                                                            <div className="form-group" style={{ marginBottom: 0 }}>
-                                                                <label style={{ fontSize: '0.85rem' }}>Print Side</label>
-                                                                <select 
-                                                                    value={fileObj.printSide}
-                                                                    onChange={(e) => updateFileStatus(fileObj.id, { printSide: e.target.value })}
-                                                                >
-                                                                    <option value="SINGLE_SIDE">Single-Sided (₹{bwSingleRate}/page)</option>
-                                                                    <option value="DOUBLE_SIDE">Double-Sided (₹{bwDoubleRate}/sheet)</option>
-                                                                </select>
+                                                        ) : (
+                                                            <div>
+                                                                {/* 1. Page Print Range */}
+                                                                <div className="form-row" style={{ marginBottom: '1.25rem' }}>
+                                                                    <div className="form-group" style={{ marginBottom: 0 }}>
+                                                                        <label style={{ fontSize: '0.85rem' }}>Start Page</label>
+                                                                        <input 
+                                                                            type="number" 
+                                                                            min={1} 
+                                                                            max={fileObj.pageCount}
+                                                                            value={fileObj.startPage}
+                                                                            onChange={(e) => {
+                                                                                const startVal = Math.max(1, Number(e.target.value));
+                                                                                const rangeSize = fileObj.lastPage - startVal + 1;
+                                                                                const colorNumbers = parseColorPageNumbers(fileObj.colorPageNumbersText);
+                                                                                const colorCount = colorNumbers.length;
+                                                                                const bwCount = Math.max(0, rangeSize - colorCount);
+                                                                                updateFileStatus(fileObj.id, { 
+                                                                                    startPage: startVal,
+                                                                                    bwPages: bwCount,
+                                                                                    colorPages: colorCount
+                                                                                });
+                                                                            }}
+                                                                        />
+                                                                    </div>
+                                                                    <div className="form-group" style={{ marginBottom: 0 }}>
+                                                                        <label style={{ fontSize: '0.85rem' }}>Last Page</label>
+                                                                        <input 
+                                                                            type="number" 
+                                                                            min={1} 
+                                                                            max={fileObj.pageCount}
+                                                                            value={fileObj.lastPage}
+                                                                            onChange={(e) => {
+                                                                                const lastVal = Math.max(1, Number(e.target.value));
+                                                                                const rangeSize = lastVal - fileObj.startPage + 1;
+                                                                                const colorNumbers = parseColorPageNumbers(fileObj.colorPageNumbersText);
+                                                                                const colorCount = colorNumbers.length;
+                                                                                const bwCount = Math.max(0, rangeSize - colorCount);
+                                                                                updateFileStatus(fileObj.id, { 
+                                                                                    lastPage: lastVal,
+                                                                                    bwPages: bwCount,
+                                                                                    colorPages: colorCount
+                                                                                });
+                                                                            }}
+                                                                        />
+                                                                    </div>
+                                                                </div>
+                                                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
+                                                                    Total pages in document: <strong>{fileObj.pageCount}</strong>
+                                                                </div>
+
+                                                                {/* 2. Color Settings & Page Numbers */}
+                                                                <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+                                                                    <label style={{ fontSize: '0.85rem' }}>Color Page Numbers (Optional)</label>
+                                                                    <input 
+                                                                        type="text" 
+                                                                        placeholder="e.g. 5, 12, 27"
+                                                                        value={fileObj.colorPageNumbersText}
+                                                                        onChange={(e) => {
+                                                                            const text = e.target.value;
+                                                                            const rangeSize = fileObj.lastPage - fileObj.startPage + 1;
+                                                                            const colorNumbers = parseColorPageNumbers(text);
+                                                                            const colorCount = colorNumbers.length;
+                                                                            const bwCount = Math.max(0, rangeSize - colorCount);
+                                                                            
+                                                                            updateFileStatus(fileObj.id, { 
+                                                                                colorPageNumbersText: text,
+                                                                                colorPages: colorCount,
+                                                                                bwPages: bwCount
+                                                                            });
+                                                                        }}
+                                                                    />
+                                                                    <small className="field-help" style={{ fontSize: '0.75rem' }}>
+                                                                        Specify page numbers separated by commas. Leave empty for B&W only.
+                                                                    </small>
+                                                                    {fileObj.colorPages >= 2 && (
+                                                                         <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                                             <input 
+                                                                                 type="checkbox"
+                                                                                 id={`colorDoubleSide-${fileObj.id}`}
+                                                                                 checked={fileObj.printColorDoubleSide || false}
+                                                                                 onChange={(e) => updateFileStatus(fileObj.id, { printColorDoubleSide: e.target.checked })}
+                                                                                 style={{ width: 'auto', margin: 0 }}
+                                                                             />
+                                                                             <label htmlFor={`colorDoubleSide-${fileObj.id}`} style={{ fontSize: '0.85rem', cursor: 'pointer', fontWeight: 600 }}>
+                                                                                 print double side where possible (Double-sided rate: ₹{colourDoubleRate.toFixed(2)}/sheet)
+                                                                             </label>
+                                                                         </div>
+                                                                     )}
+                                                                </div>
+
+                                                                <div className="form-row" style={{ marginBottom: '1.25rem' }}>
+                                                                    <div className="form-group" style={{ marginBottom: 0 }}>
+                                                                        <label style={{ fontSize: '0.85rem' }}>
+                                                                            B&W Pages (Auto Calculated: ₹{getFileBwCost(fileObj).toFixed(2)})
+                                                                        </label>
+                                                                        <input 
+                                                                            type="number"
+                                                                            readOnly
+                                                                            value={fileObj.bwPages}
+                                                                            style={{ backgroundColor: 'var(--bg-input)', cursor: 'not-allowed' }}
+                                                                        />
+                                                                    </div>
+                                                                    <div className="form-group" style={{ marginBottom: 0 }}>
+                                                                        <label style={{ fontSize: '0.85rem' }}>
+                                                                            Color Pages (Auto Calculated: ₹{(fileObj.colorPages * colourSingleRate).toFixed(2)})
+                                                                        </label>
+                                                                        <input 
+                                                                            type="number"
+                                                                            readOnly
+                                                                            value={fileObj.colorPages}
+                                                                            style={{ backgroundColor: 'var(--bg-input)', cursor: 'not-allowed' }}
+                                                                        />
+                                                                    </div>
+                                                                </div>
+
+                                                                {fileObj.printSide === 'DOUBLE_SIDE' && fileObj.colorPages > 0 && (
+                                                                    <div className="warning-banner" style={{
+                                                                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                                                                        border: '1px solid #ef4444',
+                                                                        color: '#ef4444',
+                                                                        borderRadius: 'var(--radius-sm)',
+                                                                        padding: '0.75rem',
+                                                                        marginBottom: '1.25rem',
+                                                                        fontSize: '0.85rem'
+                                                                    }}>
+                                                                        <strong>Color printing is only available for single-sided printing. Please select Single-Sided to print color pages.</strong>
+                                                                        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                                                                            <button 
+                                                                                type="button" 
+                                                                                className="btn btn-secondary btn-xs"
+                                                                                onClick={() => updateFileStatus(fileObj.id, { printSide: 'SINGLE_SIDE' })}
+                                                                                style={{ border: '1px solid #ef4444', color: '#ef4444', background: 'transparent' }}
+                                                                            >
+                                                                                Switch to Single-Sided
+                                                                            </button>
+                                                                            <button 
+                                                                                type="button" 
+                                                                                className="btn btn-danger btn-xs"
+                                                                                onClick={() => {
+                                                                                    const rangeSize = fileObj.lastPage - fileObj.startPage + 1;
+                                                                                    updateFileStatus(fileObj.id, { 
+                                                                                        colorPageNumbersText: '',
+                                                                                        colorPages: 0,
+                                                                                        bwPages: rangeSize
+                                                                                    });
+                                                                                }}
+                                                                                style={{ backgroundColor: '#ef4444', color: 'white', border: 'none' }}
+                                                                            >
+                                                                                Clear Color Pages
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+
+                                                                {/* 3. General Print Configs */}
+                                                                <div className="form-row" style={{ marginBottom: 0 }}>
+                                                                    <div className="form-group" style={{ marginBottom: 0 }}>
+                                                                        <label style={{ fontSize: '0.85rem' }}>Copies</label>
+                                                                        <input 
+                                                                            type="number" 
+                                                                            min={1} 
+                                                                            value={fileObj.copies}
+                                                                            onChange={(e) => updateFileStatus(fileObj.id, { copies: Math.max(1, Number(e.target.value)) })}
+                                                                        />
+                                                                    </div>
+                                                                    <div className="form-group" style={{ marginBottom: 0 }}>
+                                                                        <label style={{ fontSize: '0.85rem' }}>Print Side</label>
+                                                                        <select 
+                                                                            value={fileObj.printSide}
+                                                                            onChange={(e) => updateFileStatus(fileObj.id, { printSide: e.target.value })}
+                                                                        >
+                                                                            <option value="SINGLE_SIDE">Single-Sided (₹{bwSingleRate}/page)</option>
+                                                                            <option value="DOUBLE_SIDE">Double-Sided (₹{bwDoubleRate}/sheet)</option>
+                                                                        </select>
+                                                                    </div>
+                                                                    <div className="form-group" style={{ marginBottom: 0 }}>
+                                                                        <label style={{ fontSize: '0.85rem' }}>Binding</label>
+                                                                        <select 
+                                                                            value={fileObj.binding}
+                                                                            onChange={(e) => updateFileStatus(fileObj.id, { binding: e.target.value })}
+                                                                        >
+                                                                            <option value="NONE">None</option>
+                                                                            <option value="SPIRAL">Spiral Binding</option>
+                                                                            <option value="BOOK">Book Binding</option>
+                                                                        </select>
+                                                                    </div>
+                                                                </div>
                                                             </div>
-                                                            <div className="form-group" style={{ marginBottom: 0 }}>
-                                                                <label style={{ fontSize: '0.85rem' }}>Binding</label>
-                                                                <select 
-                                                                    value={fileObj.binding}
-                                                                    onChange={(e) => updateFileStatus(fileObj.id, { binding: e.target.value })}
-                                                                >
-                                                                    <option value="NONE">None</option>
-                                                                    <option value="SPIRAL">Spiral Binding</option>
-                                                                    <option value="BOOK">Book Binding</option>
-                                                                </select>
-                                                            </div>
-                                                        </div>
+                                                        )}
                                                     </div>
                                                 )}
                                             </div>
@@ -1352,6 +1696,18 @@ export const PlaceOrder = () => {
                                     </div>
                                 </div>
                             )}
+
+                            {/* Special instructions moved to Configure Files section */}
+                            <div className="form-group" style={{ marginTop: '1.5rem', borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem' }}>
+                                <label htmlFor="instructions" style={{ fontWeight: 600 }}>Special Instructions (Optional)</label>
+                                <textarea
+                                    id="instructions"
+                                    rows={2}
+                                    placeholder="e.g. Single sided print, specific page requests..."
+                                    value={instructions}
+                                    onChange={(e) => setInstructions(e.target.value)}
+                                />
+                            </div>
 
                             <div className="specs-actions" style={{ marginTop: '2rem' }}>
                                 <button type="button" className="btn btn-secondary" onClick={() => setStep(2)}>
@@ -1575,17 +1931,7 @@ export const PlaceOrder = () => {
                                 </div>
                             </div>
 
-                            {/* Special instructions */}
-                            <div className="form-group">
-                                <label htmlFor="instructions">Special Instructions (Optional)</label>
-                                <textarea
-                                    id="instructions"
-                                    rows={2}
-                                    placeholder="e.g. Single sided print, specific page requests..."
-                                    value={instructions}
-                                    onChange={(e) => setInstructions(e.target.value)}
-                                />
-                            </div>
+
 
                             <div className="specs-actions" style={{ marginTop: '2rem' }}>
                                 <button type="button" className="btn btn-secondary" onClick={() => setStep(3)}>
@@ -1830,49 +2176,43 @@ export const PlaceOrder = () => {
                                     <strong style={{ color: 'var(--text-primary)' }}>{priceDetails.bwSheets + priceDetails.colorSheets}</strong>
                                 </div>
 
-                                {priceDetails.bwCost > 0 && (
-                                    <div className="review-cost-row" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                            <span style={{ color: 'var(--text-secondary)' }}>B&W Printing</span>
-                                            <strong style={{ color: 'var(--text-primary)' }}>₹{priceDetails.bwCost.toFixed(2)}</strong>
+                                {priceDetails.singleBwSheetsTotal > 0 && (
+                                    <div className="review-cost-row" style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Single-Sided B&W</span>
+                                            <small style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{priceDetails.singleBwSheetsTotal} page(s) × ₹{bwSingleRate.toFixed(2)}</small>
                                         </div>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                                            {priceDetails.doubleBwSheetsTotal > 0 && (
-                                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                                    <span>{priceDetails.doubleBwSheetsTotal} double-sided sheet(s) × ₹{bwDoubleRate.toFixed(2)}</span>
-                                                    <span>₹{(priceDetails.doubleBwSheetsTotal * bwDoubleRate).toFixed(2)}</span>
-                                                </div>
-                                            )}
-                                            {priceDetails.singleBwSheetsTotal > 0 && (
-                                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                                    <span>{priceDetails.singleBwSheetsTotal} single-sided page(s) × ₹{bwSingleRate.toFixed(2)}</span>
-                                                    <span>₹{(priceDetails.singleBwSheetsTotal * bwSingleRate).toFixed(2)}</span>
-                                                </div>
-                                            )}
-                                        </div>
+                                        <strong style={{ color: 'var(--text-primary)' }}>₹{(priceDetails.singleBwSheetsTotal * bwSingleRate).toFixed(2)}</strong>
                                     </div>
                                 )}
 
-                                {priceDetails.colorCost > 0 && (
-                                    <div className="review-cost-row" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                            <span style={{ color: 'var(--text-secondary)' }}>Color Printing</span>
-                                            <strong style={{ color: 'var(--text-primary)' }}>₹{priceDetails.colorCost.toFixed(2)}</strong>
+                                {priceDetails.doubleBwSheetsTotal > 0 && (
+                                    <div className="review-cost-row" style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Double-Sided B&W</span>
+                                            <small style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{priceDetails.doubleBwSheetsTotal * 2} page(s) → {priceDetails.doubleBwSheetsTotal} sheet(s) × ₹{bwDoubleRate.toFixed(2)}</small>
                                         </div>
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                                            {priceDetails.doubleColourSheetsTotal > 0 && (
-                                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                                    <span>{priceDetails.doubleColourSheetsTotal} double-sided sheet(s) × ₹{colourDoubleRate.toFixed(2)}</span>
-                                                    <span>₹{(priceDetails.doubleColourSheetsTotal * colourDoubleRate).toFixed(2)}</span>
-                                                </div>
-                                            )}
-                                            {priceDetails.singleColourSheetsTotal > 0 && (
-                                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                                    <span>{priceDetails.singleColourSheetsTotal} single-sided page(s) × ₹{colourSingleRate.toFixed(2)}</span>
-                                                    <span>₹{(priceDetails.singleColourSheetsTotal * colourSingleRate).toFixed(2)}</span>
-                                                </div>
-                                            )}
+                                        <strong style={{ color: 'var(--text-primary)' }}>₹{(priceDetails.doubleBwSheetsTotal * bwDoubleRate).toFixed(2)}</strong>
+                                    </div>
+                                )}
+
+                                {priceDetails.singleColourSheetsTotal > 0 && (
+                                    <div className="review-cost-row" style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Single-Sided Color</span>
+                                            <small style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{priceDetails.singleColourSheetsTotal} page(s) × ₹{colourSingleRate.toFixed(2)}</small>
                                         </div>
+                                        <strong style={{ color: 'var(--text-primary)' }}>₹{(priceDetails.singleColourSheetsTotal * colourSingleRate).toFixed(2)}</strong>
+                                    </div>
+                                )}
+
+                                {priceDetails.doubleColourSheetsTotal > 0 && (
+                                    <div className="review-cost-row" style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Double-Sided Color</span>
+                                            <small style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{priceDetails.doubleColourSheetsTotal * 2} page(s) → {priceDetails.doubleColourSheetsTotal} sheet(s) × ₹{colourDoubleRate.toFixed(2)}</small>
+                                        </div>
+                                        <strong style={{ color: 'var(--text-primary)' }}>₹{(priceDetails.doubleColourSheetsTotal * colourDoubleRate).toFixed(2)}</strong>
                                     </div>
                                 )}
 

@@ -513,7 +513,28 @@ export const ShopOrders = () => {
                                                     </div>
                                                     {doc.pageCount !== undefined && (
                                                         <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', padding: '0.4rem 0', borderTop: '1px dashed var(--border-color)', borderBottom: isImg ? '1px dashed var(--border-color)' : 'none' }}>
-                                                            ⚙️ <strong>Settings:</strong> Pages {doc.startPage}–{doc.lastPage} ({doc.pageCount} total) • {doc.bwPages} B&W / {doc.colorPages} Color {doc.colorPageNumbersText ? `[Pages: ${doc.colorPageNumbersText}]` : ''} • {doc.copies} copy(ies) • {doc.printSide === 'SINGLE_SIDE' ? 'Single-Sided' : 'Double-Sided'} • Binding: {doc.binding}
+                                                            ⚙️ <strong>Settings:</strong>
+                                                            {doc.printingMode === 'advanced' ? (
+                                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', marginTop: '0.25rem' }}>
+                                                                    <div>Printing Mode: <strong>Advanced</strong> ({doc.copies} copies • Binding: {doc.binding})</div>
+                                                                    {doc.bwSinglePages?.length > 0 && (
+                                                                        <div>• Single-Sided B&W: {doc.bwSinglePages.length} page(s) ({doc.bwSinglePages.join(', ')})</div>
+                                                                    )}
+                                                                    {doc.bwDoublePages?.length > 0 && (
+                                                                        <div>• Double-Sided B&W: {doc.bwDoublePages.length} page(s) ({doc.bwDoublePages.join(', ')})</div>
+                                                                    )}
+                                                                    {doc.colorSinglePages?.length > 0 && (
+                                                                        <div>• Single-Sided Color: {doc.colorSinglePages.length} page(s) ({doc.colorSinglePages.join(', ')})</div>
+                                                                    )}
+                                                                    {doc.colorDoublePages?.length > 0 && (
+                                                                        <div>• Double-Sided Color: {doc.colorDoublePages.length} page(s) ({doc.colorDoublePages.join(', ')})</div>
+                                                                    )}
+                                                                </div>
+                                                            ) : (
+                                                                <span>
+                                                                    Pages {doc.startPage}–{doc.lastPage} ({doc.pageCount} total) • {doc.bwPages} B&W / {doc.colorPages} Color {doc.colorPageNumbersText ? `[Pages: ${doc.colorPageNumbersText}]` : ''} • {doc.copies} copy(ies) • {doc.printSide === 'SINGLE_SIDE' ? 'Single-Sided' : 'Double-Sided'} • Binding: {doc.binding}
+                                                                </span>
+                                                            )}
                                                         </div>
                                                     )}
                                                     {isImg && (

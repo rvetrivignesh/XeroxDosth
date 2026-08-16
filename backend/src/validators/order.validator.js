@@ -42,8 +42,65 @@ export const createOrderValidator = [
                 if (!allowedExtensions.includes(ext) || !allowedMimes.includes(doc.mimeType)) {
                     throw new Error(`Document at index ${i} has an unsupported file format. Please upload a PDF or image file (JPG, PNG, or WEBP).`);
                 }
-                if (doc.printSide === 'DOUBLE_SIDE' && (doc.colorPages || 0) > 0) {
-                    throw new Error(`Document at index ${i}: Color printing is only available for single-sided printing.`);
+                if (doc.printingMode === 'advanced') {
+                    const bwSingle = Array.isArray(doc.bwSinglePages) ? doc.bwSinglePages : [];
+                    const bwDouble = Array.isArray(doc.bwDoublePages) ? doc.bwDoublePages : [];
+                    const colSingle = Array.isArray(doc.colorSinglePages) ? doc.colorSinglePages : [];
+                    const colDouble = Array.isArray(doc.colorDoublePages) ? doc.colorDoublePages : [];
+
+                    const pageCount = Number(doc.pageCount || 1);
+                    const allLists = [bwSingle, bwDouble, colSingle, colDouble];
+                    
+                    for (const list of allLists) {
+                        for (const page of list) {
+                            if (!Number.isInteger(page)) {
+                                throw new Error(`Document at index ${i}: Page numbers must be valid integers.`);
+                            }
+                            if (page < 1 || page > pageCount) {
+                                throw new Error(`Document at index ${i}: Page number ${page} is out of document range [1-${pageCount}].`);
+                            }
+                        }
+                    }
+
+                    const allPages = [...bwSingle, ...bwDouble, ...colSingle, ...colDouble];
+                    const uniquePages = [...new Set(allPages)];
+                    if (uniquePages.length !== allPages.length) {
+                        const seen = new Set();
+                        for (const p of allPages) {
+                            if (seen.has(p)) {
+                                throw new Error(`Document at index ${i}: Page ${p} has already been assigned to another printing option. Each page can only have one printing type.`);
+                            }
+                            seen.add(p);
+                        }
+                    }
+
+                    if (allPages.length !== pageCount) {
+                        throw new Error(`Document at index ${i}: Please assign all pages or select "Apply for rest of the pages" for either Single-Sided B&W or Double-Sided B&W.`);
+                    }
+
+                    const sortedBwDouble = [...bwDouble].sort((a, b) => a - b);
+                    if (sortedBwDouble.length % 2 !== 0) {
+                        throw new Error(`Document at index ${i}: Double-sided pages must be entered as continuous pairs, e.g. 2,3,6,7,9,10.`);
+                    }
+                    for (let k = 0; k < sortedBwDouble.length; k += 2) {
+                        if (sortedBwDouble[k + 1] !== sortedBwDouble[k] + 1) {
+                            throw new Error(`Document at index ${i}: Double-sided pages must be entered as continuous pairs, e.g. 2,3,6,7,9,10.`);
+                        }
+                    }
+
+                    const sortedColDouble = [...colDouble].sort((a, b) => a - b);
+                    if (sortedColDouble.length % 2 !== 0) {
+                        throw new Error(`Document at index ${i}: Double-sided pages must be entered as continuous pairs, e.g. 2,3,6,7,9,10.`);
+                    }
+                    for (let k = 0; k < sortedColDouble.length; k += 2) {
+                        if (sortedColDouble[k + 1] !== sortedColDouble[k] + 1) {
+                            throw new Error(`Document at index ${i}: Double-sided pages must be entered as continuous pairs, e.g. 2,3,6,7,9,10.`);
+                        }
+                    }
+                } else {
+                    if (doc.printSide === 'DOUBLE_SIDE' && (doc.colorPages || 0) > 0) {
+                        throw new Error(`Document at index ${i}: Color printing is only available for single-sided printing.`);
+                    }
                 }
                 try {
                     new URL(doc.url);

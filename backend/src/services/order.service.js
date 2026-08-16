@@ -27,6 +27,70 @@ const groupConsecutivePages = (text) => {
     return { doubleSheets, singlePages };
 };
 
+const buildOrderPrintingRequirementsHtml = (order) => {
+    if (!order.documents || order.documents.length === 0) {
+        const categories = [];
+        if (order.bwPages > 0) {
+            if (order.printSide === 'DOUBLE_SIDE') {
+                categories.push(`<strong>B/W Double:</strong> ${order.bwPages} page(s)`);
+            } else {
+                categories.push(`<strong>B/W Single:</strong> ${order.bwPages} page(s)`);
+            }
+        }
+        if (order.colorPages > 0) {
+            categories.push(`<strong>Color Single:</strong> ${order.colorPages} page(s)`);
+        }
+        return categories.length > 0 ? `<h4>Printing Requirements</h4><div>${categories.join('<br/>')}</div>` : '';
+    }
+
+    let html = '<h4>Printing Requirements</h4>';
+    let totalDocsCount = 0;
+    
+    order.documents.forEach((doc, idx) => {
+        const docName = doc.originalName || `Document ${idx + 1}`;
+        const categories = [];
+        
+        if (doc.printingMode === 'advanced') {
+            if (doc.bwSinglePages && doc.bwSinglePages.length > 0) {
+                categories.push(`<strong>B/W Single:</strong> Pages ${doc.bwSinglePages.join(', ')}`);
+            }
+            if (doc.bwDoublePages && doc.bwDoublePages.length > 0) {
+                categories.push(`<strong>B/W Double:</strong> Pages ${doc.bwDoublePages.join(', ')}`);
+            }
+            if (doc.colorSinglePages && doc.colorSinglePages.length > 0) {
+                categories.push(`<strong>Color Single:</strong> Pages ${doc.colorSinglePages.join(', ')}`);
+            }
+            if (doc.colorDoublePages && doc.colorDoublePages.length > 0) {
+                categories.push(`<strong>Color Double:</strong> Pages ${doc.colorDoublePages.join(', ')}`);
+            }
+        } else {
+            const bw = doc.bwPages || 0;
+            const color = doc.colorPages || 0;
+            const printSide = doc.printSide || 'SINGLE_SIDE';
+            
+            if (bw > 0) {
+                if (printSide === 'DOUBLE_SIDE') {
+                    categories.push(`<strong>B/W Double:</strong> Pages 1–${bw}`);
+                } else {
+                    categories.push(`<strong>B/W Single:</strong> Pages 1–${bw}`);
+                }
+            }
+            if (color > 0) {
+                categories.push(`<strong>Color Single:</strong> Pages ${doc.colorPageNumbersText || `1–${color}`}`);
+            }
+        }
+
+        if (categories.length > 0) {
+            totalDocsCount++;
+            html += `<p style="margin-bottom: 5px; font-weight: bold;">📄 ${docName} (Copies: ${doc.copies || 1}):</p>`;
+            html += `<div style="padding-left: 15px; margin-bottom: 10px; color: #4b5563;">${categories.join('<br/>')}</div>`;
+        }
+    });
+
+    if (totalDocsCount === 0) return '';
+    return html;
+};
+
 export const createOrder = async (userId, orderData, io) => {
     // Verify that target shop exists
     const shop = await Shop.findById(orderData.shop).populate('owner');
@@ -46,6 +110,7 @@ export const createOrder = async (userId, orderData, io) => {
     const bwSingleRate = shop.printingRates?.bwSingle ?? shop.pricing?.bwPerPage ?? 0;
     const bwDoubleRate = shop.printingRates?.bwDouble ?? shop.pricing?.bwPerPage ?? 0;
     const colourSingleRate = shop.printingRates?.colourSingle ?? shop.pricing?.colorPerPage ?? 0;
+    const colourDoubleRate = shop.printingRates?.colourDouble ?? shop.pricing?.colorPerPage ?? 0;
     const spiralBindingRate = shop.printingRates?.spiralBinding ?? shop.pricing?.spiralBinding ?? 0;
     const bookBindingRate = shop.printingRates?.bookBinding ?? shop.pricing?.bookBinding ?? 0;
 
@@ -57,39 +122,58 @@ export const createOrder = async (userId, orderData, io) => {
     let bwSubtotal = 0;
     let colorSubtotal = 0;
 
-    // Check if we have individual document configurations
     const hasDocConfigs = orderData.documents && orderData.documents.length > 0 && orderData.documents.some(d => d.pageCount !== undefined);
 
     if (hasDocConfigs) {
         for (const doc of orderData.documents) {
-            const docBw = Number(doc.bwPages || 0);
-            const docColor = Number(doc.colorPages || 0);
             const docCopies = Number(doc.copies || 1);
             const docPrintSide = doc.printSide || 'SINGLE_SIDE';
 
-            if (docPrintSide === 'DOUBLE_SIDE' && docColor > 0) {
-                throw new ApiError(400, 'Color printing is only available for single-sided printing.');
-            }
+            if (doc.printingMode === 'advanced') {
+                const bwSingleCount = Array.isArray(doc.bwSinglePages) ? doc.bwSinglePages.length : 0;
+                const bwDoublePagesCount = Array.isArray(doc.bwDoublePages) ? doc.bwDoublePages.length : 0;
+                const colorSingleCount = Array.isArray(doc.colorSinglePages) ? doc.colorSinglePages.length : 0;
+                const colorDoublePagesCount = Array.isArray(doc.colorDoublePages) ? doc.colorDoublePages.length : 0;
 
-            totalBwPages += docBw * docCopies;
-            totalColorPages += docColor * docCopies;
+                const bwDoubleSheets = bwDoublePagesCount / 2;
+                const colorDoubleSheets = colorDoublePagesCount / 2;
 
-            let docBwCost = 0;
-            if (docPrintSide === 'DOUBLE_SIDE') {
-                docBwCost = (Math.floor(docBw / 2) * bwDoubleRate + (docBw % 2) * bwSingleRate) * docCopies;
+                const docBwCost = (bwSingleCount * bwSingleRate + bwDoubleSheets * bwDoubleRate) * docCopies;
+                const docColorCost = (colorSingleCount * colourSingleRate + colorDoubleSheets * colourDoubleRate) * docCopies;
+
+                totalBwPages += (bwSingleCount + bwDoublePagesCount) * docCopies;
+                totalColorPages += (colorSingleCount + colorDoublePagesCount) * docCopies;
+
+                bwSubtotal += docBwCost;
+                colorSubtotal += docColorCost;
             } else {
-                docBwCost = docBw * bwSingleRate * docCopies;
-            }
-            let docColorCost = 0;
-            if (doc.printColorDoubleSide && docColor >= 2) {
-                const { doubleSheets, singlePages } = groupConsecutivePages(doc.colorPageNumbersText);
-                docColorCost = (doubleSheets * colourDoubleRate + singlePages * colourSingleRate) * docCopies;
-            } else {
-                docColorCost = docColor * colourSingleRate * docCopies;
-            }
+                const docBw = Number(doc.bwPages || 0);
+                const docColor = Number(doc.colorPages || 0);
 
-            bwSubtotal += docBwCost;
-            colorSubtotal += docColorCost;
+                if (docPrintSide === 'DOUBLE_SIDE' && docColor > 0) {
+                    throw new ApiError(400, 'Color printing is only available for single-sided printing.');
+                }
+
+                totalBwPages += docBw * docCopies;
+                totalColorPages += docColor * docCopies;
+
+                let docBwCost = 0;
+                if (docPrintSide === 'DOUBLE_SIDE') {
+                    docBwCost = (Math.floor(docBw / 2) * bwDoubleRate + (docBw % 2) * bwSingleRate) * docCopies;
+                } else {
+                    docBwCost = docBw * bwSingleRate * docCopies;
+                }
+                let docColorCost = 0;
+                if (doc.printColorDoubleSide && docColor >= 2) {
+                    const { doubleSheets, singlePages } = groupConsecutivePages(doc.colorPageNumbersText);
+                    docColorCost = (doubleSheets * colourDoubleRate + singlePages * colourSingleRate) * docCopies;
+                } else {
+                    docColorCost = docColor * colourSingleRate * docCopies;
+                }
+
+                bwSubtotal += docBwCost;
+                colorSubtotal += docColorCost;
+            }
 
             let docBindingCost = 0;
             if (doc.binding === 'SPIRAL') docBindingCost = spiralBindingRate;
@@ -250,7 +334,8 @@ export const createOrder = async (userId, orderData, io) => {
                     <li><strong>Fulfillment Method:</strong> ${order.fulfillmentType}</li>
                     <li><strong>Estimated Cost:</strong> ₹${order.estimatedCost}</li>
                 </ul>
-                <p><a href="${orderUrl}" style="padding: 10px 15px; background-color: #3b82f6; color: white; text-decoration: none; border-radius: 5px; display: inline-block;">View Order Details</a></p>
+                ${buildOrderPrintingRequirementsHtml(order)}
+                <p><a href="${orderUrl}" style="padding: 10px 15px; background-color: #3b82f6; color: white; text-decoration: none; border-radius: 5px; display: inline-block; margin-top: 15px;">View Order Details</a></p>
                 <p>Thank you,<br/>XeroxDosth Team</p>
             `
         });

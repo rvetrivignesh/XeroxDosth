@@ -63,6 +63,27 @@ const documentSchema = new mongoose.Schema(
             type: Boolean,
             default: false
         },
+        printingMode: {
+            type: String,
+            enum: ['regular', 'advanced'],
+            default: 'regular'
+        },
+        bwSinglePages: {
+            type: [Number],
+            default: []
+        },
+        bwDoublePages: {
+            type: [Number],
+            default: []
+        },
+        colorSinglePages: {
+            type: [Number],
+            default: []
+        },
+        colorDoublePages: {
+            type: [Number],
+            default: []
+        },
         binding: {
             type: String,
             enum: ['NONE', 'SPIRAL', 'BOOK'],
