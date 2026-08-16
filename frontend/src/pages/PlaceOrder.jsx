@@ -354,7 +354,10 @@ export const PlaceOrder = () => {
                 colorSinglePagesText: '',
                 colorDoublePagesText: '',
                 applyRestOption: 'none',
+                advStartPage: 1,
+                advLastPage: 1, // will be updated to pageCount after PDF detection
                 isCollapsed: false // Expand initially for settings config
+
             };
             
             newFileObjects.push(fileObj);
@@ -368,7 +371,8 @@ export const PlaceOrder = () => {
                                 ...f,
                                 pageCount: detected,
                                 lastPage: detected,
-                                bwPages: detected
+                                bwPages: detected,
+                                advLastPage: detected
                             };
                         }
                         return f;
@@ -381,7 +385,8 @@ export const PlaceOrder = () => {
                                 ...f,
                                 pageCount: 1,
                                 lastPage: 1,
-                                bwPages: 1
+                                bwPages: 1,
+                                advLastPage: 1
                             };
                         }
                         return f;
@@ -447,7 +452,16 @@ export const PlaceOrder = () => {
         if (copies < 1) return "Copies must be at least 1.";
 
         if (f.printingMode === 'advanced') {
-            const count = Number(f.pageCount || 1);
+            const totalCount = Number(f.pageCount || 1);
+            const advStart = Number(f.advStartPage ?? 1);
+            const advLast = Number(f.advLastPage ?? totalCount);
+
+            // Validate advanced start/end page range
+            if (advStart < 1) return "Advanced Start Page must be at least 1.";
+            if (advLast > totalCount) return `Advanced Last Page (${advLast}) cannot exceed document total (${totalCount}).`;
+            if (advStart > advLast) return "Advanced Start Page cannot be greater than Last Page.";
+
+            const pageRangeCount = advLast - advStart + 1;
 
             const parsePageListWithErrors = (text, fieldName) => {
                 if (!text || !text.trim()) return [];
@@ -459,8 +473,8 @@ export const PlaceOrder = () => {
                     if (isNaN(num) || num.toString() !== part) {
                         return { error: `Invalid page number format: "${part}" in ${fieldName}. Must be valid integers.` };
                     }
-                    if (num < 1 || num > count) {
-                        return { error: `Page number ${num} in ${fieldName} is out of range [1-${count}].` };
+                    if (num < advStart || num > advLast) {
+                        return { error: `Page number ${num} in ${fieldName} is out of range [${advStart}-${advLast}].` };
                     }
                     nums.push(num);
                 }
@@ -523,13 +537,13 @@ export const PlaceOrder = () => {
             }
 
             if (f.applyRestOption === 'none') {
-                if (allAssigned.length !== count) {
-                    return `Please assign all pages or select "Apply for rest of the pages" for either Single-Sided B&W or Double-Sided B&W.`;
+                if (allAssigned.length !== pageRangeCount) {
+                    return `Please assign all pages (${advStart}–${advLast}) or select "Apply for rest of the pages" for either Single-Sided B&W or Double-Sided B&W.`;
                 }
             } else {
                 if (f.applyRestOption === 'bwDouble') {
                     const remainingPages = [];
-                    for (let p = 1; p <= count; p++) {
+                    for (let p = advStart; p <= advLast; p++) {
                         if (!colSingleRes.includes(p) && !colDoubleRes.includes(p) && !bwSingleRes.includes(p)) {
                             remainingPages.push(p);
                         }
@@ -672,13 +686,15 @@ export const PlaceOrder = () => {
                 const colSingle = parsePageList(f.colorSinglePagesText);
                 const colDouble = parsePageList(f.colorDoublePagesText);
 
-                const count = Number(f.pageCount || 1);
+                const totalCount = Number(f.pageCount || 1);
+                const advStart = Number(f.advStartPage ?? 1);
+                const advLast = Number(f.advLastPage ?? totalCount);
                 let resolvedBwSingle = [...bwSingle];
                 let resolvedBwDouble = [...bwDouble];
 
                 if (f.applyRestOption === 'bwSingle') {
                     const remaining = [];
-                    for (let p = 1; p <= count; p++) {
+                    for (let p = advStart; p <= advLast; p++) {
                         if (!colSingle.includes(p) && !colDouble.includes(p) && !bwDouble.includes(p)) {
                             remaining.push(p);
                         }
@@ -686,7 +702,7 @@ export const PlaceOrder = () => {
                     resolvedBwSingle = remaining;
                 } else if (f.applyRestOption === 'bwDouble') {
                     const remaining = [];
-                    for (let p = 1; p <= count; p++) {
+                    for (let p = advStart; p <= advLast; p++) {
                         if (!colSingle.includes(p) && !colDouble.includes(p) && !bwSingle.includes(p)) {
                             remaining.push(p);
                         }
@@ -883,6 +899,8 @@ export const PlaceOrder = () => {
                     const colDouble = parsePageList(f.colorDoublePagesText);
 
                     const count = Number(f.pageCount || 1);
+                    const advStart = Number(f.advStartPage ?? 1);
+                    const advLast = Number(f.advLastPage ?? count);
                     resolvedBwSingle = [...bwSingle];
                     resolvedBwDouble = [...bwDouble];
                     resolvedColSingle = [...colSingle];
@@ -890,7 +908,7 @@ export const PlaceOrder = () => {
 
                     if (f.applyRestOption === 'bwSingle') {
                         const remaining = [];
-                        for (let p = 1; p <= count; p++) {
+                        for (let p = advStart; p <= advLast; p++) {
                             if (!colSingle.includes(p) && !colDouble.includes(p) && !bwDouble.includes(p)) {
                                 remaining.push(p);
                             }
@@ -898,7 +916,7 @@ export const PlaceOrder = () => {
                         resolvedBwSingle = remaining;
                     } else if (f.applyRestOption === 'bwDouble') {
                         const remaining = [];
-                        for (let p = 1; p <= count; p++) {
+                        for (let p = advStart; p <= advLast; p++) {
                             if (!colSingle.includes(p) && !colDouble.includes(p) && !bwSingle.includes(p)) {
                                 remaining.push(p);
                             }
@@ -1322,33 +1340,48 @@ export const PlaceOrder = () => {
                                                 {/* Body (Expanded View) */}
                                                 {!fileObj.isCollapsed && fileObj.status === 'success' && (
                                                     <div className="file-card-body">
-                                                        {/* Advanced Printing Toggle */}
-                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginBottom: '1.25rem', padding: '0.75rem', backgroundColor: 'var(--bg-hover)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
-                                                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 'bold', cursor: 'pointer' }}>
-                                                                <input 
-                                                                    type="checkbox"
-                                                                    checked={fileObj.printingMode === 'advanced'}
-                                                                    onChange={(e) => updateFileStatus(fileObj.id, { printingMode: e.target.checked ? 'advanced' : 'regular' })}
-                                                                    style={{ width: 'auto', margin: 0 }}
-                                                                />
-                                                                <span>Advanced Printing Options</span>
-                                                            </label>
-                                                            <small style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
-                                                                Enable to assign specific page numbers to B&W/Color single-sided and double-sided categories.
-                                                            </small>
-                                                        </div>
 
                                                         {fileObj.printingMode === 'advanced' ? (
                                                             <div>
-                                                                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
+                                                                {/* Advanced: Start / End Page */}
+                                                                <div className="form-row" style={{ marginBottom: '1.25rem' }}>
+                                                                    <div className="form-group" style={{ marginBottom: 0 }}>
+                                                                        <label style={{ fontSize: '0.85rem' }}>Start Page</label>
+                                                                        <input
+                                                                            type="number"
+                                                                            min={1}
+                                                                            max={fileObj.pageCount}
+                                                                            value={fileObj.advStartPage ?? 1}
+                                                                            onChange={(e) => {
+                                                                                const val = Math.max(1, Math.min(Number(e.target.value), fileObj.pageCount));
+                                                                                updateFileStatus(fileObj.id, { advStartPage: val });
+                                                                            }}
+                                                                        />
+                                                                    </div>
+                                                                    <div className="form-group" style={{ marginBottom: 0 }}>
+                                                                        <label style={{ fontSize: '0.85rem' }}>Last Page</label>
+                                                                        <input
+                                                                            type="number"
+                                                                            min={1}
+                                                                            max={fileObj.pageCount}
+                                                                            value={fileObj.advLastPage ?? fileObj.pageCount}
+                                                                            onChange={(e) => {
+                                                                                const val = Math.max(1, Math.min(Number(e.target.value), fileObj.pageCount));
+                                                                                updateFileStatus(fileObj.id, { advLastPage: val });
+                                                                            }}
+                                                                        />
+                                                                    </div>
+                                                                </div>
+                                                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
                                                                     Total pages in document: <strong>{fileObj.pageCount}</strong>
+                                                                    {' · '}Assign pages in range <strong>{fileObj.advStartPage ?? 1}–{fileObj.advLastPage ?? fileObj.pageCount}</strong>
                                                                 </div>
 
                                                                 {/* 1. Single-Sided Color Pages */}
                                                                 <div className="form-group" style={{ marginBottom: '1rem' }}>
                                                                     <label style={{ fontSize: '0.85rem', fontWeight: 600 }}>Single-Sided Color Pages</label>
-                                                                    <input 
-                                                                        type="text" 
+                                                                    <input
+                                                                        type="text"
                                                                         placeholder="e.g. 4, 9, 11, 27"
                                                                         value={fileObj.colorSinglePagesText}
                                                                         onChange={(e) => updateFileStatus(fileObj.id, { colorSinglePagesText: e.target.value })}
@@ -1361,8 +1394,8 @@ export const PlaceOrder = () => {
                                                                 {/* 2. Double-Sided Color Pages */}
                                                                 <div className="form-group" style={{ marginBottom: '1rem' }}>
                                                                     <label style={{ fontSize: '0.85rem', fontWeight: 600 }}>Double-Sided Color Pages (Continuous Pairs)</label>
-                                                                    <input 
-                                                                        type="text" 
+                                                                    <input
+                                                                        type="text"
                                                                         placeholder="e.g. 2,3,6,7,9,10"
                                                                         value={fileObj.colorDoublePagesText}
                                                                         onChange={(e) => updateFileStatus(fileObj.id, { colorDoublePagesText: e.target.value })}
@@ -1375,8 +1408,8 @@ export const PlaceOrder = () => {
                                                                 {/* 3. Double-Sided B&W Pages */}
                                                                 <div className="form-group" style={{ marginBottom: '1rem' }}>
                                                                     <label style={{ fontSize: '0.85rem', fontWeight: 600 }}>Double-Sided B&W Pages (Continuous Pairs)</label>
-                                                                    <input 
-                                                                        type="text" 
+                                                                    <input
+                                                                        type="text"
                                                                         placeholder="e.g. 2,3,6,7,9,10"
                                                                         value={fileObj.bwDoublePagesText}
                                                                         disabled={fileObj.applyRestOption === 'bwDouble'}
@@ -1384,8 +1417,8 @@ export const PlaceOrder = () => {
                                                                         onChange={(e) => updateFileStatus(fileObj.id, { bwDoublePagesText: e.target.value })}
                                                                     />
                                                                     <div style={{ marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                                                        <input 
-                                                                            type="radio" 
+                                                                        <input
+                                                                            type="radio"
                                                                             id={`applyRestBwDouble-${fileObj.id}`}
                                                                             name={`applyRestBw-${fileObj.id}`}
                                                                             checked={fileObj.applyRestOption === 'bwDouble'}
@@ -1405,8 +1438,8 @@ export const PlaceOrder = () => {
                                                                 {/* 4. Single-Sided B&W Pages */}
                                                                 <div className="form-group" style={{ marginBottom: '1.25rem' }}>
                                                                     <label style={{ fontSize: '0.85rem', fontWeight: 600 }}>Single-Sided B&W Pages</label>
-                                                                    <input 
-                                                                        type="text" 
+                                                                    <input
+                                                                        type="text"
                                                                         placeholder="e.g. 4, 9, 11, 25"
                                                                         value={fileObj.bwSinglePagesText}
                                                                         disabled={fileObj.applyRestOption === 'bwSingle'}
@@ -1414,8 +1447,8 @@ export const PlaceOrder = () => {
                                                                         onChange={(e) => updateFileStatus(fileObj.id, { bwSinglePagesText: e.target.value })}
                                                                     />
                                                                     <div style={{ marginTop: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                                                        <input 
-                                                                            type="radio" 
+                                                                        <input
+                                                                            type="radio"
                                                                             id={`applyRestBwSingle-${fileObj.id}`}
                                                                             name={`applyRestBw-${fileObj.id}`}
                                                                             checked={fileObj.applyRestOption === 'bwSingle'}
@@ -1432,20 +1465,20 @@ export const PlaceOrder = () => {
                                                                     </div>
                                                                 </div>
 
-                                                                {/* Copies & Binding selection in advanced mode */}
-                                                                <div className="form-row" style={{ marginBottom: 0 }}>
+                                                                {/* Advanced: Copies & Binding */}
+                                                                <div className="form-row" style={{ marginBottom: '1.25rem' }}>
                                                                     <div className="form-group" style={{ marginBottom: 0 }}>
                                                                         <label style={{ fontSize: '0.85rem' }}>Copies</label>
-                                                                        <input 
-                                                                            type="number" 
-                                                                            min={1} 
+                                                                        <input
+                                                                            type="number"
+                                                                            min={1}
                                                                             value={fileObj.copies}
                                                                             onChange={(e) => updateFileStatus(fileObj.id, { copies: Math.max(1, Number(e.target.value)) })}
                                                                         />
                                                                     </div>
                                                                     <div className="form-group" style={{ marginBottom: 0 }}>
                                                                         <label style={{ fontSize: '0.85rem' }}>Binding</label>
-                                                                        <select 
+                                                                        <select
                                                                             value={fileObj.binding}
                                                                             onChange={(e) => updateFileStatus(fileObj.id, { binding: e.target.value })}
                                                                         >
@@ -1458,13 +1491,13 @@ export const PlaceOrder = () => {
                                                             </div>
                                                         ) : (
                                                             <div>
-                                                                {/* 1. Page Print Range */}
+                                                                {/* Regular: 1. Page Print Range */}
                                                                 <div className="form-row" style={{ marginBottom: '1.25rem' }}>
                                                                     <div className="form-group" style={{ marginBottom: 0 }}>
                                                                         <label style={{ fontSize: '0.85rem' }}>Start Page</label>
-                                                                        <input 
-                                                                            type="number" 
-                                                                            min={1} 
+                                                                        <input
+                                                                            type="number"
+                                                                            min={1}
                                                                             max={fileObj.pageCount}
                                                                             value={fileObj.startPage}
                                                                             onChange={(e) => {
@@ -1473,7 +1506,7 @@ export const PlaceOrder = () => {
                                                                                 const colorNumbers = parseColorPageNumbers(fileObj.colorPageNumbersText);
                                                                                 const colorCount = colorNumbers.length;
                                                                                 const bwCount = Math.max(0, rangeSize - colorCount);
-                                                                                updateFileStatus(fileObj.id, { 
+                                                                                updateFileStatus(fileObj.id, {
                                                                                     startPage: startVal,
                                                                                     bwPages: bwCount,
                                                                                     colorPages: colorCount
@@ -1483,9 +1516,9 @@ export const PlaceOrder = () => {
                                                                     </div>
                                                                     <div className="form-group" style={{ marginBottom: 0 }}>
                                                                         <label style={{ fontSize: '0.85rem' }}>Last Page</label>
-                                                                        <input 
-                                                                            type="number" 
-                                                                            min={1} 
+                                                                        <input
+                                                                            type="number"
+                                                                            min={1}
                                                                             max={fileObj.pageCount}
                                                                             value={fileObj.lastPage}
                                                                             onChange={(e) => {
@@ -1494,7 +1527,7 @@ export const PlaceOrder = () => {
                                                                                 const colorNumbers = parseColorPageNumbers(fileObj.colorPageNumbersText);
                                                                                 const colorCount = colorNumbers.length;
                                                                                 const bwCount = Math.max(0, rangeSize - colorCount);
-                                                                                updateFileStatus(fileObj.id, { 
+                                                                                updateFileStatus(fileObj.id, {
                                                                                     lastPage: lastVal,
                                                                                     bwPages: bwCount,
                                                                                     colorPages: colorCount
@@ -1507,11 +1540,11 @@ export const PlaceOrder = () => {
                                                                     Total pages in document: <strong>{fileObj.pageCount}</strong>
                                                                 </div>
 
-                                                                {/* 2. Color Settings & Page Numbers */}
+                                                                {/* Regular: 2. Color Settings & Page Numbers */}
                                                                 <div className="form-group" style={{ marginBottom: '1.25rem' }}>
                                                                     <label style={{ fontSize: '0.85rem' }}>Color Page Numbers (Optional)</label>
-                                                                    <input 
-                                                                        type="text" 
+                                                                    <input
+                                                                        type="text"
                                                                         placeholder="e.g. 5, 12, 27"
                                                                         value={fileObj.colorPageNumbersText}
                                                                         onChange={(e) => {
@@ -1520,8 +1553,7 @@ export const PlaceOrder = () => {
                                                                             const colorNumbers = parseColorPageNumbers(text);
                                                                             const colorCount = colorNumbers.length;
                                                                             const bwCount = Math.max(0, rangeSize - colorCount);
-                                                                            
-                                                                            updateFileStatus(fileObj.id, { 
+                                                                            updateFileStatus(fileObj.id, {
                                                                                 colorPageNumbersText: text,
                                                                                 colorPages: colorCount,
                                                                                 bwPages: bwCount
@@ -1533,7 +1565,7 @@ export const PlaceOrder = () => {
                                                                     </small>
                                                                     {fileObj.colorPages >= 2 && (
                                                                          <div style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                                             <input 
+                                                                             <input
                                                                                  type="checkbox"
                                                                                  id={`colorDoubleSide-${fileObj.id}`}
                                                                                  checked={fileObj.printColorDoubleSide || false}
@@ -1552,7 +1584,7 @@ export const PlaceOrder = () => {
                                                                         <label style={{ fontSize: '0.85rem' }}>
                                                                             B&W Pages (Auto Calculated: ₹{getFileBwCost(fileObj).toFixed(2)})
                                                                         </label>
-                                                                        <input 
+                                                                        <input
                                                                             type="number"
                                                                             readOnly
                                                                             value={fileObj.bwPages}
@@ -1563,7 +1595,7 @@ export const PlaceOrder = () => {
                                                                         <label style={{ fontSize: '0.85rem' }}>
                                                                             Color Pages (Auto Calculated: ₹{(fileObj.colorPages * colourSingleRate).toFixed(2)})
                                                                         </label>
-                                                                        <input 
+                                                                        <input
                                                                             type="number"
                                                                             readOnly
                                                                             value={fileObj.colorPages}
@@ -1584,20 +1616,20 @@ export const PlaceOrder = () => {
                                                                     }}>
                                                                         <strong>Color printing is only available for single-sided printing. Please select Single-Sided to print color pages.</strong>
                                                                         <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-                                                                            <button 
-                                                                                type="button" 
+                                                                            <button
+                                                                                type="button"
                                                                                 className="btn btn-secondary btn-xs"
                                                                                 onClick={() => updateFileStatus(fileObj.id, { printSide: 'SINGLE_SIDE' })}
                                                                                 style={{ border: '1px solid #ef4444', color: '#ef4444', background: 'transparent' }}
                                                                             >
                                                                                 Switch to Single-Sided
                                                                             </button>
-                                                                            <button 
-                                                                                type="button" 
+                                                                            <button
+                                                                                type="button"
                                                                                 className="btn btn-danger btn-xs"
                                                                                 onClick={() => {
                                                                                     const rangeSize = fileObj.lastPage - fileObj.startPage + 1;
-                                                                                    updateFileStatus(fileObj.id, { 
+                                                                                    updateFileStatus(fileObj.id, {
                                                                                         colorPageNumbersText: '',
                                                                                         colorPages: 0,
                                                                                         bwPages: rangeSize
@@ -1611,20 +1643,20 @@ export const PlaceOrder = () => {
                                                                     </div>
                                                                 )}
 
-                                                                {/* 3. General Print Configs */}
+                                                                {/* Regular: 3. General Print Configs */}
                                                                 <div className="form-row" style={{ marginBottom: 0 }}>
                                                                     <div className="form-group" style={{ marginBottom: 0 }}>
                                                                         <label style={{ fontSize: '0.85rem' }}>Copies</label>
-                                                                        <input 
-                                                                            type="number" 
-                                                                            min={1} 
+                                                                        <input
+                                                                            type="number"
+                                                                            min={1}
                                                                             value={fileObj.copies}
                                                                             onChange={(e) => updateFileStatus(fileObj.id, { copies: Math.max(1, Number(e.target.value)) })}
                                                                         />
                                                                     </div>
                                                                     <div className="form-group" style={{ marginBottom: 0 }}>
                                                                         <label style={{ fontSize: '0.85rem' }}>Print Side</label>
-                                                                        <select 
+                                                                        <select
                                                                             value={fileObj.printSide}
                                                                             onChange={(e) => updateFileStatus(fileObj.id, { printSide: e.target.value })}
                                                                         >
@@ -1634,7 +1666,7 @@ export const PlaceOrder = () => {
                                                                     </div>
                                                                     <div className="form-group" style={{ marginBottom: 0 }}>
                                                                         <label style={{ fontSize: '0.85rem' }}>Binding</label>
-                                                                        <select 
+                                                                        <select
                                                                             value={fileObj.binding}
                                                                             onChange={(e) => updateFileStatus(fileObj.id, { binding: e.target.value })}
                                                                         >
@@ -1646,8 +1678,35 @@ export const PlaceOrder = () => {
                                                                 </div>
                                                             </div>
                                                         )}
+
+                                                        {/* Advanced Printing Toggle — always at the BOTTOM of the card */}
+                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginTop: '1.5rem', padding: '0.75rem', backgroundColor: 'var(--bg-hover)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+                                                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 'bold', cursor: 'pointer' }}>
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={fileObj.printingMode === 'advanced'}
+                                                                    onChange={(e) => updateFileStatus(fileObj.id, {
+                                                                        printingMode: e.target.checked ? 'advanced' : 'regular',
+                                                                        // Reset advanced-specific fields when toggling off
+                                                                        ...(e.target.checked ? {} : {
+                                                                            bwSinglePagesText: '',
+                                                                            bwDoublePagesText: '',
+                                                                            colorSinglePagesText: '',
+                                                                            colorDoublePagesText: '',
+                                                                            applyRestOption: 'none'
+                                                                        })
+                                                                    })}
+                                                                    style={{ width: 'auto', margin: 0 }}
+                                                                />
+                                                                <span>Advanced Printing Options</span>
+                                                            </label>
+                                                            <small style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
+                                                                Enable to assign specific page numbers to B&W/Color single-sided and double-sided categories.
+                                                            </small>
+                                                        </div>
                                                     </div>
                                                 )}
+
                                             </div>
                                         );
                                     })}
