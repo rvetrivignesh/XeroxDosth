@@ -15,6 +15,7 @@ export const Dashboard = () => {
     const [resigning, setResigning] = useState(false);
 
     useEffect(() => {
+        fetchMe();
         const fetchDashboardData = async () => {
             try {
                 const ordersRes = await API.get('/orders/me');

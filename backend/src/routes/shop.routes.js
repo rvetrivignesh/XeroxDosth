@@ -5,9 +5,11 @@ import {
     updateMyShopDetails,
     getApprovedShops,
     getAllShopsAdmin,
-    updateShopStatusAdmin
+    updateShopStatusAdmin,
+    searchUserForPromotion,
+    promoteUserToShopAdmin
 } from '../controllers/shop.controller.js';
-import { applyShopValidator } from '../validators/shop.validator.js';
+import { applyShopValidator, promoteShopValidator } from '../validators/shop.validator.js';
 import { validateRequest } from '../middleware/validation.middleware.js';
 import { protect, authorize } from '../middleware/auth.middleware.js';
 
@@ -23,6 +25,8 @@ router.patch('/me', protect, authorize('SHOP'), updateMyShopDetails);
 
 // Admin Routes
 router.get('/admin/all', protect, authorize('ADMIN'), getAllShopsAdmin);
+router.get('/admin/search-user', protect, authorize('ADMIN'), searchUserForPromotion);
+router.post('/admin/promote-user', protect, authorize('ADMIN'), promoteShopValidator, validateRequest, promoteUserToShopAdmin);
 router.patch('/admin/:id/status', protect, authorize('ADMIN'), updateShopStatusAdmin);
 
 export default router;

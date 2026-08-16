@@ -105,9 +105,31 @@ export const getMyShopApplication = async (userId) => {
 };
 
 export const updateMyShopDetails = async (userId, updateData) => {
-    const shop = await Shop.findOne({ owner: userId });
+    let shop = await Shop.findOne({ owner: userId });
     if (!shop) {
-        throw new ApiError(404, "Shop not found for this user");
+        const user = await User.findById(userId);
+        if (user && user.role === 'SHOP') {
+            shop = await Shop.create({
+                owner: userId,
+                shopName: updateData.shopName || `${user.name}'s Shop`,
+                email: updateData.email || user.email,
+                phone: updateData.phone || '0000000000',
+                description: updateData.description || 'Xerox & printing services',
+                location: {
+                    address: updateData.location?.address || 'Please update shop address',
+                    googleMapsLink: updateData.location?.googleMapsLink || ''
+                },
+                openTiming: {
+                    open: updateData.openTiming?.open || '09:00 AM',
+                    close: updateData.openTiming?.close || '08:00 PM'
+                },
+                openDays: updateData.openDays || ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'],
+                upiId: updateData.upiId || 'temp@upi',
+                status: 'APPROVED'
+            });
+        } else {
+            throw new ApiError(404, "Shop not found for this user");
+        }
     }
 
     const user = await User.findById(userId);
@@ -198,6 +220,70 @@ export const updateShopStatus = async (adminId, shopId, status, rejectionReason)
     }
 
     await shop.save();
+    return mapShopForBackwardCompatibility(shop);
+};
+
+export const searchUserByEmail = async (email) => {
+    const normalizedEmail = email.trim().toLowerCase();
+    const user = await User.findOne({ email: normalizedEmail }).select('-password');
+    if (!user) {
+        throw new ApiError(404, "User not found with this email");
+    }
+    return user;
+};
+
+export const promoteUserToShop = async (adminId, promoteData) => {
+    const { email, shopName, phone, upiId } = promoteData;
+    const normalizedEmail = email.trim().toLowerCase();
+
+    const user = await User.findOne({ email: normalizedEmail });
+    if (!user) {
+        throw new ApiError(404, "User not found with this email");
+    }
+
+    if (user.role === 'ADMIN') {
+        throw new ApiError(400, "Cannot promote an Administrator to a Shop owner");
+    }
+
+    // Check if a shop already exists for this user
+    let shop = await Shop.findOne({ owner: user._id });
+
+    if (shop) {
+        shop.status = 'APPROVED';
+        if (shopName) shop.shopName = shopName;
+        if (phone) shop.phone = phone;
+        if (upiId) shop.upiId = upiId;
+        shop.reviewedBy = adminId;
+        shop.reviewedAt = new Date();
+        await shop.save();
+    } else {
+        shop = await Shop.create({
+            owner: user._id,
+            shopName: shopName || `${user.name}'s Shop`,
+            email: user.email,
+            phone: phone || '0000000000',
+            description: 'Xerox & printing services',
+            location: {
+                address: 'Please update shop address',
+                googleMapsLink: ''
+            },
+            openTiming: {
+                open: '09:00 AM',
+                close: '08:00 PM'
+            },
+            openDays: ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'],
+            upiId: upiId || 'temp@upi',
+            status: 'APPROVED',
+            reviewedBy: adminId,
+            reviewedAt: new Date()
+        });
+    }
+
+    if (user.role !== 'SHOP') {
+        user.role = 'SHOP';
+        await user.save();
+    }
+
     return mapShopForBackwardCompatibility(shop);
 };
 

@@ -1,5 +1,6 @@
 import asyncHandler from '../utils/asyncHandler.js';
 import ApiResponse from '../utils/ApiResponse.js';
+import ApiError from '../utils/ApiError.js';
 import * as shopService from '../services/shop.service.js';
 
 export const applyForShop = asyncHandler(async (req, res) => {
@@ -43,5 +44,23 @@ export const updateShopStatusAdmin = asyncHandler(async (req, res) => {
     return res
         .status(200)
         .json(new ApiResponse(200, data, `Shop status updated to ${status}`));
+});
+
+export const searchUserForPromotion = asyncHandler(async (req, res) => {
+    const { email } = req.query;
+    if (!email) {
+        throw new ApiError(400, "Email query parameter is required");
+    }
+    const data = await shopService.searchUserByEmail(email);
+    return res
+        .status(200)
+        .json(new ApiResponse(200, data, "User found successfully"));
+});
+
+export const promoteUserToShopAdmin = asyncHandler(async (req, res) => {
+    const data = await shopService.promoteUserToShop(req.user._id, req.body);
+    return res
+        .status(200)
+        .json(new ApiResponse(200, data, "User promoted to shop owner successfully"));
 });
 

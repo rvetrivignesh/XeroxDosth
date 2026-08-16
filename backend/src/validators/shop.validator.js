@@ -135,3 +135,18 @@ export const applyShopValidator = [
         })
 ];
 
+export const promoteShopValidator = [
+    body('email')
+        .trim()
+        .notEmpty().withMessage('Email is required')
+        .isEmail().withMessage('Please provide a valid email address')
+        .normalizeEmail(),
+    body('shopName')
+        .trim()
+        .notEmpty().withMessage('Shop name is required'),
+    body('upiId')
+        .trim()
+        .notEmpty().withMessage('UPI ID is required')
+];
+
+

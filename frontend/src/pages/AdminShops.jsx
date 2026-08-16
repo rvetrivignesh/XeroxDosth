@@ -13,6 +13,75 @@ export const AdminShops = () => {
 
     const isManageView = location.pathname.includes('manage-shops');
 
+    // Search & Promote shop state
+    const [searchEmail, setSearchEmail] = useState('');
+    const [searching, setSearching] = useState(false);
+    const [foundUser, setFoundUser] = useState(null);
+    
+    // Form fields for promotion
+    const [promoShopName, setPromoShopName] = useState('');
+    const [promoPhone, setPromoPhone] = useState('');
+    const [promoUpiId, setPromoUpiId] = useState('');
+    const [promoting, setPromoting] = useState(false);
+
+    const handleSearchUser = async (e) => {
+        e.preventDefault();
+        if (!searchEmail.trim()) {
+            showToast('Please enter an email address', 'error');
+            return;
+        }
+
+        setSearching(true);
+        setFoundUser(null);
+        try {
+            const res = await API.get(`/shops/admin/search-user?email=${encodeURIComponent(searchEmail)}`);
+            const user = res.data?.data;
+            setFoundUser(user);
+            setPromoShopName(user ? `${user.name}'s Shop` : '');
+            setPromoPhone(user?.phone || '');
+            setPromoUpiId('');
+            showToast('User found!', 'success');
+        } catch (err) {
+            showToast(err.response?.data?.message || 'User not found with this email', 'error');
+        } finally {
+            setSearching(false);
+        }
+    };
+
+    const handlePromoteUser = async (e) => {
+        e.preventDefault();
+        if (!foundUser) return;
+        if (!promoShopName.trim() || !promoUpiId.trim()) {
+            showToast('Shop Name and UPI ID are required', 'error');
+            return;
+        }
+
+        setPromoting(true);
+        try {
+            await API.post('/shops/admin/promote-user', {
+                email: foundUser.email,
+                shopName: promoShopName.trim(),
+                phone: promoPhone.trim() || undefined,
+                upiId: promoUpiId.trim()
+            });
+            showToast('User successfully promoted to Shop Owner and shop created!', 'success');
+            
+            // Reset state
+            setSearchEmail('');
+            setFoundUser(null);
+            setPromoShopName('');
+            setPromoPhone('');
+            setPromoUpiId('');
+
+            // Reload active shops list
+            fetchShops();
+        } catch (err) {
+            showToast(err.response?.data?.message || 'Failed to promote user to shop owner', 'error');
+        } finally {
+            setPromoting(false);
+        }
+    };
+
     const fetchShops = async () => {
         setLoading(true);
         try {
@@ -80,6 +149,93 @@ export const AdminShops = () => {
                         : 'Review pending shop submissions and manage active xerox partners.'}
                 </p>
             </div>
+
+            {isManageView && (
+                <div className="card" style={{ marginBottom: '2rem', padding: '1.5rem' }}>
+                    <h3 style={{ marginTop: 0, marginBottom: '0.5rem', color: 'var(--text-primary)' }}>Add New Shop Partner</h3>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1.25rem' }}>
+                        Search for a registered user by email to promote them to a Shop Owner.
+                    </p>
+
+                    <form onSubmit={handleSearchUser} style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+                        <input
+                            type="email"
+                            placeholder="Search user by email..."
+                            value={searchEmail}
+                            onChange={(e) => setSearchEmail(e.target.value)}
+                            disabled={searching || promoting}
+                            style={{ flex: 1, minWidth: '220px', padding: '0.6rem 0.85rem' }}
+                            required
+                        />
+                        <button type="submit" className="btn btn-primary" disabled={searching || promoting} style={{ minWidth: '100px' }}>
+                            {searching ? <span className="spinner spinner-sm"></span> : 'Search'}
+                        </button>
+                    </form>
+
+                    {foundUser && (
+                        <div style={{ backgroundColor: 'var(--bg-input)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '1.25rem', marginTop: '1rem' }}>
+                            <div style={{ marginBottom: '1.25rem' }}>
+                                <h4 style={{ margin: '0 0 0.25rem 0', color: 'var(--text-primary)' }}>User Found: {foundUser.name}</h4>
+                                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Email: {foundUser.email} | Current Role: <strong>{foundUser.role}</strong></span>
+                            </div>
+
+                            {foundUser.role === 'ADMIN' ? (
+                                <div style={{ color: '#ef4444', fontWeight: 500, fontSize: '0.9rem' }}>
+                                    ❌ Administrators cannot be promoted to Shop Owners.
+                                </div>
+                            ) : (
+                                <form onSubmit={handlePromoteUser} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+                                        <div>
+                                            <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.35rem', fontWeight: 600 }}>Shop Name *</label>
+                                            <input
+                                                type="text"
+                                                placeholder="e.g. Campus Xerox Hub"
+                                                value={promoShopName}
+                                                onChange={(e) => setPromoShopName(e.target.value)}
+                                                disabled={promoting}
+                                                style={{ width: '100%', padding: '0.55rem 0.75rem' }}
+                                                required
+                                            />
+                                        </div>
+                                        <div>
+                                            <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.35rem', fontWeight: 600 }}>Phone Number</label>
+                                            <input
+                                                type="text"
+                                                placeholder="e.g. +91 9876543210"
+                                                value={promoPhone}
+                                                onChange={(e) => setPromoPhone(e.target.value)}
+                                                disabled={promoting}
+                                                style={{ width: '100%', padding: '0.55rem 0.75rem' }}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.35rem', fontWeight: 600 }}>UPI ID (for payments) *</label>
+                                            <input
+                                                type="text"
+                                                placeholder="e.g. shopowner@upi"
+                                                value={promoUpiId}
+                                                onChange={(e) => setPromoUpiId(e.target.value)}
+                                                disabled={promoting}
+                                                style={{ width: '100%', padding: '0.55rem 0.75rem' }}
+                                                required
+                                            />
+                                        </div>
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+                                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => setFoundUser(null)} disabled={promoting}>
+                                            Cancel
+                                        </button>
+                                        <button type="submit" className="btn btn-primary btn-sm" disabled={promoting}>
+                                            {promoting ? <span className="spinner spinner-sm"></span> : 'Promote & Create Shop'}
+                                        </button>
+                                    </div>
+                                </form>
+                            )}
+                        </div>
+                    )}
+                </div>
+            )}
 
             {displayedShops.length === 0 ? (
                 <div className="empty-state card">
