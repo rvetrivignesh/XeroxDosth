@@ -143,7 +143,7 @@ export const PlaceOrder = () => {
     const [loadingShops, setLoadingShops] = useState(true);
 
     const ALLOWED_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png', 'webp'];
-    const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100 MB
+    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
     // Pre-populate user details
     useEffect(() => {
@@ -259,10 +259,10 @@ export const PlaceOrder = () => {
     const validateFile = (file) => {
         const ext = file.name.split('.').pop().toLowerCase();
         if (!ALLOWED_EXTENSIONS.includes(ext)) {
-            return 'Unsupported file type. Please upload only PDF or image files.';
+            return 'Unsupported file format. Please upload a PDF or image file (JPG, PNG, or WEBP).';
         }
         if (file.size > MAX_FILE_SIZE) {
-            return 'File size exceeds the 100 MB limit.';
+            return 'File size exceeds the 10 MB limit. Please upload a smaller file.';
         }
         return null;
     };
@@ -464,6 +464,10 @@ export const PlaceOrder = () => {
             }
         }
 
+        if (f.printSide === 'DOUBLE_SIDE' && (f.colorPages || 0) > 0) {
+            return "Color printing is only available for single-sided printing. Please select Single-Sided or clear color pages.";
+        }
+
         if (copies < 1) return "Copies must be at least 1.";
 
         return null;
@@ -498,36 +502,88 @@ export const PlaceOrder = () => {
         }
     }, [fulfillmentMethod, deliveryType, selectedSlabIndex, selectedShop]);
 
-    // Calculate dynamic cost estimates
-    const estimatedCost = useMemo(() => {
-        if (!selectedShop || !selectedShop.pricing) return 0;
+    // Calculate dynamic cost estimates and details
+    const priceDetails = useMemo(() => {
+        if (!selectedShop || !selectedShop.pricing) {
+            return {
+                totalPages: 0,
+                bwSheets: 0,
+                colorSheets: 0,
+                bwCost: 0,
+                colorCost: 0,
+                bindingCost: 0,
+                deliveryCharge: 0,
+                total: 0,
+                hasColor: false,
+                printSideStr: 'Single-Sided'
+            };
+        }
+        
         const p = selectedShop.pricing;
+        let totalPages = 0;
+        let bwSheets = 0;
+        let colorSheets = 0;
+        let bwCost = 0;
+        let colorCost = 0;
+        let bindingCost = 0;
+        
+        let hasDouble = false;
+        let hasSingle = false;
 
-        let totalSubtotal = 0;
         files.forEach(f => {
             if (f.status !== 'success') return;
             const bw = Number(f.bwPages || 0);
             const color = Number(f.colorPages || 0);
             const copies = Number(f.copies || 1);
-            
-            const bwCost = bw * (p.bwPerPage || 1);
-            const colorCost = color * (p.colorPerPage || 5);
-            
+            const printSide = f.printSide || 'SINGLE_SIDE';
+
+            totalPages += (bw + color) * copies;
+
+            const docBwSheets = printSide === 'DOUBLE_SIDE' ? Math.ceil(bw / 2) : bw;
+            const docColorSheets = color; // color is always single-sided
+
+            bwSheets += docBwSheets * copies;
+            colorSheets += docColorSheets * copies;
+
+            bwCost += docBwSheets * (p.bwPerPage || 1.50) * copies;
+            colorCost += docColorSheets * (p.colorPerPage || 5) * copies;
+
             let fileBindingCost = 0;
             if (f.binding === 'SPIRAL') fileBindingCost = p.spiralBinding || 30;
             if (f.binding === 'BOOK') fileBindingCost = p.bookBinding || 50;
-            
-            totalSubtotal += (bwCost + colorCost + fileBindingCost) * copies;
+
+            bindingCost += fileBindingCost * copies;
+
+            if (printSide === 'DOUBLE_SIDE') hasDouble = true;
+            if (printSide === 'SINGLE_SIDE') hasSingle = true;
         });
 
-        let recordBindingCost = 0;
         if (serviceType === 'RECORD') {
-            if (recordBindingType === 'SPIRAL') recordBindingCost = p.spiralBinding || 30;
-            if (recordBindingType === 'BOOK') recordBindingCost = p.bookBinding || 50;
+            if (recordBindingType === 'SPIRAL') bindingCost += p.spiralBinding || 30;
+            if (recordBindingType === 'BOOK') bindingCost += p.bookBinding || 50;
         }
 
-        return totalSubtotal + recordBindingCost + calculatedDeliveryCharge;
+        let printSideStr = 'Single-Sided';
+        if (hasDouble && hasSingle) printSideStr = 'Mixed';
+        else if (hasDouble) printSideStr = 'Double-Sided';
+
+        const total = bwCost + colorCost + bindingCost + calculatedDeliveryCharge;
+
+        return {
+            totalPages,
+            bwSheets,
+            colorSheets,
+            bwCost,
+            colorCost,
+            bindingCost,
+            deliveryCharge: calculatedDeliveryCharge,
+            total,
+            hasColor: colorSheets > 0,
+            printSideStr
+        };
     }, [files, selectedShop, serviceType, recordBindingType, calculatedDeliveryCharge]);
+
+    const estimatedCost = priceDetails.total;
 
     // Handle Order Submission
     const handlePlaceOrderSubmit = async () => {
@@ -1066,7 +1122,46 @@ export const PlaceOrder = () => {
                                                             </div>
                                                         </div>
 
-                                                        {/* 3. General Print Configs */}
+                                                         {fileObj.printSide === 'DOUBLE_SIDE' && fileObj.colorPages > 0 && (
+                                                             <div className="warning-banner" style={{
+                                                                 backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                                                                 border: '1px solid #ef4444',
+                                                                 color: '#ef4444',
+                                                                 borderRadius: 'var(--radius-sm)',
+                                                                 padding: '0.75rem',
+                                                                 marginBottom: '1.25rem',
+                                                                 fontSize: '0.85rem'
+                                                             }}>
+                                                                 <strong>Color printing is only available for single-sided printing. Please select Single-Sided to print color pages.</strong>
+                                                                 <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                                                                     <button 
+                                                                         type="button" 
+                                                                         className="btn btn-secondary btn-xs"
+                                                                         onClick={() => updateFileStatus(fileObj.id, { printSide: 'SINGLE_SIDE' })}
+                                                                         style={{ border: '1px solid #ef4444', color: '#ef4444', background: 'transparent' }}
+                                                                     >
+                                                                         Switch to Single-Sided
+                                                                     </button>
+                                                                     <button 
+                                                                         type="button" 
+                                                                         className="btn btn-danger btn-xs"
+                                                                         onClick={() => {
+                                                                             const rangeSize = fileObj.lastPage - fileObj.startPage + 1;
+                                                                             updateFileStatus(fileObj.id, { 
+                                                                                 colorPageNumbersText: '',
+                                                                                 colorPages: 0,
+                                                                                 bwPages: rangeSize
+                                                                             });
+                                                                         }}
+                                                                         style={{ backgroundColor: '#ef4444', color: 'white', border: 'none' }}
+                                                                     >
+                                                                         Clear Color Pages
+                                                                     </button>
+                                                                 </div>
+                                                             </div>
+                                                         )}
+
+                                                         {/* 3. General Print Configs */}
                                                         <div className="form-row" style={{ marginBottom: 0 }}>
                                                             <div className="form-group" style={{ marginBottom: 0 }}>
                                                                 <label style={{ fontSize: '0.85rem' }}>Copies</label>
@@ -1608,42 +1703,64 @@ export const PlaceOrder = () => {
 
                         {/* D. Pricing & Costs Table */}
                         <div className="review-section">
-                            <h3>Cost Details</h3>
-                            <div className="review-cost-table">
-                                <div className="review-cost-row">
-                                    <span>Black & White Printing (₹{selectedShop?.pricing?.bwPerPage || 1}/pg)</span>
-                                    <span>
-                                        {files.reduce((sum, f) => sum + Number(f.bwPages || 0) * Number(f.copies || 1), 0)} pages = ₹{files.reduce((sum, f) => sum + Number(f.bwPages || 0) * Number(f.copies || 1) * (selectedShop?.pricing?.bwPerPage || 1), 0)}
-                                    </span>
+                            <h3>Price Summary</h3>
+                            <div className="review-cost-table" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                <div className="review-cost-row" style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>
+                                    <span style={{ color: 'var(--text-secondary)' }}>Pages</span>
+                                    <strong style={{ color: 'var(--text-primary)' }}>{priceDetails.totalPages}</strong>
                                 </div>
-                                <div className="review-cost-row">
-                                    <span>Color Printing (₹{selectedShop?.pricing?.colorPerPage || 5}/pg)</span>
-                                    <span>
-                                        {files.reduce((sum, f) => sum + Number(f.colorPages || 0) * Number(f.copies || 1), 0)} pages = ₹{files.reduce((sum, f) => sum + Number(f.colorPages || 0) * Number(f.copies || 1) * (selectedShop?.pricing?.colorPerPage || 5), 0)}
-                                    </span>
+                                <div className="review-cost-row" style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>
+                                    <span style={{ color: 'var(--text-secondary)' }}>Print Type</span>
+                                    <strong style={{ color: 'var(--text-primary)' }}>{priceDetails.hasColor ? 'Mixed (Color & B&W)' : 'B&W'}</strong>
                                 </div>
-                                <div className="review-cost-row">
-                                    <span>Binding Costs</span>
-                                    <span>
-                                        ₹{files.reduce((sum, f) => {
-                                            if (f.status !== 'success') return sum;
-                                            const copies = Number(f.copies || 1);
-                                            let fileBindingCost = 0;
-                                            if (f.binding === 'SPIRAL') fileBindingCost = selectedShop.pricing.spiralBinding || 30;
-                                            if (f.binding === 'BOOK') fileBindingCost = selectedShop.pricing.bookBinding || 50;
-                                            return sum + fileBindingCost * copies;
-                                        }, 0) + (serviceType === 'RECORD' ? (recordBindingType === 'SPIRAL' ? selectedShop.pricing.spiralBinding || 30 : selectedShop.pricing.bookBinding || 50) : 0)}
-                                    </span>
+                                <div className="review-cost-row" style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>
+                                    <span style={{ color: 'var(--text-secondary)' }}>Print Side</span>
+                                    <strong style={{ color: 'var(--text-primary)' }}>{priceDetails.printSideStr}</strong>
                                 </div>
-                                {((fulfillmentMethod === 'HOME_DELIVERY') || (fulfillmentMethod === 'RECORD_PICKUP' && recordDeliveryOption === 'DELIVERY')) && (
-                                    <div className="review-cost-row">
-                                        <span>Delivery Charge ({deliveryType} Delivery)</span>
-                                        <span>₹{calculatedDeliveryCharge}</span>
+                                <div className="review-cost-row" style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>
+                                    <span style={{ color: 'var(--text-secondary)' }}>Physical Sheets</span>
+                                    <strong style={{ color: 'var(--text-primary)' }}>{priceDetails.bwSheets + priceDetails.colorSheets}</strong>
+                                </div>
+
+                                {priceDetails.bwSheets > 0 && (
+                                    <div className="review-cost-row" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                            <span style={{ color: 'var(--text-secondary)' }}>B&W Printing</span>
+                                            <strong style={{ color: 'var(--text-primary)' }}>₹{priceDetails.bwCost.toFixed(2)}</strong>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                                            <span>{priceDetails.bwSheets} sheet(s) × ₹{(selectedShop?.pricing?.bwPerPage || 1.50).toFixed(2)}</span>
+                                        </div>
                                     </div>
                                 )}
-                                <div className="review-cost-row total">
-                                    <span>Estimated Total</span>
-                                    <span>₹{estimatedCost || 0}</span>
+
+                                {priceDetails.colorSheets > 0 && (
+                                    <div className="review-cost-row" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                            <span style={{ color: 'var(--text-secondary)' }}>Color Printing</span>
+                                            <strong style={{ color: 'var(--text-primary)' }}>₹{priceDetails.colorCost.toFixed(2)}</strong>
+                                        </div>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                                            <span>{priceDetails.colorSheets} sheet(s) × ₹{(selectedShop?.pricing?.colorPerPage || 5.00).toFixed(2)}</span>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="review-cost-row" style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>
+                                    <span style={{ color: 'var(--text-secondary)' }}>Binding</span>
+                                    <strong style={{ color: 'var(--text-primary)' }}>₹{priceDetails.bindingCost.toFixed(2)}</strong>
+                                </div>
+
+                                {((fulfillmentMethod === 'HOME_DELIVERY') || (fulfillmentMethod === 'RECORD_PICKUP' && recordDeliveryOption === 'DELIVERY')) && (
+                                    <div className="review-cost-row" style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>
+                                        <span style={{ color: 'var(--text-secondary)' }}>Delivery Charge ({deliveryType} Delivery)</span>
+                                        <strong style={{ color: 'var(--text-primary)' }}>₹{priceDetails.deliveryCharge.toFixed(2)}</strong>
+                                    </div>
+                                )}
+
+                                <div className="review-cost-row total" style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '0.5rem', fontSize: '1.2rem' }}>
+                                    <span style={{ fontWeight: 'bold' }}>Estimated Total</span>
+                                    <strong style={{ color: 'var(--accent-color)', fontWeight: 'bold' }}>₹{priceDetails.total.toFixed(2)}</strong>
                                 </div>
                             </div>
                         </div>

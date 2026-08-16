@@ -30,8 +30,20 @@ export const createOrderValidator = [
                 if (typeof doc.size !== 'number' || doc.size <= 0) {
                     throw new Error(`Document at index ${i} must have a valid numeric size`);
                 }
+                if (doc.size > 10 * 1024 * 1024) {
+                    throw new Error(`Document at index ${i} exceeds the maximum file size limit of 10 MB`);
+                }
                 if (!doc.mimeType || typeof doc.mimeType !== 'string' || doc.mimeType.trim() === '') {
                     throw new Error(`Document at index ${i} must have a valid mimeType`);
+                }
+                const allowedExtensions = ['.pdf', '.jpg', '.jpeg', '.png', '.webp'];
+                const allowedMimes = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
+                const ext = doc.originalName ? doc.originalName.substring(doc.originalName.lastIndexOf('.')).toLowerCase() : '';
+                if (!allowedExtensions.includes(ext) || !allowedMimes.includes(doc.mimeType)) {
+                    throw new Error(`Document at index ${i} has an unsupported file format. Please upload a PDF or image file (JPG, PNG, or WEBP).`);
+                }
+                if (doc.printSide === 'DOUBLE_SIDE' && (doc.colorPages || 0) > 0) {
+                    throw new Error(`Document at index ${i}: Color printing is only available for single-sided printing.`);
                 }
                 try {
                     new URL(doc.url);
@@ -71,7 +83,14 @@ export const createOrderValidator = [
     body('printSide')
         .trim()
         .notEmpty().withMessage('Print side is required')
-        .isIn(VALID_PRINT_SIDES).withMessage(`Print side must be one of: ${VALID_PRINT_SIDES.join(', ')}`),
+        .isIn(VALID_PRINT_SIDES).withMessage(`Print side must be one of: ${VALID_PRINT_SIDES.join(', ')}`)
+        .custom((printSide, { req }) => {
+            const colorPages = req.body.colorPages !== undefined ? Number(req.body.colorPages) : 0;
+            if (printSide === 'DOUBLE_SIDE' && colorPages > 0) {
+                throw new Error('Color printing is only available for single-sided printing.');
+            }
+            return true;
+        }),
 
     body('binding')
         .trim()
