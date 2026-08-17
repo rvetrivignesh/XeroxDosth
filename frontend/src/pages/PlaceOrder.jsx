@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import API from '../services/api';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
+import PageDetailsSummary from '../components/PageDetailsSummary';
 import './Order.css';
 
 // Enhanced fallback PDF Page count detector using lightweight binary/text regex search
@@ -1370,9 +1371,7 @@ export const PlaceOrder = () => {
                                                             )}
                                                             <div className="file-card-summary-sec">
                                                                 {fileObj.status === 'success' ? (
-                                                                    <span>
-                                                                        {fileObj.pageCount} pg(s) • Pages {fileObj.startPage}-{fileObj.lastPage} • {fileObj.bwPages} B&W / {fileObj.colorPages} Color • {fileObj.copies} copy(ies) • {fileObj.printSide === 'SINGLE_SIDE' ? 'Single' : 'Double'} • Binding: {fileObj.binding}
-                                                                    </span>
+                                                                    <PageDetailsSummary doc={fileObj} />
                                                                 ) : (
                                                                     <span style={{ textTransform: 'uppercase', fontWeight: 600, color: fileObj.status === 'failed' ? '#ef4444' : 'var(--text-muted)' }}>
                                                                         {fileObj.status} {fileObj.progress > 0 && fileObj.status === 'uploading' ? `(${fileObj.progress}%)` : ''}
@@ -2286,10 +2285,9 @@ export const PlaceOrder = () => {
                                                         fileObj.file.name
                                                     )}
                                                 </strong>
-                                                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-                                                    Pages: {fileObj.startPage}–{fileObj.lastPage} ({fileObj.pageCount} total) • B&W: {fileObj.bwPages} • Color: {fileObj.colorPages} 
-                                                    {fileObj.colorPageNumbersText ? ` [Pages: ${fileObj.colorPageNumbersText}]` : ''} • Copies: {fileObj.copies} • Print Side: {fileObj.printSide === 'SINGLE_SIDE' ? 'Single-Sided' : 'Double-Sided'} • Binding: {fileObj.binding}
-                                                </span>
+                                                <div style={{ marginTop: '0.25rem' }}>
+                                                    <PageDetailsSummary doc={fileObj} />
+                                                </div>
                                             </div>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                                                 <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
