@@ -248,7 +248,7 @@ export const UpdateShop = () => {
 
                 <form onSubmit={handleSubmit} className="shop-form">
                     <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '1.5rem', backgroundColor: 'var(--bg-input)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', flexWrap: 'wrap' }}>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: 600, flex: '1 1 auto', minWidth: '200px' }}>
+                        {/* <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: 600, flex: '1 1 auto', minWidth: '200px' }}>
                             <input
                                 type="checkbox"
                                 checked={isShopPickupAvailable}
@@ -256,7 +256,7 @@ export const UpdateShop = () => {
                                 style={{ width: 'auto', margin: 0 }}
                             />
                             <span>Enable Shop Pickup</span>
-                        </label>
+                        </label> */}
                         <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontWeight: 600, flex: '1 1 auto', minWidth: '200px' }}>
                             <input
                                 type="checkbox"

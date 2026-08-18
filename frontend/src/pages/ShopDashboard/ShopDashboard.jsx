@@ -7,7 +7,7 @@ import RevenueByService from './RevenueByService';
 import './ShopDashboard.css';
 
 export const ShopDashboard = () => {
-    const [range, setRange] = useState('30d');
+    const [range, setRange] = useState('7d');
     const [customStartDate, setCustomStartDate] = useState('');
     const [customEndDate, setCustomEndDate] = useState('');
     const [loading, setLoading] = useState(true);
@@ -88,8 +88,6 @@ export const ShopDashboard = () => {
                         <option value="today">Today</option>
                         <option value="7d">Last 7 Days</option>
                         <option value="30d">Last 30 Days</option>
-                        <option value="this_month">This Month</option>
-                        <option value="3m">Last 3 Months</option>
                         <option value="this_year">This Year</option>
                         <option value="all">All Time</option>
                         <option value="custom">Custom Range</option>

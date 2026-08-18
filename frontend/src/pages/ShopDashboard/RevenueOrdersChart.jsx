@@ -81,7 +81,7 @@ export const RevenueOrdersChart = ({ data = [] }) => {
                             />
                             {showOrders && (
                                 <YAxis
-                                    yAxisId="left"
+                                    yAxisId="ordersAxis"
                                     orientation="left"
                                     stroke="#6366f1"
                                     fontSize={12}
@@ -91,7 +91,7 @@ export const RevenueOrdersChart = ({ data = [] }) => {
                             )}
                             {showRevenue && (
                                 <YAxis
-                                    yAxisId="right"
+                                    yAxisId="revenueAxis"
                                     orientation={showOrders ? 'right' : 'left'}
                                     stroke="#10b981"
                                     fontSize={12}
@@ -104,7 +104,7 @@ export const RevenueOrdersChart = ({ data = [] }) => {
 
                             {showOrders && (
                                 <Line
-                                    yAxisId="left"
+                                    yAxisId="ordersAxis"
                                     type="monotone"
                                     dataKey="orders"
                                     name="Orders"
@@ -117,7 +117,7 @@ export const RevenueOrdersChart = ({ data = [] }) => {
 
                             {showRevenue && (
                                 <Line
-                                    yAxisId={showOrders ? 'right' : 'left'}
+                                    yAxisId="revenueAxis"
                                     type="monotone"
                                     dataKey="revenue"
                                     name="Revenue"
