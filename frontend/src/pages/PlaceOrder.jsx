@@ -598,14 +598,17 @@ export const PlaceOrder = () => {
     // Verify all uploaded files configurations are valid
     const isAllFilesValid = useMemo(() => {
         const uploaded = files.filter(f => f.status === 'success');
-        if (uploaded.length === 0) return false;
+        if (serviceType !== 'RECORD') {
+            if (files.length === 0 || uploaded.length === 0) return false;
+        } else {
+            if (files.length === 0) return true;
+        }
         
         return files.every(f => {
-            if (f.status === 'failed') return false;
-            if (f.status === 'pending' || f.status === 'uploading') return false;
+            if (f.status === 'failed' || f.status === 'pending' || f.status === 'uploading') return false;
             return getFileValidationError(f) === null;
         });
-    }, [files]);
+    }, [files, serviceType]);
 
     // Calculate dynamic delivery charge
     const calculatedDeliveryCharge = useMemo(() => {
@@ -814,14 +817,26 @@ export const PlaceOrder = () => {
 
     // Handle Order Submission
     const handlePlaceOrderSubmit = async () => {
+        // Anti-spam Cooldown Check (2 minutes)
+        const lastOrderTime = localStorage.getItem('last_order_timestamp');
+        if (lastOrderTime) {
+            const elapsedMs = Date.now() - Number(lastOrderTime);
+            const cooldownMs = 2 * 60 * 1000;
+            if (elapsedMs < cooldownMs) {
+                const secondsLeft = Math.ceil((cooldownMs - elapsedMs) / 1000);
+                showToast(`Anti-spam active: Please wait ${secondsLeft}s before placing another order.`, 'error');
+                return;
+            }
+        }
+
         if (!shopId.trim()) {
             showToast('Please select a target shop', 'error');
             return;
         }
 
         const uploadedDocs = files.filter(f => f.status === 'success');
-        if (uploadedDocs.length === 0) {
-            showToast('Please upload at least 1 valid document', 'error');
+        if (serviceType !== 'RECORD' && uploadedDocs.length === 0) {
+            showToast('Please upload at least 1 valid document for Home Delivery', 'error');
             return;
         }
 
@@ -879,7 +894,9 @@ export const PlaceOrder = () => {
 
         setLoading(true);
         try {
-            const documentsPayload = uploadedDocs.map(f => {
+            let documentsPayload = [];
+            if (uploadedDocs.length > 0) {
+                documentsPayload = uploadedDocs.map(f => {
                 let resolvedBwSingle = [];
                 let resolvedBwDouble = [];
                 let resolvedColSingle = [];
@@ -941,6 +958,21 @@ export const PlaceOrder = () => {
                     colorDoublePages: resolvedColDouble
                 };
             });
+            } else {
+                documentsPayload = [{
+                    publicId: `PHYSICAL_DOC_${Date.now()}`,
+                    url: 'https://xeroxdosth.local/documents/physical-doc.pdf',
+                    originalName: 'Physical Record Document Sheets.pdf',
+                    size: 1024,
+                    mimeType: 'application/pdf',
+                    pageCount: 0,
+                    bwPages: 0,
+                    colorPages: 0,
+                    copies: 1,
+                    printSide: 'SINGLE_SIDE',
+                    binding: recordBindingType
+                }];
+            }
 
             let finalInstructions = instructions;
             let finalAddress = '';
@@ -971,8 +1003,8 @@ export const PlaceOrder = () => {
                 else if (hasBook) finalBinding = 'BOOK';
             }
 
-            const rootBw = documentsPayload.reduce((sum, d) => sum + d.bwPages * d.copies, 0);
-            const rootColor = documentsPayload.reduce((sum, d) => sum + d.colorPages * d.copies, 0);
+            const rootBw = documentsPayload.reduce((sum, d) => sum + (d.bwPages || 0) * (d.copies || 1), 0);
+            const rootColor = documentsPayload.reduce((sum, d) => sum + (d.colorPages || 0) * (d.copies || 1), 0);
             const rootCopies = 1;
             const rootPrintSide = documentsPayload[0]?.printSide || 'SINGLE_SIDE';
 
@@ -1001,6 +1033,7 @@ export const PlaceOrder = () => {
             };
 
             await API.post('/orders', payload);
+            localStorage.setItem('last_order_timestamp', Date.now().toString());
             showToast('Order placed successfully!', 'success');
             navigate('/my-orders');
         } catch (err) {
@@ -1180,7 +1213,7 @@ export const PlaceOrder = () => {
                     </div>
 
                     <div className="service-cards-grid">
-                        <div 
+                        {/* <div 
                             className="service-card"
                             onClick={() => {
                                 setServiceType('PRINT');
@@ -1191,7 +1224,7 @@ export const PlaceOrder = () => {
                             <h3>Shop Pickup</h3>
                             <p>Upload files online, configure page properties, and collect printed sheets directly from the shop.</p>
                             <button type="button" className="btn btn-secondary btn-sm">Select Service</button>
-                        </div>
+                        </div> */}
 
                         <div 
                             className="service-card"
@@ -1304,7 +1337,7 @@ export const PlaceOrder = () => {
                         <div className="specs-form-container card" style={{ padding: '1.5rem' }}>
                             {/* File Upload zone */}
                             <div className="form-group">
-                                <label>Upload Files ({files.length}/10) *</label>
+                                <label>Upload Files ({files.length}/10) {serviceType === 'RECORD' ? '(Optional)' : '*'}</label>
                                 <div
                                     className={`upload-dropzone ${dragActive ? 'dragover' : ''}`}
                                     onDragEnter={handleDrag}
@@ -1864,7 +1897,6 @@ export const PlaceOrder = () => {
                                     className="btn btn-primary"
                                     onClick={() => setStep(4)}
                                     disabled={
-                                        files.length === 0 || 
                                         !isAllFilesValid || 
                                         (serviceType === 'RECORD' && !recordPickupLocation.trim())
                                     }
@@ -2396,7 +2428,7 @@ export const PlaceOrder = () => {
                                 className="btn btn-primary" 
                                 style={{ padding: '0.85rem 2rem', fontWeight: 600 }}
                                 onClick={handlePlaceOrderSubmit}
-                                disabled={loading || files.length === 0 || !isAllFilesValid}
+                                disabled={loading || !isAllFilesValid}
                             >
                                 {loading ? <div className="spinner"></div> : 'Place Order →'}
                             </button>

@@ -4,7 +4,15 @@ import User from '../models/users/user.model.js';
 import ApiError from '../utils/ApiError.js';
 import { sendEmail } from './mail.service.js';
 import { createNotification } from './notification.service.js';
-import { getPageDetails } from '../utils/pageFormatter.js';
+const buildFrontendUrl = (subPath) => {
+    const raw = process.env.FRONTEND_URL || 'https://rvetrivignesh.github.io/XeroxDosth/#';
+    let base = raw.replace(/\/+$/, '');
+    if (!base.includes('#')) {
+        base = `${base}/#`;
+    }
+    const cleanSub = subPath.replace(/^\/+/, '');
+    return `${base}/${cleanSub}`;
+};
 
 const groupConsecutivePages = (text) => {
     if (!text || !text.trim()) return { doubleSheets: 0, singlePages: 0 };
@@ -72,6 +80,18 @@ const buildOrderPrintingRequirementsHtml = (order) => {
 };
 
 export const createOrder = async (userId, orderData, io) => {
+    // 2-Minute Anti-spam Cooldown Check
+    const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
+    const recentOrder = await Order.findOne({
+        customer: userId,
+        createdAt: { $gte: twoMinutesAgo }
+    }).sort({ createdAt: -1 });
+
+    if (recentOrder) {
+        const secondsLeft = Math.ceil((recentOrder.createdAt.getTime() + 2 * 60 * 1000 - Date.now()) / 1000);
+        throw new ApiError(429, `Anti-spam active: Please wait ${secondsLeft > 0 ? secondsLeft : 0}s before placing another order.`);
+    }
+
     // Verify that target shop exists
     const shop = await Shop.findById(orderData.shop).populate('owner');
     if (!shop) {
@@ -196,8 +216,10 @@ export const createOrder = async (userId, orderData, io) => {
     }
 
     const totalPages = totalBwPages + totalColorPages;
+    const isRecordOrPickup = orderData.fulfillmentMethod === 'RECORD_PICKUP' || 
+                             orderData.documents?.some(d => d.publicId?.startsWith('PHYSICAL_DOC_') || d.url === 'N/A' || d.url?.includes('physical-doc.pdf'));
 
-    if (totalPages < 1) {
+    if (totalPages < 1 && !isRecordOrPickup) {
         throw new ApiError(400, 'Order must contain at least 1 page');
     }
 
@@ -285,7 +307,7 @@ export const createOrder = async (userId, orderData, io) => {
     // Notify Shop Owner
     if (shop.owner) {
         const orderIdStr = order._id.toString();
-        const orderUrl = `${process.env.FRONTEND_URL || 'https://rvetrivignesh.github.io/XeroxDosth/#'}/shop-orders?orderId=${orderIdStr}`;
+        const orderUrl = buildFrontendUrl(`order/${orderIdStr}`);
         
         await createNotification(io, {
             recipient: shop.owner._id,
@@ -404,7 +426,7 @@ export const updateOrderStatus = async (userId, orderId, status, paymentStatus, 
                 `
             });
         } else if (status === 'OUT_FOR_DELIVERY') {
-            const orderConfirmationUrl = `${process.env.FRONTEND_URL || 'https://rvetrivignesh.github.io/XeroxDosth/#'}/my-orders?orderId=${orderIdStr}`;
+            const orderConfirmationUrl = buildFrontendUrl(`order/${orderIdStr}`);
             sendEmail({
                 to: order.customerEmail || order.customer.email,
                 subject: `[XeroxDosth] ${title}`,
@@ -434,7 +456,7 @@ export const updateOrderStatus = async (userId, orderId, status, paymentStatus, 
             message: msg
         });
 
-        const orderConfirmationUrl = `${process.env.FRONTEND_URL || 'https://rvetrivignesh.github.io/XeroxDosth/#'}/my-orders?orderId=${orderIdStr}`;
+        const orderConfirmationUrl = buildFrontendUrl(`order/${orderIdStr}`);
         sendEmail({
             to: order.customerEmail || order.customer.email,
             subject: `[XeroxDosth] ${title} for Order #${orderIdStr.slice(-6).toUpperCase()}`,
@@ -501,8 +523,8 @@ export const acceptOrder = async (userId, orderId, { finalPrice, estimatedDelive
     await order.save();
 
     const orderIdStr = order._id.toString();
-    const paymentRequestUrl = `${process.env.FRONTEND_URL || 'https://rvetrivignesh.github.io/XeroxDosth/#'}/payment-request/${order._id}`;
-    const orderConfirmationUrl = `${process.env.FRONTEND_URL || 'https://rvetrivignesh.github.io/XeroxDosth/#'}/my-orders?orderId=${orderIdStr}`;
+    const paymentRequestUrl = buildFrontendUrl(`payment-request/${order._id}`);
+    const orderConfirmationUrl = buildFrontendUrl(`order/${orderIdStr}`);
 
     // Only send notification/email if transitioning from PENDING_SHOP_ACCEPTANCE
     // This avoids duplicate notifications/emails if the order details are resubmitted.
@@ -662,7 +684,7 @@ export const requestCancellation = async (userId, orderId, { cancellationReason 
             message: `User requested cancellation for #${orderIdStr.slice(-6).toUpperCase()}. Reason: ${order.cancellationReason}`
         });
 
-        const orderUrl = `${process.env.FRONTEND_URL || 'https://rvetrivignesh.github.io/XeroxDosth/#'}/shop-orders?orderId=${orderIdStr}`;
+        const orderUrl = buildFrontendUrl(`order/${orderIdStr}`);
         sendEmail({
             to: shop.email || shop.owner.email,
             subject: `[XeroxDosth] Cancellation Request for Order #${orderIdStr.slice(-6).toUpperCase()}`,
@@ -803,8 +825,8 @@ export const payOrder = async (userId, orderId, { paymentMethod, transactionId, 
                 : `Payment reference submitted for order #${orderIdStr.slice(-6).toUpperCase()}.`
         });
 
-        const orderUrl = `${process.env.FRONTEND_URL || 'https://rvetrivignesh.github.io/XeroxDosth/#'}/shop-orders?orderId=${orderIdStr}`;
-        const orderConfirmationUrl = `${process.env.FRONTEND_URL || 'https://rvetrivignesh.github.io/XeroxDosth/#'}/my-orders?orderId=${orderIdStr}`;
+        const orderUrl = buildFrontendUrl(`order/${orderIdStr}`);
+        const orderConfirmationUrl = buildFrontendUrl(`order/${orderIdStr}`);
 
         sendEmail({
             to: shop.email || shop.owner.email,

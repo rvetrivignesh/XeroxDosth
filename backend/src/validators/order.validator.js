@@ -36,11 +36,14 @@ export const createOrderValidator = [
                 if (!doc.mimeType || typeof doc.mimeType !== 'string' || doc.mimeType.trim() === '') {
                     throw new Error(`Document at index ${i} must have a valid mimeType`);
                 }
-                const allowedExtensions = ['.pdf', '.jpg', '.jpeg', '.png', '.webp'];
-                const allowedMimes = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
-                const ext = doc.originalName ? doc.originalName.substring(doc.originalName.lastIndexOf('.')).toLowerCase() : '';
-                if (!allowedExtensions.includes(ext) || !allowedMimes.includes(doc.mimeType)) {
-                    throw new Error(`Document at index ${i} has an unsupported file format. Please upload a PDF or image file (JPG, PNG, or WEBP).`);
+                const isPhysicalDoc = doc.publicId?.startsWith('PHYSICAL_DOC_') || doc.url === 'N/A';
+                if (!isPhysicalDoc) {
+                    const allowedExtensions = ['.pdf', '.jpg', '.jpeg', '.png', '.webp'];
+                    const allowedMimes = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
+                    const ext = doc.originalName && doc.originalName.includes('.') ? doc.originalName.substring(doc.originalName.lastIndexOf('.')).toLowerCase() : '';
+                    if (!allowedExtensions.includes(ext) || !allowedMimes.includes(doc.mimeType)) {
+                        throw new Error(`Document at index ${i} has an unsupported file format. Please upload a PDF or image file (JPG, PNG, or WEBP).`);
+                    }
                 }
                 if (doc.printingMode === 'advanced') {
                     const bwSingle = Array.isArray(doc.bwSinglePages) ? doc.bwSinglePages : [];
@@ -102,10 +105,13 @@ export const createOrderValidator = [
                         throw new Error(`Document at index ${i}: Color printing is only available for single-sided printing.`);
                     }
                 }
-                try {
-                    new URL(doc.url);
-                } catch {
-                    throw new Error(`Document at index ${i} has an invalid URL format in url`);
+                const isPhysical = doc.publicId?.startsWith('PHYSICAL_DOC_') || doc.url === 'N/A' || doc.url?.includes('physical-doc.pdf');
+                if (!isPhysical) {
+                    try {
+                        new URL(doc.url);
+                    } catch {
+                        throw new Error(`Document at index ${i} has an invalid URL format in url`);
+                    }
                 }
             }
             return true;
@@ -121,13 +127,15 @@ export const createOrderValidator = [
 
     body('totalPages')
         .custom((val, { req }) => {
+            const isRecordOrPickup = req.body.fulfillmentMethod === 'RECORD_PICKUP' || 
+                                     req.body.documents?.some(d => d.publicId?.startsWith('PHYSICAL_DOC_') || d.url === 'N/A' || d.url?.includes('physical-doc.pdf'));
             const bw = req.body.bwPages !== undefined ? Number(req.body.bwPages) : 0;
             const color = req.body.colorPages !== undefined ? Number(req.body.colorPages) : 0;
             const total = bw + color;
-            if (total < 1) {
+            if (total < 1 && !isRecordOrPickup) {
                 throw new Error('Order must contain at least 1 page (sum of black & white and color pages must be > 0)');
             }
-            if (val !== undefined && Number(val) !== total) {
+            if (val !== undefined && Number(val) !== total && !isRecordOrPickup) {
                 throw new Error(`totalPages (${val}) does not match the sum of bwPages (${bw}) and colorPages (${color})`);
             }
             return true;

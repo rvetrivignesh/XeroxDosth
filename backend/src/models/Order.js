@@ -132,7 +132,7 @@ const orderSchema = new mongoose.Schema(
         totalPages: {
             type: Number,
             required: [true, 'Total pages is required'],
-            min: [1, 'Total pages must be at least 1']
+            min: [0, 'Total pages cannot be negative']
         },
         copies: {
             type: Number,
