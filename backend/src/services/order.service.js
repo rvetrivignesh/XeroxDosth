@@ -949,6 +949,8 @@ export const requestPaymentAgain = async (userId, orderId, { reason }, io) => {
         message: customerMsg
     });
 
+    const resendPaymentUrl = buildFrontendUrl(`payment-request/${order._id}`);
+
     sendEmail({
         to: order.customerEmail || order.customer.email,
         subject: `[XeroxDosth] Action Required: Payment Requested Again for Order #${orderIdStr.slice(-6).toUpperCase()}`,
@@ -958,7 +960,7 @@ export const requestPaymentAgain = async (userId, orderId, { reason }, io) => {
             <p>The shop owner for your order #${orderIdStr.slice(-6).toUpperCase()} has requested payment again.</p>
             ${reason ? `<p><strong>Reason:</strong> ${reason}</p>` : ''}
             <p>Please visit the payment request page to submit your payment details (transaction ID and screenshot):</p>
-            <p><a href="${process.env.FRONTEND_URL || 'https://rvetrivignesh.github.io/XeroxDosth/#'}/payment-request/${order._id}" style="padding: 10px 15px; background-color: #10b981; color: white; text-decoration: none; border-radius: 5px; display: inline-block;">Go to Payment Request</a></p>
+            <p><a href="${resendPaymentUrl}" style="padding: 10px 15px; background-color: #10b981; color: white; text-decoration: none; border-radius: 5px; display: inline-block;">Go to Payment Request</a></p>
             <p>Thank you,<br/>XeroxDosth Team</p>
         `
     });
