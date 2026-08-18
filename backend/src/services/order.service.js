@@ -4,6 +4,7 @@ import User from '../models/users/user.model.js';
 import ApiError from '../utils/ApiError.js';
 import { sendEmail } from './mail.service.js';
 import { createNotification } from './notification.service.js';
+import { getPageDetails } from '../utils/pageFormatter.js';
 
 const groupConsecutivePages = (text) => {
     if (!text || !text.trim()) return { doubleSheets: 0, singlePages: 0 };
@@ -31,14 +32,11 @@ const buildOrderPrintingRequirementsHtml = (order) => {
     if (!order.documents || order.documents.length === 0) {
         const categories = [];
         if (order.bwPages > 0) {
-            if (order.printSide === 'DOUBLE_SIDE') {
-                categories.push(`<strong>B/W Double:</strong> ${order.bwPages} page(s)`);
-            } else {
-                categories.push(`<strong>B/W Single:</strong> ${order.bwPages} page(s)`);
-            }
+            const side = order.printSide === 'DOUBLE_SIDE' ? 'Double-sided' : 'Single-sided';
+            categories.push(`<strong>B&W ${side}:</strong> ${order.bwPages} page(s)`);
         }
         if (order.colorPages > 0) {
-            categories.push(`<strong>Color Single:</strong> ${order.colorPages} page(s)`);
+            categories.push(`<strong>Color Single-sided:</strong> ${order.colorPages} page(s)`);
         }
         return categories.length > 0 ? `<h4>Printing Requirements</h4><div>${categories.join('<br/>')}</div>` : '';
     }
@@ -48,41 +46,23 @@ const buildOrderPrintingRequirementsHtml = (order) => {
     
     order.documents.forEach((doc, idx) => {
         const docName = doc.originalName || `Document ${idx + 1}`;
+        const details = getPageDetails(doc);
         const categories = [];
         
-        if (doc.printingMode === 'advanced') {
-            if (doc.bwSinglePages && doc.bwSinglePages.length > 0) {
-                categories.push(`<strong>B/W Single:</strong> Pages ${doc.bwSinglePages.join(', ')}`);
+        details.categories.forEach(cat => {
+            let pageDesc = '';
+            if (cat.isAllPages) {
+                pageDesc = `All pages · 1–${details.pageCount}`;
+            } else {
+                pageDesc = `${cat.count} page(s) · ${cat.rangeText}`;
             }
-            if (doc.bwDoublePages && doc.bwDoublePages.length > 0) {
-                categories.push(`<strong>B/W Double:</strong> Pages ${doc.bwDoublePages.join(', ')}`);
-            }
-            if (doc.colorSinglePages && doc.colorSinglePages.length > 0) {
-                categories.push(`<strong>Color Single:</strong> Pages ${doc.colorSinglePages.join(', ')}`);
-            }
-            if (doc.colorDoublePages && doc.colorDoublePages.length > 0) {
-                categories.push(`<strong>Color Double:</strong> Pages ${doc.colorDoublePages.join(', ')}`);
-            }
-        } else {
-            const bw = doc.bwPages || 0;
-            const color = doc.colorPages || 0;
-            const printSide = doc.printSide || 'SINGLE_SIDE';
-            
-            if (bw > 0) {
-                if (printSide === 'DOUBLE_SIDE') {
-                    categories.push(`<strong>B/W Double:</strong> Pages 1–${bw}`);
-                } else {
-                    categories.push(`<strong>B/W Single:</strong> Pages 1–${bw}`);
-                }
-            }
-            if (color > 0) {
-                categories.push(`<strong>Color Single:</strong> Pages ${doc.colorPageNumbersText || `1–${color}`}`);
-            }
-        }
+            categories.push(`<strong>${cat.colorMode} ${cat.printSide}:</strong> ${pageDesc}`);
+        });
 
         if (categories.length > 0) {
             totalDocsCount++;
-            html += `<p style="margin-bottom: 5px; font-weight: bold;">📄 ${docName} (Copies: ${doc.copies || 1}):</p>`;
+            const bindingInfo = doc.binding && doc.binding !== 'NONE' ? `, Binding: ${doc.binding}` : '';
+            html += `<p style="margin-bottom: 5px; font-weight: bold;">📄 ${docName} (Copies: ${doc.copies || 1}${bindingInfo}):</p>`;
             html += `<div style="padding-left: 15px; margin-bottom: 10px; color: #4b5563;">${categories.join('<br/>')}</div>`;
         }
     });
