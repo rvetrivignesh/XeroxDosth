@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import API from '../services/api';
 import Modal from '../components/Modal';
+import ShopDashboard from './ShopDashboard/ShopDashboard';
 import './Dashboard.css';
 
 export const Dashboard = () => {
@@ -71,6 +72,13 @@ export const Dashboard = () => {
                     )}
                 </div>
             </div>
+
+            {/* SHOP OWNER ANALYTICS DASHBOARD */}
+            {user?.role === 'SHOP' && (
+                <div style={{ marginBottom: '2rem' }}>
+                    <ShopDashboard />
+                </div>
+            )}
 
             {/* Quick Action Cards Grid - Personalized per Role */}
             <div className="actions-grid">
