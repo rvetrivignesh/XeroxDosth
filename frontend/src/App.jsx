@@ -25,6 +25,7 @@ import ManageAdmins from './pages/ManageAdmins';
 import Shops from './pages/Shops';
 import PaymentRequest from './pages/PaymentRequest';
 import Notifications from './pages/Notifications';
+import OrderDetail from './pages/OrderDetail';
 
 export function App() {
     return (
@@ -46,6 +47,7 @@ export function App() {
                                     <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
                                     <Route path="/place-order" element={<ProtectedRoute><PlaceOrder /></ProtectedRoute>} />
                                     <Route path="/my-orders" element={<ProtectedRoute><MyOrders /></ProtectedRoute>} />
+                                    <Route path="/order/:orderId" element={<ProtectedRoute><OrderDetail /></ProtectedRoute>} />
                                     <Route path="/shops" element={<ProtectedRoute><Shops /></ProtectedRoute>} />
                                     <Route path="/payment-request/:orderId" element={<ProtectedRoute><PaymentRequest /></ProtectedRoute>} />
                                     <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />

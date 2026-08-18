@@ -162,7 +162,12 @@ export const MyOrders = () => {
                     const canRequestCancellation = !isCancelled && !['CANCELLED', 'CANCELLED_BY_USER', 'CANCELLATION_APPROVED', 'COMPLETED', 'READY_FOR_PICKUP', 'OUT_FOR_DELIVERY', 'CANCELLATION_REQUESTED', 'PENDING_SHOP_ACCEPTANCE', 'REJECTED_BY_SHOP'].includes(order.status);
 
                     return (
-                        <div key={order._id} className="card card-hover" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '1.25rem' }}>
+                        <div 
+                            key={order._id} 
+                            className="card card-hover" 
+                            style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '1.25rem', cursor: 'pointer' }}
+                            onClick={() => navigate(`/order/${order._id}`)}
+                        >
                             <div>
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
                                     <span className={`badge`} style={{
@@ -204,7 +209,12 @@ export const MyOrders = () => {
 
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                                 {isAwaitingPayment && (
-                                    <Link to={`/payment-request/${order._id}`} className="btn btn-primary btn-sm text-center" style={{ display: 'block', textDecoration: 'none' }}>
+                                    <Link 
+                                        to={`/payment-request/${order._id}`} 
+                                        className="btn btn-primary btn-sm text-center" 
+                                        style={{ display: 'block', textDecoration: 'none' }}
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
                                         💳 Confirm Payment / COD
                                     </Link>
                                 )}
@@ -216,17 +226,17 @@ export const MyOrders = () => {
                                     
                                     <div style={{ display: 'flex', gap: '0.4rem' }}>
                                         {canCancelImmediately && (
-                                            <button className="btn btn-danger btn-sm" onClick={() => handleCancelImmediately(order._id)}>
+                                            <button className="btn btn-danger btn-sm" onClick={(e) => { e.stopPropagation(); handleCancelImmediately(order._id); }}>
                                                 Cancel Order
                                             </button>
                                         )}
                                         {canRequestCancellation && (
-                                            <button className="btn btn-danger btn-sm" onClick={() => triggerCancellationModal(order._id)}>
+                                            <button className="btn btn-danger btn-sm" onClick={(e) => { e.stopPropagation(); triggerCancellationModal(order._id); }}>
                                                 Request Cancel
                                             </button>
                                         )}
-                                        <button className="btn btn-secondary btn-sm" onClick={() => setSelectedOrder(order)}>
-                                            View
+                                        <button className="btn btn-secondary btn-sm" onClick={(e) => { e.stopPropagation(); navigate(`/order/${order._id}`); }}>
+                                            View Details →
                                         </button>
                                     </div>
                                 </div>

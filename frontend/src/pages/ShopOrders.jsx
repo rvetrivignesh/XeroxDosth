@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import API from '../services/api';
 import { useToast } from '../context/ToastContext';
 import Modal from '../components/Modal';
@@ -6,11 +7,12 @@ import PageDetailsSummary from '../components/PageDetailsSummary';
 import './Order.css';
 
 export const ShopOrders = () => {
+    const navigate = useNavigate();
     const { showToast } = useToast();
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [updatingId, setUpdatingId] = useState(null);
-    const [activeTab, setActiveTab] = useState('ALL');
+    const [activeTab, setActiveTab] = useState('PENDING');
 
     // Modals state
     const [acceptModalOpen, setAcceptModalOpen] = useState(false);
@@ -292,7 +294,6 @@ export const ShopOrders = () => {
             {/* Filter Tabs */}
             <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', marginBottom: '1.5rem', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
                 {[
-                    { id: 'ALL', label: 'All Orders' },
                     { id: 'PENDING', label: 'Approvals' },
                     { id: 'PAYMENT', label: 'Awaiting Payment' },
                     { id: 'PRINTING', label: 'Printing' },
@@ -335,7 +336,13 @@ export const ShopOrders = () => {
                         const isCancelled = ['CANCELLED', 'CANCELLED_BY_USER', 'CANCELLATION_APPROVED'].includes(order.status);
 
                         return (
-                            <div key={order._id} id={`order-${order._id}`} className="card" style={{ padding: '1.5rem' }}>
+                            <div 
+                                key={order._id} 
+                                id={`order-${order._id}`} 
+                                className="card card-hover" 
+                                style={{ padding: '1.5rem', cursor: 'pointer' }}
+                                onClick={() => navigate(`/order/${order._id}`)}
+                            >
                                 <div style={{
                                     display: 'flex',
                                     justifyContent: 'space-between',
@@ -347,10 +354,19 @@ export const ShopOrders = () => {
                                     gap: '0.75rem'
                                 }}>
                                     <div>
-                                        <h3 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text-primary)' }}>
-                                            Order #{order._id.slice(-6).toUpperCase()}
-                                        </h3>
-                                        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                            <h3 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text-primary)' }}>
+                                                Order #{order._id.slice(-6).toUpperCase()}
+                                            </h3>
+                                            <button 
+                                                className="btn btn-secondary btn-sm" 
+                                                onClick={(e) => { e.stopPropagation(); navigate(`/order/${order._id}`); }}
+                                                style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}
+                                            >
+                                                View Page ↗
+                                            </button>
+                                        </div>
+                                        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'block', marginTop: '0.2rem' }}>
                                             Customer: {order.customer?.name || 'User'} ({order.customer?.email || 'N/A'})
                                         </span>
                                         {order.customerContact && (
@@ -366,7 +382,7 @@ export const ShopOrders = () => {
                                     </div>
 
                                     {/* Action Workflow Controls */}
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }} onClick={(e) => e.stopPropagation()}>
                                         {isPending && (
                                             <>
                                                 <button className="btn btn-primary btn-sm" onClick={() => handleAcceptClick(order)} disabled={updatingId === order._id}>
@@ -482,12 +498,13 @@ export const ShopOrders = () => {
                                     </small>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                                         {order.documents?.map((doc, idx) => {
-                                            const name = doc.originalName || doc.fileName;
+                                            const isPhysicalDoc = doc.publicId?.startsWith('PHYSICAL_DOC_') || doc.url === 'N/A' || doc.url?.includes('physical-doc.pdf');
+                                            const name = isPhysicalDoc ? 'Physical Hardcopy / Record Sheets' : (doc.originalName || doc.fileName);
                                             const url = doc.url || doc.fileUrl;
-                                            const downloadUrl = url.includes('/upload/') ? url.replace('/upload/', '/upload/fl_attachment/') : url;
+                                            const downloadUrl = url && url.includes('/upload/') ? url.replace('/upload/', '/upload/fl_attachment/') : url;
                                             const isImg = doc.mimeType?.startsWith('image/');
                                             const isPdf = doc.mimeType === 'application/pdf';
-                                            const sizeStr = doc.size ? `(${(doc.size / (1024 * 1024)).toFixed(2)} MB)` : '';
+                                            const sizeStr = !isPhysicalDoc && doc.size ? `(${(doc.size / (1024 * 1024)).toFixed(2)} MB)` : '';
 
                                             return (
                                                 <div key={idx} style={{ 
@@ -500,24 +517,26 @@ export const ShopOrders = () => {
                                                     border: '1px solid var(--border-color)'
                                                 }}>
                                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-                                                        <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>
-                                                            📄 {name} <span style={{ fontWeight: 'normal', color: 'var(--text-muted)' }}>{sizeStr}</span>
+                                                        <span style={{ fontWeight: 600, fontSize: '0.85rem', color: isPhysicalDoc ? 'var(--text-muted)' : 'var(--text-primary)' }}>
+                                                            {isPhysicalDoc ? '📄 Physical Record / Hardcopy (No File Attached)' : `📄 ${name} ${sizeStr}`}
                                                         </span>
-                                                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                                            <a href={url} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm" style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}>
-                                                                {isPdf ? 'Open PDF ↗' : 'View ↗'}
-                                                            </a>
-                                                            <a href={downloadUrl} download={name} className="btn btn-primary btn-sm" style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}>
-                                                                Download 📥
-                                                            </a>
-                                                        </div>
+                                                        {!isPhysicalDoc && (
+                                                            <div style={{ display: 'flex', gap: '0.5rem' }} onClick={(e) => e.stopPropagation()}>
+                                                                <a href={url} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm" style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}>
+                                                                    {isPdf ? 'Open PDF ↗' : 'View ↗'}
+                                                                </a>
+                                                                <a href={downloadUrl} download={name} className="btn btn-primary btn-sm" style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}>
+                                                                    Download 📥
+                                                                </a>
+                                                            </div>
+                                                        )}
                                                     </div>
-                                                    {doc.pageCount !== undefined && (
+                                                    {!isPhysicalDoc && doc.pageCount !== undefined && (
                                                         <div style={{ padding: '0.4rem 0', borderTop: '1px dashed var(--border-color)', borderBottom: isImg ? '1px dashed var(--border-color)' : 'none' }}>
                                                             <PageDetailsSummary doc={doc} />
                                                         </div>
                                                     )}
-                                                    {isImg && (
+                                                    {!isPhysicalDoc && isImg && (
                                                         <div style={{ display: 'flex', marginTop: '0.25rem' }}>
                                                             <img src={url} alt={name} style={{ maxWidth: '120px', maxHeight: '120px', objectFit: 'cover', borderRadius: '4px', border: '1px solid var(--border-color)' }} />
                                                         </div>

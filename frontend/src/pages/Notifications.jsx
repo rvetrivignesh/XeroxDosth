@@ -66,15 +66,22 @@ export const Notifications = () => {
                 );
             }
 
-            // Redirect based on role and type
-            if (user.role === 'SHOP') {
+            let targetOrderId = null;
+            if (notif.order) {
+                if (typeof notif.order === 'object') {
+                    targetOrderId = notif.order._id ? notif.order._id.toString() : notif.order.toString();
+                } else if (typeof notif.order === 'string' && notif.order.trim() !== '') {
+                    targetOrderId = notif.order.trim();
+                }
+            }
+
+            // Redirect to single order details page if order ID is present
+            if (targetOrderId && targetOrderId !== '[object Object]') {
+                navigate(`/order/${targetOrderId}`);
+            } else if (user?.role === 'SHOP') {
                 navigate('/shop-orders');
             } else {
-                if (notif.type === 'PAYMENT_REQUESTED') {
-                    navigate(`/payment-request/${notif.order}`);
-                } else {
-                    navigate('/my-orders');
-                }
+                navigate('/my-orders');
             }
         } catch (err) {
             console.error(err);
