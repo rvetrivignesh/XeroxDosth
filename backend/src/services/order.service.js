@@ -4,6 +4,8 @@ import User from '../models/users/user.model.js';
 import ApiError from '../utils/ApiError.js';
 import { sendEmail } from './mail.service.js';
 import { createNotification } from './notification.service.js';
+import { getPageDetails } from '../utils/pageFormatter.js';
+
 const buildFrontendUrl = (subPath) => {
     const raw = process.env.FRONTEND_URL || 'https://rvetrivignesh.github.io/XeroxDosth/#';
     let base = raw.replace(/\/+$/, '');
@@ -53,6 +55,9 @@ const buildOrderPrintingRequirementsHtml = (order) => {
     let totalDocsCount = 0;
     
     order.documents.forEach((doc, idx) => {
+        const isPhysicalDoc = doc.publicId?.startsWith('PHYSICAL_DOC_') || doc.url === 'N/A' || doc.url?.includes('physical-doc.pdf');
+        if (isPhysicalDoc) return;
+
         const docName = doc.originalName || `Document ${idx + 1}`;
         const details = getPageDetails(doc);
         const categories = [];
