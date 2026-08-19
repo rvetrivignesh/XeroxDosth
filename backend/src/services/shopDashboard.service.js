@@ -430,7 +430,6 @@ export const getShopDashboardData = async (userId, query) => {
     const revenueByService = [
         { service: 'Printing', revenue: printing },
         { service: 'Binding', revenue: binding },
-        { service: 'Xerox / Photocopy', revenue: Math.round(printing * 0.25) }, // Xerox proportion estimate
         { service: 'Delivery & Others', revenue: delivery + others }
     ];
 

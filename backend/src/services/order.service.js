@@ -245,13 +245,16 @@ export const createOrder = async (userId, orderData, io) => {
             if (shop.freeExpressDelivery) {
                 deliveryCharge = 0;
             } else {
-                const slab = (shop.expressDeliveryCharges || []).find(
-                    s => deliveryDistance >= s.from && deliveryDistance <= s.to
+                const slabs = shop.expressDeliveryCharges || [];
+                const slab = slabs.find(
+                    s => deliveryDistance > 0 && deliveryDistance >= s.from && deliveryDistance <= s.to
                 );
                 if (slab) {
                     deliveryCharge = slab.charge;
+                } else if (slabs.length > 0) {
+                    deliveryCharge = slabs[0].charge;
                 } else {
-                    throw new ApiError(400, `No express delivery pricing slab configured for distance: ${deliveryDistance} km`);
+                    deliveryCharge = 0;
                 }
             }
         } else {
@@ -259,13 +262,16 @@ export const createOrder = async (userId, orderData, io) => {
             if (shop.freeDelivery) {
                 deliveryCharge = 0;
             } else {
-                const slab = (shop.deliveryCharges || []).find(
-                    s => deliveryDistance >= s.from && deliveryDistance <= s.to
+                const slabs = shop.deliveryCharges || [];
+                const slab = slabs.find(
+                    s => deliveryDistance > 0 && deliveryDistance >= s.from && deliveryDistance <= s.to
                 );
                 if (slab) {
                     deliveryCharge = slab.charge;
+                } else if (slabs.length > 0) {
+                    deliveryCharge = slabs[0].charge;
                 } else {
-                    throw new ApiError(400, `No standard delivery pricing slab configured for distance: ${deliveryDistance} km`);
+                    deliveryCharge = 0;
                 }
             }
         }
