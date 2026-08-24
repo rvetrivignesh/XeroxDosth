@@ -4,7 +4,6 @@ import { formatCurrency } from './StatCard';
 const serviceColors = {
     'Printing': '#6366f1',
     'Binding': '#8b5cf6',
-    'Xerox / Photocopy': '#06b6d4',
     'Delivery & Others': '#ec4899'
 };
 

@@ -618,14 +618,14 @@ export const PlaceOrder = () => {
         
         if (deliveryType === 'EXPRESS') {
             if (selectedShop.freeExpressDelivery) return 0;
-            const slab = selectedShop.expressDeliveryCharges?.[selectedSlabIndex];
-            return slab ? slab.charge : 0;
+            const currentSlabs = selectedShop.expressDeliveryCharges || [];
+            return currentSlabs.length > 0 ? currentSlabs[0].charge : 0;
         } else {
             if (selectedShop.freeDelivery) return 0;
-            const slab = selectedShop.deliveryCharges?.[selectedSlabIndex];
-            return slab ? slab.charge : 0;
+            const currentSlabs = selectedShop.deliveryCharges || [];
+            return currentSlabs.length > 0 ? currentSlabs[0].charge : 0;
         }
-    }, [fulfillmentMethod, deliveryType, selectedSlabIndex, selectedShop]);
+    }, [fulfillmentMethod, deliveryType, selectedShop]);
 
     // Calculate dynamic cost estimates and details
     const priceDetails = useMemo(() => {
@@ -882,12 +882,12 @@ export const PlaceOrder = () => {
             }
         }
 
-        // Validate distance slab selection if delivery is selected and not free
+        // Validate delivery configuration if delivery is selected and not free
         const isFree = deliveryType === 'EXPRESS' ? selectedShop?.freeExpressDelivery : selectedShop?.freeDelivery;
         if (isDelivery && !isFree) {
             const currentSlabs = deliveryType === 'EXPRESS' ? selectedShop?.expressDeliveryCharges : selectedShop?.deliveryCharges;
-            if (!currentSlabs?.length || selectedSlabIndex < 0) {
-                showToast('Please select a valid delivery distance range', 'error');
+            if (!currentSlabs?.length) {
+                showToast('Selected shop has no delivery pricing slabs configured for this delivery option', 'error');
                 return;
             }
         }
@@ -2004,34 +2004,40 @@ export const PlaceOrder = () => {
                                             </select>
                                         </div>
                                         
-                                        {/* Distance Slab Selector */}
+                                        {/* Delivery Pricing Slabs Display (Customer does not select distance to prevent under-reporting) */}
                                         {((deliveryType === 'EXPRESS' && !selectedShop?.freeExpressDelivery) || 
                                           (deliveryType === 'STANDARD' && !selectedShop?.freeDelivery)) ? (
-                                            <div className="form-group">
-                                                <label htmlFor="selectedSlab">Distance from Shop *</label>
+                                            <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                                                <label>Delivery Rate Slabs (Shop Pricing)</label>
                                                 {((deliveryType === 'EXPRESS' ? selectedShop?.expressDeliveryCharges : selectedShop?.deliveryCharges)?.length > 0) ? (
-                                                    <select
-                                                        id="selectedSlab"
-                                                        value={selectedSlabIndex}
-                                                        onChange={(e) => {
-                                                            const idx = Number(e.target.value);
-                                                            setSelectedSlabIndex(idx);
-                                                            const currentSlabs = deliveryType === 'EXPRESS' ? selectedShop?.expressDeliveryCharges : selectedShop?.deliveryCharges;
-                                                            if (idx >= 0 && currentSlabs?.[idx]) {
-                                                                setDeliveryDistance(currentSlabs[idx].from);
-                                                            } else {
-                                                                setDeliveryDistance(0);
-                                                            }
-                                                        }}
-                                                        required
-                                                    >
-                                                        <option value={-1}>-- Select Distance --</option>
-                                                        {(deliveryType === 'EXPRESS' ? selectedShop?.expressDeliveryCharges : selectedShop?.deliveryCharges)?.map((slab, idx) => (
-                                                            <option key={idx} value={idx}>
-                                                                {slab.from} - {slab.to} KM (₹{slab.charge})
-                                                            </option>
-                                                        ))}
-                                                    </select>
+                                                    <div style={{
+                                                        padding: '0.85rem 1rem',
+                                                        backgroundColor: 'var(--bg-hover)',
+                                                        borderRadius: 'var(--radius-sm)',
+                                                        border: '1px solid var(--border-color)',
+                                                        fontSize: '0.88rem'
+                                                    }}>
+                                                        <div style={{ fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                            <span>{deliveryType === 'EXPRESS' ? '⚡ Express Delivery Charges' : '🚚 Standard Delivery Charges'}</span>
+                                                        </div>
+                                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                                                            {(deliveryType === 'EXPRESS' ? selectedShop?.expressDeliveryCharges : selectedShop?.deliveryCharges)?.map((slab, idx) => (
+                                                                <div key={idx} style={{
+                                                                    padding: '0.4rem 0.75rem',
+                                                                    backgroundColor: 'var(--bg-card)',
+                                                                    border: '1px solid var(--border-color)',
+                                                                    borderRadius: 'var(--radius-xs)',
+                                                                    fontSize: '0.82rem',
+                                                                    fontWeight: 500
+                                                                }}>
+                                                                    {slab.from} - {slab.to} KM: <strong>₹{slab.charge}</strong>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                        <small style={{ display: 'block', marginTop: '0.5rem', color: 'var(--text-secondary)' }}>
+                                                            ℹ️ Delivery charge will be finalized by shop based on actual address distance.
+                                                        </small>
+                                                    </div>
                                                 ) : (
                                                     <div style={{ padding: '0.75rem', backgroundColor: '#fef2f2', color: '#ef4444', border: '1px solid #fca5a5', borderRadius: 'var(--radius-sm)', fontSize: '0.85rem', fontWeight: 600 }}>
                                                         ⚠️ No pricing slabs configured by shop
@@ -2127,7 +2133,6 @@ export const PlaceOrder = () => {
                                         (((serviceType === 'DELIVERY') || (serviceType === 'RECORD' && recordDeliveryOption === 'DELIVERY')) && (
                                             !(serviceType === 'RECORD' ? recordDeliveryAddress.trim() : deliveryAddress.trim()) ||
                                             (((deliveryType === 'EXPRESS' && !selectedShop?.freeExpressDelivery) || (deliveryType === 'STANDARD' && !selectedShop?.freeDelivery)) && (
-                                                selectedSlabIndex < 0 ||
                                                 !(deliveryType === 'EXPRESS' ? selectedShop?.expressDeliveryCharges : selectedShop?.deliveryCharges)?.length
                                             ))
                                         ))
@@ -2235,12 +2240,11 @@ export const PlaceOrder = () => {
                                         </div>
                                         {!((deliveryType === 'EXPRESS' && selectedShop?.freeExpressDelivery) || (deliveryType === 'STANDARD' && selectedShop?.freeDelivery)) && (
                                             <div className="review-grid-item">
-                                                <span>Distance Range</span>
+                                                <span>Delivery Rates Info</span>
                                                 <strong>
                                                     {(() => {
                                                         const currentSlabs = deliveryType === 'EXPRESS' ? selectedShop?.expressDeliveryCharges : selectedShop?.deliveryCharges;
-                                                        const slab = currentSlabs?.[selectedSlabIndex];
-                                                        return slab ? `${slab.from} - ${slab.to} KM` : 'N/A';
+                                                        return currentSlabs?.length ? currentSlabs.map(s => `${s.from}-${s.to} km: ₹${s.charge}`).join(', ') : 'Free / Shop Standard';
                                                     })()}
                                                 </strong>
                                             </div>
