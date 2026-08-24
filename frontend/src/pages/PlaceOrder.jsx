@@ -99,6 +99,28 @@ const parsePageList = (text) => {
         .filter(num => !isNaN(num));
 };
 
+const groupConsecutivePages = (text) => {
+    if (!text || !text.trim()) return { doubleSheets: 0, singlePages: 0 };
+    const pages = text.split(',')
+        .map(p => parseInt(p.trim(), 10))
+        .filter(p => !isNaN(p))
+        .sort((a, b) => a - b);
+    
+    let doubleSheets = 0;
+    let singlePages = 0;
+    let i = 0;
+    while (i < pages.length) {
+        if (i + 1 < pages.length && pages[i + 1] === pages[i] + 1) {
+            doubleSheets++;
+            i += 2;
+        } else {
+            singlePages++;
+            i++;
+        }
+    }
+    return { doubleSheets, singlePages };
+};
+
 export const PlaceOrder = () => {
     const { user } = useAuth();
     const { showToast } = useToast();
@@ -1091,27 +1113,6 @@ export const PlaceOrder = () => {
     const spiralBindingRate = selectedShop?.printingRates?.spiralBinding ?? selectedShop?.pricing?.spiralBinding ?? 0;
     const bookBindingRate = selectedShop?.printingRates?.bookBinding ?? selectedShop?.pricing?.bookBinding ?? 0;
 
-    const groupConsecutivePages = (text) => {
-        if (!text || !text.trim()) return { doubleSheets: 0, singlePages: 0 };
-        const pages = text.split(',')
-            .map(p => parseInt(p.trim(), 10))
-            .filter(p => !isNaN(p))
-            .sort((a, b) => a - b);
-        
-        let doubleSheets = 0;
-        let singlePages = 0;
-        let i = 0;
-        while (i < pages.length) {
-            if (i + 1 < pages.length && pages[i + 1] === pages[i] + 1) {
-                doubleSheets++;
-                i += 2;
-            } else {
-                singlePages++;
-                i++;
-            }
-        }
-        return { doubleSheets, singlePages };
-    };
 
     const getFileBwCost = (fileObj) => {
         const bw = Number(fileObj.bwPages || 0);
