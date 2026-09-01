@@ -68,36 +68,22 @@ export const ShopOrders = () => {
     const handleAcceptClick = (order) => {
         setSelectedOrderId(order._id);
         setFinalPrice(order.estimatedCost || '');
-
-        // Default to 2 hours from now formatted for datetime-local
-        const defaultTime = new Date();
-        defaultTime.setHours(defaultTime.getHours() + 2);
-        const year = defaultTime.getFullYear();
-        const month = String(defaultTime.getMonth() + 1).padStart(2, '0');
-        const day = String(defaultTime.getDate()).padStart(2, '0');
-        const hours = String(defaultTime.getHours()).padStart(2, '0');
-        const minutes = String(defaultTime.getMinutes()).padStart(2, '0');
-        setEstimatedDeliveryTime(`${year}-${month}-${day}T${hours}:${minutes}`);
-
         setAcceptModalOpen(true);
     };
 
     const handleAcceptSubmit = async (e) => {
         e.preventDefault();
         if (!finalPrice || Number(finalPrice) <= 0) {
-            showToast('Please enter a valid price', 'error');
-            return;
-        }
-        if (!estimatedDeliveryTime.trim()) {
-            showToast('Please provide an estimated completion timeline', 'error');
+            showToast('Final price entry is mandatory and must be greater than 0', 'error');
             return;
         }
 
+        const selectedOrder = orders.find((o) => o._id === selectedOrderId);
         setUpdatingId(selectedOrderId);
         try {
             await API.patch(`/orders/${selectedOrderId}/accept`, {
                 finalPrice: Number(finalPrice),
-                estimatedDeliveryTime: estimatedDeliveryTime.trim()
+                estimatedDeliveryTime: selectedOrder?.requiredBy
             });
             showToast('Order accepted and payment request sent!', 'success');
             setAcceptModalOpen(false);
@@ -233,7 +219,7 @@ export const ShopOrders = () => {
         }
     };
 
-    // Filters logic
+    // Filters logic & Priority Sorting
     const cancellationRequests = orders.filter((o) => o.status === 'CANCELLATION_REQUESTED');
     const filteredOrders = orders.filter((order) => {
         if (activeTab === 'ALL') return order.status !== 'CANCELLATION_REQUESTED';
@@ -244,6 +230,18 @@ export const ShopOrders = () => {
         if (activeTab === 'COMPLETED') return order.status === 'COMPLETED';
         if (activeTab === 'CANCELLED') return ['CANCELLED', 'CANCELLED_BY_USER', 'REJECTED_BY_SHOP', 'CANCELLATION_APPROVED'].includes(order.status);
         return true;
+    }).sort((a, b) => {
+        // High priority: Express Delivery orders float to the top of the stack
+        const aIsExpress = a.deliveryType === 'EXPRESS' ? 1 : 0;
+        const bIsExpress = b.deliveryType === 'EXPRESS' ? 1 : 0;
+        if (aIsExpress !== bIsExpress) {
+            return bIsExpress - aIsExpress;
+        }
+        // Then sort by urgency (earliest deadline first)
+        if (a.requiredBy && b.requiredBy) {
+            return new Date(a.requiredBy) - new Date(b.requiredBy);
+        }
+        return new Date(b.createdAt) - new Date(a.createdAt);
     });
 
     if (loading) {
@@ -354,10 +352,23 @@ export const ShopOrders = () => {
                                     gap: '0.75rem'
                                 }}>
                                     <div>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                                             <h3 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text-primary)' }}>
                                                 Order #{order._id.slice(-6).toUpperCase()}
                                             </h3>
+                                            {order.deliveryType === 'EXPRESS' && (
+                                                <span className="badge" style={{
+                                                    backgroundColor: '#ef44441c',
+                                                    color: '#ef4444',
+                                                    border: '1.5px solid #ef444466',
+                                                    fontSize: '0.75rem',
+                                                    fontWeight: 800,
+                                                    letterSpacing: '0.3px',
+                                                    padding: '0.2rem 0.55rem'
+                                                }}>
+                                                    ⚡ EXPRESS
+                                                </span>
+                                            )}
                                             <button
                                                 className="btn btn-secondary btn-sm"
                                                 onClick={(e) => { e.stopPropagation(); navigate(`/order/${order._id}`); }}
@@ -379,6 +390,9 @@ export const ShopOrders = () => {
                                                 ✉️ Contact Email: <strong>{order.customerEmail}</strong>
                                             </span>
                                         )}
+                                        <span style={{ fontSize: '0.8rem', color: '#d97706', display: 'block', marginTop: '0.2rem', fontWeight: 600 }}>
+                                            ⏰ Deadline: {order.requiredBy ? new Date(order.requiredBy).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : 'N/A'}
+                                        </span>
                                     </div>
 
                                     {/* Action Workflow Controls */}
@@ -440,7 +454,13 @@ export const ShopOrders = () => {
                                     <div>
                                         <small style={{ color: 'var(--text-muted)' }}>Fulfillment</small>
                                         <div style={{ fontWeight: 600 }}>
-                                            {order.fulfillmentType === 'DELIVERY' ? '🚚 Home Delivery' : '🏃 Shop Pickup'}
+                                            {order.deliveryType === 'EXPRESS' ? (
+                                                <span style={{ color: '#ef4444' }}>⚡ Express Delivery</span>
+                                            ) : order.fulfillmentType === 'DELIVERY' ? (
+                                                '🚚 Home Delivery'
+                                            ) : (
+                                                '🏃 Shop Pickup'
+                                            )}
                                         </div>
                                         {order.fulfillmentType === 'DELIVERY' && order.deliveryAddress && (
                                             <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
@@ -465,8 +485,8 @@ export const ShopOrders = () => {
 
                                     <div>
                                         <small style={{ color: 'var(--text-muted)' }}>Required Deadline</small>
-                                        <div style={{ fontWeight: 500 }}>
-                                            {new Date(order.requiredBy).toLocaleString()}
+                                        <div style={{ fontWeight: 600, color: '#d97706' }}>
+                                            ⏰ {order.requiredBy ? new Date(order.requiredBy).toLocaleString() : 'N/A'}
                                         </div>
                                     </div>
 
@@ -559,37 +579,55 @@ export const ShopOrders = () => {
                 </div>
             )}
 
-            {/* Accept Order pricing and completion timeline setup Modal */}
+            {/* Accept Order pricing setup Modal (Approach 2) */}
             <Modal
                 isOpen={acceptModalOpen}
                 onClose={() => setAcceptModalOpen(false)}
                 title="Accept Print Order"
             >
                 <form onSubmit={handleAcceptSubmit}>
-                    <div className="form-group" style={{ marginBottom: '1rem' }}>
-                        <label htmlFor="finalPrice">Final Approved Exact Price (₹) *</label>
+                    {/* Customer Deadline Notice */}
+                    {(() => {
+                        const selOrder = orders.find((o) => o._id === selectedOrderId);
+                        return selOrder?.requiredBy ? (
+                            <div style={{
+                                padding: '0.85rem 1rem',
+                                backgroundColor: 'rgba(99, 102, 241, 0.08)',
+                                borderRadius: 'var(--radius-sm)',
+                                border: '1px solid rgba(99, 102, 241, 0.25)',
+                                marginBottom: '1.25rem'
+                            }}>
+                                <span style={{ fontSize: '0.75rem', color: '#6366f1', textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>
+                                    ⏰ Customer Required Deadline
+                                </span>
+                                <span style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', display: 'block', marginTop: '0.2rem' }}>
+                                    {new Date(selOrder.requiredBy).toLocaleString(undefined, { dateStyle: 'full', timeStyle: 'short' })}
+                                </span>
+                                <small style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginTop: '0.25rem', display: 'block' }}>
+                                    By accepting, you commit to fulfill this order on or before the deadline.
+                                </small>
+                            </div>
+                        ) : null;
+                    })()}
+
+                    <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+                        <label htmlFor="finalPrice">
+                            Final Approved Exact Price (₹) * <span style={{ color: '#ef4444', fontWeight: 700 }}>(Mandatory)</span>
+                        </label>
                         <input
                             id="finalPrice"
                             type="number"
+                            step="0.01"
+                            min="0.01"
                             placeholder="Enter exact total price..."
                             value={finalPrice}
                             onChange={(e) => setFinalPrice(e.target.value)}
                             required
+                            autoFocus
                         />
                         <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: '0.25rem' }}>
-                            Calculated estimated cost: ₹{orders.find((o) => o._id === selectedOrderId)?.estimatedCost}
+                            Calculated estimated cost: <strong>₹{orders.find((o) => o._id === selectedOrderId)?.estimatedCost}</strong>
                         </small>
-                    </div>
-
-                    <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-                        <label htmlFor="deliveryTimeline">Estimated Completion/Delivery Time *</label>
-                        <input
-                            id="deliveryTimeline"
-                            type="datetime-local"
-                            value={estimatedDeliveryTime}
-                            onChange={(e) => setEstimatedDeliveryTime(e.target.value)}
-                            required
-                        />
                     </div>
 
                     <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
@@ -597,7 +635,7 @@ export const ShopOrders = () => {
                             Cancel
                         </button>
                         <button type="submit" className="btn btn-primary" disabled={updatingId === selectedOrderId}>
-                            Confirm Acceptance
+                            Confirm Acceptance ✓
                         </button>
                     </div>
                 </form>

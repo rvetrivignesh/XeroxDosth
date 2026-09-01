@@ -511,11 +511,12 @@ export const acceptOrder = async (userId, orderId, { finalPrice, estimatedDelive
     }
 
     if (!finalPrice || finalPrice <= 0) {
-        throw new ApiError(400, 'Please provide a valid final price');
+        throw new ApiError(400, 'Final price entry is mandatory and must be greater than 0');
     }
 
-    if (!estimatedDeliveryTime) {
-        throw new ApiError(400, 'Please specify an estimated delivery/completion timeline');
+    const finalEstimatedTime = estimatedDeliveryTime || order.requiredBy;
+    if (!finalEstimatedTime) {
+        throw new ApiError(400, 'Estimated delivery/completion deadline is required');
     }
 
     const previousStatus = order.status;
@@ -530,7 +531,7 @@ export const acceptOrder = async (userId, orderId, { finalPrice, estimatedDelive
     }
 
     order.finalPrice = finalPrice;
-    order.estimatedDeliveryTime = estimatedDeliveryTime;
+    order.estimatedDeliveryTime = finalEstimatedTime;
     await order.save();
 
     const orderIdStr = order._id.toString();

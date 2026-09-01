@@ -138,25 +138,13 @@ export const OrderDetail = () => {
     // --- Shop Admin Actions ---
     const handleOpenAcceptModal = () => {
         setFinalPrice(order.estimatedCost || order.totalAmount || '');
-        const defaultTime = new Date();
-        defaultTime.setHours(defaultTime.getHours() + 2);
-        const year = defaultTime.getFullYear();
-        const month = String(defaultTime.getMonth() + 1).padStart(2, '0');
-        const day = String(defaultTime.getDate()).padStart(2, '0');
-        const hours = String(defaultTime.getHours()).padStart(2, '0');
-        const minutes = String(defaultTime.getMinutes()).padStart(2, '0');
-        setEstimatedDeliveryTime(`${year}-${month}-${day}T${hours}:${minutes}`);
         setAcceptModalOpen(true);
     };
 
     const handleAcceptSubmit = async (e) => {
         e.preventDefault();
         if (!finalPrice || Number(finalPrice) <= 0) {
-            showToast('Please enter a valid price', 'error');
-            return;
-        }
-        if (!estimatedDeliveryTime.trim()) {
-            showToast('Please provide an estimated completion timeline', 'error');
+            showToast('Final price entry is mandatory and must be greater than 0', 'error');
             return;
         }
 
@@ -164,7 +152,7 @@ export const OrderDetail = () => {
         try {
             await API.patch(`/orders/${orderId}/accept`, {
                 finalPrice: Number(finalPrice),
-                estimatedDeliveryTime: estimatedDeliveryTime.trim()
+                estimatedDeliveryTime: order.requiredBy
             });
             showToast('Order approved and payment request sent to customer!', 'success');
             setAcceptModalOpen(false);
@@ -533,15 +521,61 @@ export const OrderDetail = () => {
                         <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', margin: '0.25rem 0' }}>
                             #{order._id.slice(-6).toUpperCase()}
                         </h1>
-                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', margin: 0 }}>
-                            Placed on {new Date(order.createdAt).toLocaleString(undefined, { dateStyle: 'full', timeStyle: 'short' })}
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', margin: '0 0 0.4rem 0' }}>
+                            📅 <strong>Placed on:</strong> {new Date(order.createdAt).toLocaleString(undefined, { dateStyle: 'full', timeStyle: 'short' })}
+                        </p>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', margin: 0, display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                            <span>⏰ <strong>Customer Required Deadline:</strong></span>
+                            <span style={{ color: '#d97706', fontWeight: 700, backgroundColor: '#fef3c722', padding: '0.1rem 0.4rem', borderRadius: '4px', border: '1px solid #fde68a66' }}>
+                                {order.requiredBy ? new Date(order.requiredBy).toLocaleString(undefined, { dateStyle: 'full', timeStyle: 'short' }) : 'Not specified'}
+                            </span>
                         </p>
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem' }}>
-                        <span className={`badge badge-${status.toLowerCase()}`} style={{ fontSize: '0.9rem', padding: '0.4rem 0.8rem' }}>
-                            {status.replace(/_/g, ' ')}
-                        </span>
+                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                            {order.deliveryType === 'EXPRESS' ? (
+                                <span className="badge" style={{
+                                    backgroundColor: '#ef44441c',
+                                    color: '#ef4444',
+                                    border: '1.5px solid #ef444466',
+                                    fontSize: '0.85rem',
+                                    fontWeight: 800,
+                                    letterSpacing: '0.3px',
+                                    padding: '0.35rem 0.75rem',
+                                    boxShadow: '0 0 8px rgba(239, 68, 68, 0.2)'
+                                }}>
+                                    ⚡ EXPRESS DELIVERY
+                                </span>
+                            ) : order.fulfillmentType === 'DELIVERY' ? (
+                                <span className="badge" style={{
+                                    backgroundColor: '#3b82f618',
+                                    color: '#3b82f6',
+                                    border: '1px solid #3b82f640',
+                                    fontSize: '0.85rem',
+                                    fontWeight: 700,
+                                    padding: '0.35rem 0.7rem'
+                                }}>
+                                    🚚 Standard Delivery
+                                </span>
+                            ) : (
+                                <span className="badge" style={{
+                                    backgroundColor: 'var(--bg-input)',
+                                    color: 'var(--text-secondary)',
+                                    border: '1px solid var(--border-color)',
+                                    fontSize: '0.85rem',
+                                    fontWeight: 600,
+                                    padding: '0.35rem 0.7rem'
+                                }}>
+                                    🏃 Shop Pickup
+                                </span>
+                            )}
+                            
+                            <span className={`badge badge-${status.toLowerCase()}`} style={{ fontSize: '0.9rem', padding: '0.35rem 0.75rem' }}>
+                                {status.replace(/_/g, ' ')}
+                            </span>
+                        </div>
+
                         <span style={{ fontSize: '0.875rem', fontWeight: 700, color: isPaid ? '#10b981' : '#f59e0b' }}>
                             Payment: {order.paymentStatus} {order.paymentMethod ? `(${order.paymentMethod})` : ''}
                         </span>
@@ -734,9 +768,17 @@ export const OrderDetail = () => {
                             )}
                             <div>
                                 <small style={{ color: 'var(--text-muted)', display: 'block' }}>Fulfillment Method</small>
-                                <strong style={{ color: 'var(--text-primary)' }}>
-                                    {order.fulfillmentType === 'DELIVERY' ? '🚚 Home Delivery' : '🏃 Shop Pickup'}
-                                </strong>
+                                <div style={{ marginTop: '0.2rem' }}>
+                                    {order.deliveryType === 'EXPRESS' ? (
+                                        <span className="badge" style={{ backgroundColor: '#ef44441c', color: '#ef4444', border: '1px solid #ef444466', fontWeight: 800 }}>
+                                            ⚡ Express Home Delivery
+                                        </span>
+                                    ) : order.fulfillmentType === 'DELIVERY' ? (
+                                        <strong style={{ color: 'var(--text-primary)' }}>🚚 Standard Home Delivery</strong>
+                                    ) : (
+                                        <strong style={{ color: 'var(--text-primary)' }}>🏃 Shop Pickup</strong>
+                                    )}
+                                </div>
                             </div>
                             {order.fulfillmentType === 'DELIVERY' && order.deliveryAddress && (
                                 <div>
@@ -745,12 +787,14 @@ export const OrderDetail = () => {
                                 </div>
                             )}
                             <div>
-                                <small style={{ color: 'var(--text-muted)', display: 'block' }}>Customer Required By</small>
-                                <span style={{ color: 'var(--text-primary)' }}>⏰ {new Date(order.requiredBy).toLocaleString()}</span>
+                                <small style={{ color: 'var(--text-muted)', display: 'block' }}>Customer Deadline</small>
+                                <strong style={{ color: '#d97706' }}>
+                                    ⏰ {order.requiredBy ? new Date(order.requiredBy).toLocaleString(undefined, { dateStyle: 'full', timeStyle: 'short' }) : 'N/A'}
+                                </strong>
                             </div>
                             {order.estimatedDeliveryTime && (
                                 <div>
-                                    <small style={{ color: 'var(--text-muted)', display: 'block' }}>Shop Estimated Completion</small>
+                                    <small style={{ color: 'var(--text-muted)', display: 'block' }}>Target Completion Time</small>
                                     <strong style={{ color: 'var(--accent-color)' }}>⏰ {formatEstimatedTime(order.estimatedDeliveryTime)}</strong>
                                 </div>
                             )}
@@ -841,37 +885,50 @@ export const OrderDetail = () => {
                 </div>
             </div>
 
-            {/* Accept Order pricing and completion timeline setup Modal */}
+            {/* Accept Order pricing setup Modal (Approach 2: Automatic Deadline Adoption) */}
             <Modal
                 isOpen={acceptModalOpen}
                 onClose={() => setAcceptModalOpen(false)}
                 title="Accept & Approve Print Order"
             >
                 <form onSubmit={handleAcceptSubmit}>
-                    <div className="form-group" style={{ marginBottom: '1rem' }}>
-                        <label htmlFor="finalPrice">Final Approved Exact Price (₹) *</label>
-                        <input
-                            id="finalPrice"
-                            type="number"
-                            placeholder="Enter exact total price..."
-                            value={finalPrice}
-                            onChange={(e) => setFinalPrice(e.target.value)}
-                            required
-                        />
-                        <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: '0.25rem' }}>
-                            Calculated estimate: ₹{order.estimatedCost || order.totalAmount}
+                    {/* Customer Deadline Alert Banner */}
+                    <div style={{
+                        padding: '1rem',
+                        backgroundColor: 'rgba(99, 102, 241, 0.08)',
+                        borderRadius: 'var(--radius-sm)',
+                        border: '1px solid rgba(99, 102, 241, 0.25)',
+                        marginBottom: '1.25rem'
+                    }}>
+                        <span style={{ fontSize: '0.75rem', color: '#6366f1', textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>
+                            ⏰ Customer Required Deadline
+                        </span>
+                        <span style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)', display: 'block', marginTop: '0.25rem' }}>
+                            {order.requiredBy ? new Date(order.requiredBy).toLocaleString(undefined, { dateStyle: 'full', timeStyle: 'short' }) : 'N/A'}
+                        </span>
+                        <small style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginTop: '0.35rem', display: 'block' }}>
+                            By accepting, you commit to complete and fulfill this order by the customer's deadline. If unable to fulfill on time, please reject the order.
                         </small>
                     </div>
 
                     <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-                        <label htmlFor="deliveryTimeline">Estimated Completion/Delivery Time *</label>
+                        <label htmlFor="finalPrice">
+                            Final Approved Exact Price (₹) * <span style={{ color: '#ef4444', fontWeight: 700 }}>(Mandatory)</span>
+                        </label>
                         <input
-                            id="deliveryTimeline"
-                            type="datetime-local"
-                            value={estimatedDeliveryTime}
-                            onChange={(e) => setEstimatedDeliveryTime(e.target.value)}
+                            id="finalPrice"
+                            type="number"
+                            step="0.01"
+                            min="0.01"
+                            placeholder="Enter exact approved price..."
+                            value={finalPrice}
+                            onChange={(e) => setFinalPrice(e.target.value)}
                             required
+                            autoFocus
                         />
+                        <small style={{ color: 'var(--text-muted)', display: 'block', marginTop: '0.25rem' }}>
+                            Calculated estimated cost: <strong>₹{order.estimatedCost || order.totalAmount}</strong>
+                        </small>
                     </div>
 
                     <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
@@ -879,7 +936,7 @@ export const OrderDetail = () => {
                             Cancel
                         </button>
                         <button type="submit" className="btn btn-primary" disabled={actionLoading}>
-                            {actionLoading ? 'Approving...' : 'Confirm Acceptance'}
+                            {actionLoading ? 'Approving...' : 'Confirm Acceptance ✓'}
                         </button>
                     </div>
                 </form>

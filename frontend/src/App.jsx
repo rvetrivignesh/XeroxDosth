@@ -5,6 +5,7 @@ import { ToastProvider } from './context/ToastContext';
 import { AuthProvider } from './context/AuthContext';
 
 import Navbar from './components/Navbar';
+import ScrollToTop from './components/ScrollToTop';
 import ProtectedRoute, { PublicOnlyRoute } from './components/ProtectedRoute';
 
 import Home from './pages/Home';
@@ -33,6 +34,7 @@ export function App() {
             <ToastProvider>
                 <AuthProvider>
                     <Router>
+                        <ScrollToTop />
                         <div className="app-layout">
                             <Navbar />
                             <main className="main-content">
