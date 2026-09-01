@@ -521,12 +521,12 @@ export const OrderDetail = () => {
                         <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)', margin: '0.25rem 0' }}>
                             #{order._id.slice(-6).toUpperCase()}
                         </h1>
-                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', margin: '0 0 0.4rem 0' }}>
-                            📅 <strong>Placed on:</strong> {new Date(order.createdAt).toLocaleString(undefined, { dateStyle: 'full', timeStyle: 'short' })}
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', margin: '0 0 0.35rem 0' }}>
+                            Placed on {new Date(order.createdAt).toLocaleString(undefined, { dateStyle: 'full', timeStyle: 'short' })}
                         </p>
                         <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', margin: 0, display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-                            <span>⏰ <strong>Customer Required Deadline:</strong></span>
-                            <span style={{ color: '#d97706', fontWeight: 700, backgroundColor: '#fef3c722', padding: '0.1rem 0.4rem', borderRadius: '4px', border: '1px solid #fde68a66' }}>
+                            <span>⏰ Deadline:</span>
+                            <span style={{ color: 'var(--text-primary)', fontWeight: 600, backgroundColor: 'var(--bg-input)', padding: '0.15rem 0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
                                 {order.requiredBy ? new Date(order.requiredBy).toLocaleString(undefined, { dateStyle: 'full', timeStyle: 'short' }) : 'Not specified'}
                             </span>
                         </p>
@@ -536,25 +536,24 @@ export const OrderDetail = () => {
                         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                             {order.deliveryType === 'EXPRESS' ? (
                                 <span className="badge" style={{
-                                    backgroundColor: '#ef44441c',
-                                    color: '#ef4444',
-                                    border: '1.5px solid #ef444466',
-                                    fontSize: '0.85rem',
-                                    fontWeight: 800,
+                                    backgroundColor: 'rgba(99, 102, 241, 0.08)',
+                                    color: '#6366f1',
+                                    border: '1px solid rgba(99, 102, 241, 0.25)',
+                                    fontSize: '0.825rem',
+                                    fontWeight: 700,
                                     letterSpacing: '0.3px',
-                                    padding: '0.35rem 0.75rem',
-                                    boxShadow: '0 0 8px rgba(239, 68, 68, 0.2)'
+                                    padding: '0.3rem 0.65rem'
                                 }}>
                                     ⚡ EXPRESS DELIVERY
                                 </span>
                             ) : order.fulfillmentType === 'DELIVERY' ? (
                                 <span className="badge" style={{
-                                    backgroundColor: '#3b82f618',
-                                    color: '#3b82f6',
-                                    border: '1px solid #3b82f640',
-                                    fontSize: '0.85rem',
-                                    fontWeight: 700,
-                                    padding: '0.35rem 0.7rem'
+                                    backgroundColor: 'var(--bg-input)',
+                                    color: 'var(--text-secondary)',
+                                    border: '1px solid var(--border-color)',
+                                    fontSize: '0.825rem',
+                                    fontWeight: 600,
+                                    padding: '0.3rem 0.65rem'
                                 }}>
                                     🚚 Standard Delivery
                                 </span>
@@ -563,20 +562,20 @@ export const OrderDetail = () => {
                                     backgroundColor: 'var(--bg-input)',
                                     color: 'var(--text-secondary)',
                                     border: '1px solid var(--border-color)',
-                                    fontSize: '0.85rem',
+                                    fontSize: '0.825rem',
                                     fontWeight: 600,
-                                    padding: '0.35rem 0.7rem'
+                                    padding: '0.3rem 0.65rem'
                                 }}>
                                     🏃 Shop Pickup
                                 </span>
                             )}
                             
-                            <span className={`badge badge-${status.toLowerCase()}`} style={{ fontSize: '0.9rem', padding: '0.35rem 0.75rem' }}>
+                            <span className={`badge badge-${status.toLowerCase()}`} style={{ fontSize: '0.85rem', padding: '0.3rem 0.65rem' }}>
                                 {status.replace(/_/g, ' ')}
                             </span>
                         </div>
 
-                        <span style={{ fontSize: '0.875rem', fontWeight: 700, color: isPaid ? '#10b981' : '#f59e0b' }}>
+                        <span style={{ fontSize: '0.875rem', fontWeight: 600, color: isPaid ? 'var(--accent-color)' : 'var(--text-secondary)' }}>
                             Payment: {order.paymentStatus} {order.paymentMethod ? `(${order.paymentMethod})` : ''}
                         </span>
                     </div>
@@ -770,7 +769,7 @@ export const OrderDetail = () => {
                                 <small style={{ color: 'var(--text-muted)', display: 'block' }}>Fulfillment Method</small>
                                 <div style={{ marginTop: '0.2rem' }}>
                                     {order.deliveryType === 'EXPRESS' ? (
-                                        <span className="badge" style={{ backgroundColor: '#ef44441c', color: '#ef4444', border: '1px solid #ef444466', fontWeight: 800 }}>
+                                        <span className="badge" style={{ backgroundColor: 'rgba(99, 102, 241, 0.08)', color: '#6366f1', border: '1px solid rgba(99, 102, 241, 0.25)', fontWeight: 700 }}>
                                             ⚡ Express Home Delivery
                                         </span>
                                     ) : order.fulfillmentType === 'DELIVERY' ? (
@@ -788,7 +787,7 @@ export const OrderDetail = () => {
                             )}
                             <div>
                                 <small style={{ color: 'var(--text-muted)', display: 'block' }}>Customer Deadline</small>
-                                <strong style={{ color: '#d97706' }}>
+                                <strong style={{ color: 'var(--text-primary)' }}>
                                     ⏰ {order.requiredBy ? new Date(order.requiredBy).toLocaleString(undefined, { dateStyle: 'full', timeStyle: 'short' }) : 'N/A'}
                                 </strong>
                             </div>
@@ -913,7 +912,7 @@ export const OrderDetail = () => {
 
                     <div className="form-group" style={{ marginBottom: '1.5rem' }}>
                         <label htmlFor="finalPrice">
-                            Final Approved Exact Price (₹) * <span style={{ color: '#ef4444', fontWeight: 700 }}>(Mandatory)</span>
+                            Final Approved Exact Price (₹) * <span style={{ color: 'var(--text-muted)', fontWeight: 500, fontSize: '0.85rem' }}>(Mandatory)</span>
                         </label>
                         <input
                             id="finalPrice"

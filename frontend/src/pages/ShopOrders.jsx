@@ -358,11 +358,11 @@ export const ShopOrders = () => {
                                             </h3>
                                             {order.deliveryType === 'EXPRESS' && (
                                                 <span className="badge" style={{
-                                                    backgroundColor: '#ef44441c',
-                                                    color: '#ef4444',
-                                                    border: '1.5px solid #ef444466',
+                                                    backgroundColor: 'rgba(99, 102, 241, 0.08)',
+                                                    color: '#6366f1',
+                                                    border: '1px solid rgba(99, 102, 241, 0.25)',
                                                     fontSize: '0.75rem',
-                                                    fontWeight: 800,
+                                                    fontWeight: 700,
                                                     letterSpacing: '0.3px',
                                                     padding: '0.2rem 0.55rem'
                                                 }}>
@@ -390,8 +390,8 @@ export const ShopOrders = () => {
                                                 ✉️ Contact Email: <strong>{order.customerEmail}</strong>
                                             </span>
                                         )}
-                                        <span style={{ fontSize: '0.8rem', color: '#d97706', display: 'block', marginTop: '0.2rem', fontWeight: 600 }}>
-                                            ⏰ Deadline: {order.requiredBy ? new Date(order.requiredBy).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : 'N/A'}
+                                        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'block', marginTop: '0.2rem', fontWeight: 500 }}>
+                                            ⏰ Deadline: <strong style={{ color: 'var(--text-primary)' }}>{order.requiredBy ? new Date(order.requiredBy).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : 'N/A'}</strong>
                                         </span>
                                     </div>
 
@@ -455,7 +455,7 @@ export const ShopOrders = () => {
                                         <small style={{ color: 'var(--text-muted)' }}>Fulfillment</small>
                                         <div style={{ fontWeight: 600 }}>
                                             {order.deliveryType === 'EXPRESS' ? (
-                                                <span style={{ color: '#ef4444' }}>⚡ Express Delivery</span>
+                                                <span style={{ color: '#6366f1', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>⚡ Express Delivery</span>
                                             ) : order.fulfillmentType === 'DELIVERY' ? (
                                                 '🚚 Home Delivery'
                                             ) : (
@@ -485,7 +485,7 @@ export const ShopOrders = () => {
 
                                     <div>
                                         <small style={{ color: 'var(--text-muted)' }}>Required Deadline</small>
-                                        <div style={{ fontWeight: 600, color: '#d97706' }}>
+                                        <div style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
                                             ⏰ {order.requiredBy ? new Date(order.requiredBy).toLocaleString() : 'N/A'}
                                         </div>
                                     </div>
@@ -612,7 +612,7 @@ export const ShopOrders = () => {
 
                     <div className="form-group" style={{ marginBottom: '1.5rem' }}>
                         <label htmlFor="finalPrice">
-                            Final Approved Exact Price (₹) * <span style={{ color: '#ef4444', fontWeight: 700 }}>(Mandatory)</span>
+                            Final Approved Exact Price (₹) * <span style={{ color: 'var(--text-muted)', fontWeight: 500, fontSize: '0.85rem' }}>(Mandatory)</span>
                         </label>
                         <input
                             id="finalPrice"

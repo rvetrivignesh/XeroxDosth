@@ -46,10 +46,10 @@ export const PageDetailsSummary = ({ doc, document: propDoc, defaultExpanded = f
                             padding: '0.15rem 0.5rem',
                             borderRadius: '4px',
                             fontSize: '0.75rem',
-                            fontWeight: 700,
-                            backgroundColor: '#f59e0b18',
-                            color: '#d97706',
-                            border: '1px solid #f59e0b40'
+                            fontWeight: 600,
+                            backgroundColor: 'rgba(99, 102, 241, 0.08)',
+                            color: '#6366f1',
+                            border: '1px solid rgba(99, 102, 241, 0.25)'
                         }}>
                             🎨 {colorTotalPages} Color Page{colorTotalPages > 1 ? 's' : ''}
                         </span>
@@ -62,9 +62,9 @@ export const PageDetailsSummary = ({ doc, document: propDoc, defaultExpanded = f
                             padding: '0.15rem 0.5rem',
                             borderRadius: '4px',
                             fontSize: '0.75rem',
-                            fontWeight: 700,
-                            backgroundColor: 'var(--bg-card, rgba(100,116,139,0.12))',
-                            color: 'var(--text-primary)',
+                            fontWeight: 600,
+                            backgroundColor: 'var(--bg-input)',
+                            color: 'var(--text-secondary)',
                             border: '1px solid var(--border-color)'
                         }}>
                             📄 {bwTotalPages} B&W Page{bwTotalPages > 1 ? 's' : ''}
@@ -110,10 +110,10 @@ export const PageDetailsSummary = ({ doc, document: propDoc, defaultExpanded = f
                         <div style={{
                             padding: '0.5rem 0.75rem',
                             borderRadius: '6px',
-                            backgroundColor: '#fef3c722',
-                            border: '1px solid #fde68a66'
+                            backgroundColor: 'rgba(99, 102, 241, 0.05)',
+                            border: '1px solid rgba(99, 102, 241, 0.18)'
                         }}>
-                            <div style={{ fontWeight: 700, color: '#d97706', display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.25rem' }}>
+                            <div style={{ fontWeight: 700, color: '#6366f1', display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.25rem' }}>
                                 <span>🎨</span>
                                 <span>Color Pages ({colorTotalPages} total)</span>
                             </div>
