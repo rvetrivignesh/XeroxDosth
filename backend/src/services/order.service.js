@@ -22,7 +22,7 @@ const groupConsecutivePages = (text) => {
         .map(p => parseInt(p.trim(), 10))
         .filter(p => !isNaN(p))
         .sort((a, b) => a - b);
-    
+
     let doubleSheets = 0;
     let singlePages = 0;
     let i = 0;
@@ -53,7 +53,7 @@ const buildOrderPrintingRequirementsHtml = (order) => {
 
     let html = '<h4>Printing Requirements</h4>';
     let totalDocsCount = 0;
-    
+
     order.documents.forEach((doc, idx) => {
         const isPhysicalDoc = doc.publicId?.startsWith('PHYSICAL_DOC_') || doc.url === 'N/A' || doc.url?.includes('physical-doc.pdf');
         if (isPhysicalDoc) return;
@@ -61,7 +61,7 @@ const buildOrderPrintingRequirementsHtml = (order) => {
         const docName = doc.originalName || `Document ${idx + 1}`;
         const details = getPageDetails(doc);
         const categories = [];
-        
+
         details.categories.forEach(cat => {
             let pageDesc = '';
             if (cat.isAllPages) {
@@ -123,7 +123,7 @@ export const createOrder = async (userId, orderData, io) => {
     let totalColorPages = 0;
     let totalCopies = 1;
     let otherServiceCharges = 0;
-    
+
     let bwSubtotal = 0;
     let colorSubtotal = 0;
 
@@ -221,8 +221,8 @@ export const createOrder = async (userId, orderData, io) => {
     }
 
     const totalPages = totalBwPages + totalColorPages;
-    const isRecordOrPickup = orderData.fulfillmentMethod === 'RECORD_PICKUP' || 
-                             orderData.documents?.some(d => d.publicId?.startsWith('PHYSICAL_DOC_') || d.url === 'N/A' || d.url?.includes('physical-doc.pdf'));
+    const isRecordOrPickup = orderData.fulfillmentMethod === 'RECORD_PICKUP' ||
+        orderData.documents?.some(d => d.publicId?.startsWith('PHYSICAL_DOC_') || d.url === 'N/A' || d.url?.includes('physical-doc.pdf'));
 
     if (totalPages < 1 && !isRecordOrPickup) {
         throw new ApiError(400, 'Order must contain at least 1 page');
@@ -230,8 +230,8 @@ export const createOrder = async (userId, orderData, io) => {
 
     // Calculate delivery charge dynamically
     let deliveryCharge = 0;
-    const isDelivery = (orderData.fulfillmentMethod === 'HOME_DELIVERY') || 
-                       (orderData.fulfillmentMethod === 'RECORD_PICKUP' && orderData.deliveryType && orderData.deliveryType !== 'NONE');
+    const isDelivery = (orderData.fulfillmentMethod === 'HOME_DELIVERY') ||
+        (orderData.fulfillmentMethod === 'RECORD_PICKUP' && orderData.deliveryType && orderData.deliveryType !== 'NONE');
 
     if (isDelivery) {
         if (!shop.isDeliveryAvailable) {
@@ -289,7 +289,7 @@ export const createOrder = async (userId, orderData, io) => {
         copies: hasDocConfigs ? 1 : totalCopies,
         printSide: orderData.printSide || 'SINGLE_SIDE',
         binding: orderData.binding || 'NONE',
-        
+
         // New fields
         fulfillmentMethod: orderData.fulfillmentMethod,
         deliveryType: orderData.deliveryType || 'NONE',
@@ -319,7 +319,7 @@ export const createOrder = async (userId, orderData, io) => {
     if (shop.owner) {
         const orderIdStr = order._id.toString();
         const orderUrl = buildFrontendUrl(`order/${orderIdStr}`);
-        
+
         await createNotification(io, {
             recipient: shop.owner._id,
             sender: userId,
@@ -400,7 +400,7 @@ export const updateOrderStatus = async (userId, orderId, status, paymentStatus, 
     if (status) {
         let title = 'Order Status Updated';
         let msg = `Your Order #${orderIdStr.slice(-6).toUpperCase()} is now ${status}.`;
-        
+
         if (status === 'IN_PROGRESS') {
             title = 'Order In Progress';
             msg = `Printing has started for Order #${orderIdStr.slice(-6).toUpperCase()}.`;
@@ -457,7 +457,7 @@ export const updateOrderStatus = async (userId, orderId, status, paymentStatus, 
     if (paymentStatus === 'PAID') {
         const title = 'Payment Confirmed';
         const msg = `Your payment for Order #${orderIdStr.slice(-6).toUpperCase()} has been confirmed by the shop.`;
-        
+
         await createNotification(io, {
             recipient: order.customer._id,
             sender: userId,
@@ -540,7 +540,7 @@ export const acceptOrder = async (userId, orderId, { finalPrice, estimatedDelive
     // Only send notification/email if transitioning from PENDING_SHOP_ACCEPTANCE
     // This avoids duplicate notifications/emails if the order details are resubmitted.
     if (previousStatus === 'PENDING_SHOP_ACCEPTANCE') {
-        const notificationMsg = isCod 
+        const notificationMsg = isCod
             ? `Shop accepted order #${orderIdStr.slice(-6).toUpperCase()}. Approved Price: ₹${finalPrice}. Printing is in progress.`
             : `Shop accepted order #${orderIdStr.slice(-6).toUpperCase()}. Approved Price: ₹${finalPrice}. Please complete payment.`;
 
@@ -831,8 +831,8 @@ export const payOrder = async (userId, orderId, { paymentMethod, transactionId, 
             order: order._id,
             type: order.status,
             title: order.status === 'IN_PROGRESS' ? 'COD Order Confirmed' : 'UPI Payment Submitted',
-            message: order.status === 'IN_PROGRESS' 
-                ? `Customer confirmed COD for order #${orderIdStr.slice(-6).toUpperCase()}. Printing can start.` 
+            message: order.status === 'IN_PROGRESS'
+                ? `Customer confirmed COD for order #${orderIdStr.slice(-6).toUpperCase()}. Printing can start.`
                 : `Payment reference submitted for order #${orderIdStr.slice(-6).toUpperCase()}.`
         });
 
@@ -942,8 +942,8 @@ export const requestPaymentAgain = async (userId, orderId, { reason }, io) => {
     await order.save();
 
     const orderIdStr = order._id.toString();
-    const customerMsg = reason 
-        ? `Payment requested again for order #${orderIdStr.slice(-6).toUpperCase()}. Reason: ${reason}` 
+    const customerMsg = reason
+        ? `Payment requested again for order #${orderIdStr.slice(-6).toUpperCase()}. Reason: ${reason}`
         : `Shop requested payment again for order #${orderIdStr.slice(-6).toUpperCase()}.`;
 
     await createNotification(io, {

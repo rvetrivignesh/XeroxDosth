@@ -19,7 +19,7 @@ export const ShopOrders = () => {
     const [selectedOrderId, setSelectedOrderId] = useState('');
     const [finalPrice, setFinalPrice] = useState('');
     const [estimatedDeliveryTime, setEstimatedDeliveryTime] = useState('');
-    
+
     const [rejectModalOpen, setRejectModalOpen] = useState(false);
     const [rejectionReason, setRejectionReason] = useState('');
 
@@ -68,7 +68,7 @@ export const ShopOrders = () => {
     const handleAcceptClick = (order) => {
         setSelectedOrderId(order._id);
         setFinalPrice(order.estimatedCost || '');
-        
+
         // Default to 2 hours from now formatted for datetime-local
         const defaultTime = new Date();
         defaultTime.setHours(defaultTime.getHours() + 2);
@@ -163,9 +163,9 @@ export const ShopOrders = () => {
         setUpdatingId(order._id);
         try {
             // Setting status to COMPLETED automatically resolves paymentStatus to PAID on backend for COD
-            await API.patch(`/orders/${order._id}/status`, { 
+            await API.patch(`/orders/${order._id}/status`, {
                 status: 'COMPLETED',
-                paymentStatus: 'PAID' 
+                paymentStatus: 'PAID'
             });
             showToast('Order marked as completed and paid!', 'success');
             fetchOrders();
@@ -192,7 +192,7 @@ export const ShopOrders = () => {
     const handleRequestPaymentAgain = async (orderId) => {
         const reason = window.prompt('Enter reason for requesting payment again (e.g. invalid transaction ID, screenshot blurry):');
         if (reason === null) return;
-        
+
         setUpdatingId(orderId);
         try {
             await API.patch(`/orders/${orderId}/request-payment`, { reason });
@@ -336,10 +336,10 @@ export const ShopOrders = () => {
                         const isCancelled = ['CANCELLED', 'CANCELLED_BY_USER', 'CANCELLATION_APPROVED'].includes(order.status);
 
                         return (
-                            <div 
-                                key={order._id} 
-                                id={`order-${order._id}`} 
-                                className="card card-hover" 
+                            <div
+                                key={order._id}
+                                id={`order-${order._id}`}
+                                className="card card-hover"
                                 style={{ padding: '1.5rem', cursor: 'pointer' }}
                                 onClick={() => navigate(`/order/${order._id}`)}
                             >
@@ -358,8 +358,8 @@ export const ShopOrders = () => {
                                             <h3 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text-primary)' }}>
                                                 Order #{order._id.slice(-6).toUpperCase()}
                                             </h3>
-                                            <button 
-                                                className="btn btn-secondary btn-sm" 
+                                            <button
+                                                className="btn btn-secondary btn-sm"
                                                 onClick={(e) => { e.stopPropagation(); navigate(`/order/${order._id}`); }}
                                                 style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}
                                             >
@@ -507,12 +507,12 @@ export const ShopOrders = () => {
                                             const sizeStr = !isPhysicalDoc && doc.size ? `(${(doc.size / (1024 * 1024)).toFixed(2)} MB)` : '';
 
                                             return (
-                                                <div key={idx} style={{ 
-                                                    display: 'flex', 
-                                                    flexDirection: 'column', 
-                                                    gap: '0.5rem', 
-                                                    padding: '0.75rem', 
-                                                    backgroundColor: 'var(--bg-input)', 
+                                                <div key={idx} style={{
+                                                    display: 'flex',
+                                                    flexDirection: 'column',
+                                                    gap: '0.5rem',
+                                                    padding: '0.75rem',
+                                                    backgroundColor: 'var(--bg-input)',
                                                     borderRadius: 'var(--radius-sm)',
                                                     border: '1px solid var(--border-color)'
                                                 }}>

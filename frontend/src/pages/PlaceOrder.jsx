@@ -1836,8 +1836,11 @@ export const PlaceOrder = () => {
                                                                     checked={fileObj.printingMode === 'advanced'}
                                                                     onChange={(e) => updateFileStatus(fileObj.id, {
                                                                         printingMode: e.target.checked ? 'advanced' : 'regular',
-                                                                        // Reset advanced-specific fields when toggling off
-                                                                        ...(e.target.checked ? {} : {
+                                                                        // Automatically check 'Apply for rest of the pages' in single side B&W when enabling advanced mode
+                                                                        ...(e.target.checked ? {
+                                                                            applyRestOption: 'bwSingle',
+                                                                            bwSinglePagesText: ''
+                                                                        } : {
                                                                             bwSinglePagesText: '',
                                                                             bwDoublePagesText: '',
                                                                             colorSinglePagesText: '',
