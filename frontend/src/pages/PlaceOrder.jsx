@@ -1346,6 +1346,14 @@ export const PlaceOrder = () => {
                                     onDragLeave={handleDrag}
                                     onDrop={handleDrop}
                                     onClick={() => document.getElementById('file-input-browse').click()}
+                                    role="button"
+                                    tabIndex={0}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' || e.key === ' ') {
+                                            e.preventDefault();
+                                            document.getElementById('file-input-browse').click();
+                                        }
+                                    }}
                                 >
                                     <input
                                         id="file-input-browse"
@@ -1355,11 +1363,31 @@ export const PlaceOrder = () => {
                                         onChange={handleFileSelect}
                                         accept=".pdf,.jpg,.jpeg,.png,.webp"
                                     />
-                                    <div className="upload-dropzone-icon">📥</div>
-                                    <div className="upload-dropzone-text">Drag & Drop files here or click to browse</div>
-                                    <button type="button" className="btn btn-secondary btn-xs" style={{ pointerEvents: 'none', marginTop: '0.5rem' }}>Browse Files</button>
-                                    <div className="upload-dropzone-subtext" style={{ marginTop: '0.5rem' }}>
-                                        PDF and Images (JPG, PNG, WEBP) only up to 100MB
+                                    <div className="upload-dropzone-icon-wrapper">
+                                        <svg className="upload-dropzone-svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                            <polyline points="17 8 12 3 7 8"></polyline>
+                                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                                        </svg>
+                                    </div>
+                                    <div className="upload-dropzone-content">
+                                        <div className="upload-dropzone-text">
+                                            Drag &amp; drop files here, or
+                                        </div>
+                                        <button 
+                                            type="button" 
+                                            className="btn btn-primary upload-btn-catchy" 
+                                            style={{ pointerEvents: 'none' }}
+                                        >
+                                            <svg className="upload-btn-plus-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                                            </svg>
+                                            <span>Upload Files</span>
+                                        </button>
+                                        <div className="upload-dropzone-subtext">
+                                            PDF and Images (JPG, PNG, WEBP) only up to 100MB
+                                        </div>
                                     </div>
                                 </div>
                             </div>
