@@ -536,16 +536,18 @@ export const ShopOrders = () => {
                                                     borderRadius: 'var(--radius-sm)',
                                                     border: '1px solid var(--border-color)'
                                                 }}>
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-                                                        <span style={{ fontWeight: 600, fontSize: '0.85rem', color: isPhysicalDoc ? 'var(--text-muted)' : 'var(--text-primary)' }}>
-                                                            {isPhysicalDoc ? '📄 Physical Record / Hardcopy (No File Attached)' : `📄 ${name} ${sizeStr}`}
-                                                        </span>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
+                                                        <div style={{ minWidth: 0, flex: '1 1 200px' }}>
+                                                            <span style={{ fontWeight: 600, fontSize: '0.85rem', color: isPhysicalDoc ? 'var(--text-muted)' : 'var(--text-primary)', wordBreak: 'break-word', overflowWrap: 'anywhere', display: 'block' }}>
+                                                                {isPhysicalDoc ? '📄 Physical Record / Hardcopy (No File Attached)' : `📄 ${name} ${sizeStr}`}
+                                                            </span>
+                                                        </div>
                                                         {!isPhysicalDoc && (
-                                                            <div style={{ display: 'flex', gap: '0.5rem' }} onClick={(e) => e.stopPropagation()}>
-                                                                <a href={url} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm" style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}>
+                                                            <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>
+                                                                <a href={url} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm" style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem', whiteSpace: 'nowrap' }}>
                                                                     {isPdf ? 'Open PDF ↗' : 'View ↗'}
                                                                 </a>
-                                                                <a href={downloadUrl} download={name} className="btn btn-primary btn-sm" style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}>
+                                                                <a href={downloadUrl} download={name} className="btn btn-primary btn-sm" style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem', whiteSpace: 'nowrap' }}>
                                                                     Download 📥
                                                                 </a>
                                                             </div>

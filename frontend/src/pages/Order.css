@@ -639,18 +639,22 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 0.75rem;
 }
 
 .payment-doc-name {
     text-overflow: ellipsis;
     overflow: hidden;
     white-space: nowrap;
-    max-width: 80%;
+    min-width: 0;
+    flex: 1;
 }
 
 .payment-doc-size {
     color: var(--text-muted);
     font-size: 0.75rem;
+    flex-shrink: 0;
+    white-space: nowrap;
 }
 
 .final-pricing-box {
@@ -1190,7 +1194,7 @@ input[type="datetime-local"] {
     background-color: var(--bg-hover);
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
     flex-wrap: wrap;
     gap: 1rem;
 }
@@ -1199,6 +1203,15 @@ input[type="datetime-local"] {
     display: flex;
     flex-direction: column;
     gap: 0.2rem;
+    flex: 1 1 240px;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.review-doc-details strong,
+.review-doc-details a {
+    word-break: break-word;
+    overflow-wrap: anywhere;
 }
 
 .review-cost-table {

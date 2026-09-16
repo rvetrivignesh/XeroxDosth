@@ -151,14 +151,14 @@ export const StepReview = () => {
                             return (
                                 <div key={idx} className="review-doc-card">
                                     <div className="review-doc-details">
-                                        <strong style={{ fontSize: '0.95rem' }}>
+                                        <strong style={{ fontSize: '0.95rem', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
                                             {isPdf ? '📕' : '🖼️'}{' '}
                                             {fileObj.status === 'success' && fileObj.metadata?.url ? (
                                                 <a 
                                                     href={fileObj.metadata.url} 
                                                     target="_blank" 
                                                     rel="noopener noreferrer"
-                                                    style={{ textDecoration: 'underline', color: 'inherit' }}
+                                                    style={{ textDecoration: 'underline', color: 'inherit', wordBreak: 'break-word', overflowWrap: 'anywhere' }}
                                                 >
                                                     {fileName} ↗
                                                 </a>
@@ -170,8 +170,8 @@ export const StepReview = () => {
                                             <PageDetailsSummary doc={fileObj} />
                                         </div>
                                     </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                        <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexShrink: 0 }}>
+                                        <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                                             {(fileSize / (1024 * 1024)).toFixed(2)} MB
                                         </span>
                                     </div>

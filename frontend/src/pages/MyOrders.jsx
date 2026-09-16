@@ -355,15 +355,17 @@ export const MyOrders = () => {
 
                                     return (
                                         <div key={idx} style={{ padding: '0.75rem', backgroundColor: 'var(--bg-input)', borderRadius: 'var(--radius-sm)', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-                                                <span style={{ fontWeight: '600', fontSize: '0.85rem' }}>
-                                                    📄 {name} <span style={{ fontWeight: 'normal', color: 'var(--text-muted)' }}>{sizeStr}</span>
-                                                </span>
-                                                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                                    <a href={url} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm" style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
+                                                <div style={{ minWidth: 0, flex: '1 1 200px' }}>
+                                                    <span style={{ fontWeight: '600', fontSize: '0.85rem', wordBreak: 'break-word', overflowWrap: 'anywhere', display: 'block' }}>
+                                                        📄 {name} <span style={{ fontWeight: 'normal', color: 'var(--text-muted)' }}>{sizeStr}</span>
+                                                    </span>
+                                                </div>
+                                                <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+                                                    <a href={url} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm" style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem', whiteSpace: 'nowrap' }}>
                                                         Open ↗
                                                     </a>
-                                                    <a href={downloadUrl} download={name} className="btn btn-primary btn-sm" style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem' }}>
+                                                    <a href={downloadUrl} download={name} className="btn btn-primary btn-sm" style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem', whiteSpace: 'nowrap' }}>
                                                         Download 📥
                                                     </a>
                                                 </div>

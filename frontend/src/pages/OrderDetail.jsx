@@ -682,21 +682,21 @@ export const OrderDetail = () => {
                                         borderRadius: 'var(--radius-md)',
                                         border: '1px solid var(--border-color)'
                                     }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-                                            <div>
-                                                <strong style={{ fontSize: '0.95rem', color: isPhysicalDoc ? 'var(--text-muted)' : 'var(--text-primary)' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+                                            <div style={{ minWidth: 0, flex: '1 1 240px' }}>
+                                                <strong style={{ fontSize: '0.95rem', color: isPhysicalDoc ? 'var(--text-muted)' : 'var(--text-primary)', wordBreak: 'break-word', overflowWrap: 'anywhere', display: 'block' }}>
                                                     {isPhysicalDoc ? '📄 ' : '📑 '} {name} {sizeStr}
                                                 </strong>
                                             </div>
 
                                             {!isPhysicalDoc && url && url !== 'N/A' && (
-                                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
                                                     <a
                                                         href={url}
                                                         target="_blank"
                                                         rel="noopener noreferrer"
                                                         className="btn btn-secondary btn-sm"
-                                                        style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem' }}
+                                                        style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem', whiteSpace: 'nowrap' }}
                                                     >
                                                         View / Open ↗
                                                     </a>
@@ -704,7 +704,7 @@ export const OrderDetail = () => {
                                                         href={downloadUrl}
                                                         download={doc.originalName || 'document'}
                                                         className="btn btn-primary btn-sm"
-                                                        style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem' }}
+                                                        style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem', whiteSpace: 'nowrap' }}
                                                     >
                                                         Download 📥
                                                     </a>
