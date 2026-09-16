@@ -307,13 +307,17 @@
 /* 4. Step 3: Details & Sticky Sidebar */
 .specs-layout-grid {
     display: grid;
-    grid-template-columns: 1fr 340px;
+    grid-template-columns: minmax(0, 1fr) 340px;
     gap: 2rem;
     align-items: start;
+    width: 100%;
+    max-width: 100%;
 }
 
 .specs-form-container {
     padding: 2.25rem;
+    min-width: 0;
+    max-width: 100%;
 }
 
 .summary-sidebar-container {
@@ -1025,6 +1029,8 @@ input[type="datetime-local"] {
     margin-bottom: 1rem;
     overflow: hidden;
     transition: all 0.2s ease;
+    min-width: 0;
+    max-width: 100%;
 }
 
 .file-card-container:hover {
@@ -1043,6 +1049,9 @@ input[type="datetime-local"] {
     background-color: var(--bg-hover);
     cursor: pointer;
     user-select: none;
+    min-width: 0;
+    max-width: 100%;
+    gap: 0.75rem;
 }
 
 .file-card-header-left {
@@ -1050,7 +1059,9 @@ input[type="datetime-local"] {
     align-items: center;
     gap: 0.75rem;
     min-width: 0;
-    flex: 1;
+    flex: 1 1 0%;
+    max-width: 100%;
+    overflow: hidden;
 }
 
 .file-card-icon {
@@ -1069,6 +1080,8 @@ input[type="datetime-local"] {
     overflow: hidden;
     text-overflow: ellipsis;
     font-size: 0.95rem;
+    max-width: 100%;
+    display: block;
 }
 
 .file-card-summary-sec {

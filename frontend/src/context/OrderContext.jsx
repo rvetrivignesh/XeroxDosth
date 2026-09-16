@@ -541,10 +541,6 @@ export const OrderProvider = ({ children }) => {
             }
         }
 
-        if (f.printSide === 'DOUBLE_SIDE' && (f.colorPages || 0) > 0 && f.printType === 'color') {
-            return "Color printing is only available for single-sided printing. Please select Single-Sided.";
-        }
-
         return null;
     };
 
@@ -614,7 +610,7 @@ export const OrderProvider = ({ children }) => {
             };
         }
         
-        const { bwSingleRate, bwDoubleRate, colourSingleRate, spiralBindingRate, bookBindingRate } = rates;
+        const { bwSingleRate, bwDoubleRate, colourSingleRate, colourDoubleRate, spiralBindingRate, bookBindingRate } = rates;
 
         let totalPages = 0;
         let bwSheets = 0;
@@ -625,6 +621,7 @@ export const OrderProvider = ({ children }) => {
         
         let doubleBwSheetsTotal = 0;
         let singleBwSheetsTotal = 0;
+        let doubleColourSheetsTotal = 0;
         let singleColourSheetsTotal = 0;
 
         let hasDouble = false;
@@ -640,11 +637,23 @@ export const OrderProvider = ({ children }) => {
             totalPages += (bw + color) * copies;
 
             const docBwSheets = printSide === 'DOUBLE_SIDE' ? Math.ceil(bw / 2) : bw;
-            const docColorSheets = color; // Color is always single side
+            const docColorSheets = printSide === 'DOUBLE_SIDE' ? Math.ceil(color / 2) : color;
 
-            singleColourSheetsTotal += color * copies;
-            const docColorCost = color * colourSingleRate * copies;
-            if (color > 0) hasSingle = true;
+            let docColorCost = 0;
+            if (printSide === 'DOUBLE_SIDE') {
+                const dSheets = Math.floor(color / 2) * copies;
+                const sSheets = (color % 2) * copies;
+                doubleColourSheetsTotal += dSheets;
+                singleColourSheetsTotal += sSheets;
+                docColorCost = (Math.floor(color / 2) * colourDoubleRate + (color % 2) * colourSingleRate) * copies;
+                if (dSheets > 0) hasDouble = true;
+                if (sSheets > 0) hasSingle = true;
+            } else {
+                const sSheets = color * copies;
+                singleColourSheetsTotal += sSheets;
+                docColorCost = color * colourSingleRate * copies;
+                if (sSheets > 0) hasSingle = true;
+            }
 
             bwSheets += docBwSheets * copies;
             colorSheets += docColorSheets * copies;
@@ -655,7 +664,7 @@ export const OrderProvider = ({ children }) => {
                 const sSheets = (bw % 2) * copies;
                 doubleBwSheetsTotal += dSheets;
                 singleBwSheetsTotal += sSheets;
-                docBwCost = dSheets * bwDoubleRate + sSheets * bwSingleRate;
+                docBwCost = (Math.floor(bw / 2) * bwDoubleRate + (bw % 2) * bwSingleRate) * copies;
                 if (dSheets > 0) hasDouble = true;
                 if (sSheets > 0) hasSingle = true;
             } else {
@@ -701,6 +710,7 @@ export const OrderProvider = ({ children }) => {
             printSideStr,
             doubleBwSheetsTotal,
             singleBwSheetsTotal,
+            doubleColourSheetsTotal,
             singleColourSheetsTotal
         };
     }, [files, selectedShop, serviceType, recordBindingType, calculatedDeliveryCharge, rates]);
@@ -720,7 +730,11 @@ export const OrderProvider = ({ children }) => {
     // Helper for per-file color cost
     const getFileColorCost = (fileObj) => {
         const color = Number(fileObj.colorPages || 0);
-        return color * rates.colourSingleRate;
+        if (fileObj.printSide === 'DOUBLE_SIDE') {
+            return Math.floor(color / 2) * rates.colourDoubleRate + (color % 2) * rates.colourSingleRate;
+        } else {
+            return color * rates.colourSingleRate;
+        }
     };
 
     // Helper for per-file binding cost
@@ -835,7 +849,7 @@ export const OrderProvider = ({ children }) => {
                         copies: Number(f.copies || 1),
                         printSide: f.printSide,
                         binding: f.binding,
-                        printColorDoubleSide: false,
+                        printColorDoubleSide: f.printSide === 'DOUBLE_SIDE',
                         printingMode: 'regular'
                     };
                 });

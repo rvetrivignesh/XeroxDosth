@@ -99,7 +99,7 @@ export const Shops = () => {
                                     border: '1px solid var(--border-color)'
                                 }}>
                                     <div>🖤 Grayscale: <strong>₹{shop.printingRates?.bwSingle ?? shop.pricing?.bwPerPage}/pg</strong></div>
-                                    <div>❤️ Color (Single Side): <strong>₹{shop.printingRates?.colourSingle ?? shop.pricing?.colorPerPage}/pg</strong></div>
+                                    <div>❤️ Color: <strong>₹{shop.printingRates?.colourSingle ?? shop.pricing?.colorPerPage}/pg</strong></div>
                                 </div>
                             </div>
 

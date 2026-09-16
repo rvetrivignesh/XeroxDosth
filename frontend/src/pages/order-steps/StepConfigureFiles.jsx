@@ -49,8 +49,7 @@ export const StepConfigureFiles = () => {
                 printType: 'color',
                 colorPages: rangeSize,
                 colorPageNumbersText: '',
-                bwPages: 0,
-                printSide: 'SINGLE_SIDE' // Color is always single-sided
+                bwPages: 0
             });
         } else if (newType === 'mixed') {
             const colorNumbers = parseColorPageNumbers(fileObj.colorPageNumbersText);
@@ -198,7 +197,7 @@ export const StepConfigureFiles = () => {
                                         >
                                             <div className="file-card-header-left">
                                                 <span className="file-card-icon">{isImage ? '🖼️' : '📕'}</span>
-                                                <div style={{ minWidth: 0 }}>
+                                                <div style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
                                                     {fileObj.status === 'success' && fileObj.metadata?.url ? (
                                                         <a 
                                                             href={fileObj.metadata.url} 
@@ -293,7 +292,7 @@ export const StepConfigureFiles = () => {
                                                         onChange={(e) => handlePrintTypeChange(fileObj, e.target.value)}
                                                     >
                                                         <option value="grayscale">📄 Grayscale</option>
-                                                        <option value="color">🎨 Color (Single Side)</option>
+                                                        <option value="color">🎨 Color</option>
                                                         <option value="mixed">📑 Mixed (Grayscale &amp; Color)</option>
                                                     </select>
                                                 </div>
@@ -338,23 +337,27 @@ export const StepConfigureFiles = () => {
 
                                                     <div className="form-group" style={{ marginBottom: 0 }}>
                                                         <label style={{ fontSize: '0.85rem' }}>Print Side</label>
-                                                        {printType === 'color' ? (
-                                                            <select
-                                                                value="SINGLE_SIDE"
-                                                                disabled
-                                                                style={{ backgroundColor: 'var(--bg-input)', cursor: 'not-allowed' }}
-                                                            >
-                                                                <option value="SINGLE_SIDE">Single-Sided (₹{rates.colourSingleRate}/page)</option>
-                                                            </select>
-                                                        ) : (
-                                                            <select
-                                                                value={fileObj.printSide || 'SINGLE_SIDE'}
-                                                                onChange={(e) => updateFileStatus(fileObj.id, { printSide: e.target.value })}
-                                                            >
-                                                                <option value="SINGLE_SIDE">Single-Sided (₹{rates.bwSingleRate}/page)</option>
-                                                                <option value="DOUBLE_SIDE">Double-Sided (₹{rates.bwDoubleRate}/sheet)</option>
-                                                            </select>
-                                                        )}
+                                                        <select
+                                                            value={fileObj.printSide || 'SINGLE_SIDE'}
+                                                            onChange={(e) => updateFileStatus(fileObj.id, { printSide: e.target.value })}
+                                                        >
+                                                            {printType === 'color' ? (
+                                                                <>
+                                                                    <option value="SINGLE_SIDE">Single-Sided (₹{rates.colourSingleRate}/page)</option>
+                                                                    <option value="DOUBLE_SIDE">Double-Sided (₹{rates.colourDoubleRate}/sheet)</option>
+                                                                </>
+                                                            ) : printType === 'mixed' ? (
+                                                                <>
+                                                                    <option value="SINGLE_SIDE">Single-Sided (B&amp;W: ₹{rates.bwSingleRate}, Color: ₹{rates.colourSingleRate})</option>
+                                                                    <option value="DOUBLE_SIDE">Double-Sided (B&amp;W: ₹{rates.bwDoubleRate}, Color: ₹{rates.colourDoubleRate})</option>
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <option value="SINGLE_SIDE">Single-Sided (₹{rates.bwSingleRate}/page)</option>
+                                                                    <option value="DOUBLE_SIDE">Double-Sided (₹{rates.bwDoubleRate}/sheet)</option>
+                                                                </>
+                                                            )}
+                                                        </select>
                                                     </div>
 
                                                     <div className="form-group" style={{ marginBottom: 0 }}>
@@ -394,7 +397,7 @@ export const StepConfigureFiles = () => {
                                                         )}
                                                         {(fileObj.colorPages || 0) > 0 && (
                                                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', color: '#6366f1' }}>
-                                                                🎨 <strong>{fileObj.colorPages}</strong> Color page(s) (Single Side) · ₹{getFileColorCost(fileObj).toFixed(2)}
+                                                                🎨 <strong>{fileObj.colorPages}</strong> Color page(s) ({fileObj.printSide === 'DOUBLE_SIDE' ? 'Double Sided' : 'Single Sided'}) · ₹{getFileColorCost(fileObj).toFixed(2)}
                                                             </span>
                                                         )}
                                                         {fileObj.binding && fileObj.binding !== 'NONE' && (

@@ -43,7 +43,7 @@ export const PageDetailsSummary = ({ doc, document: propDoc, defaultExpanded = f
                             color: '#6366f1',
                             border: '1px solid rgba(99, 102, 241, 0.25)'
                         }}>
-                            🎨 {colorTotalPages} Color (Single Side)
+                            🎨 {colorTotalPages} Color Page{colorTotalPages > 1 ? 's' : ''}
                         </span>
                     )}
                     {bwTotalPages > 0 && (
@@ -107,11 +107,11 @@ export const PageDetailsSummary = ({ doc, document: propDoc, defaultExpanded = f
                         }}>
                             <div style={{ fontWeight: 700, color: '#6366f1', display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.25rem' }}>
                                 <span>🎨</span>
-                                <span>Color Pages ({colorTotalPages} total · Single-sided)</span>
+                                <span>Color Pages ({colorTotalPages} total)</span>
                             </div>
                             {colorCategories.map((cat, i) => (
                                 <div key={i} style={{ paddingLeft: '1.25rem', color: 'var(--text-primary)', fontSize: '0.8rem' }}>
-                                    • <strong>Single-sided</strong>: {cat.count} page(s) — {cat.isAllPages ? `All pages (1–${pageCount})` : `Page(s) ${cat.rangeText}`}
+                                    • <strong>{cat.printSide}</strong>: {cat.count} page(s) — {cat.isAllPages ? `All pages (1–${pageCount})` : `Page(s) ${cat.rangeText}`}
                                 </div>
                             ))}
                         </div>

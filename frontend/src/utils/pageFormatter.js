@@ -147,7 +147,7 @@ export const getPageDetails = (doc = {}) => {
         categories.push({
             key: 'color',
             colorMode: 'Color',
-            printSide: 'Single-sided',
+            printSide: rootPrintSide,
             count: colorPagesList.length,
             pages: colorPagesList,
             rangeText: formatPageRanges(colorPagesList, pageCount),

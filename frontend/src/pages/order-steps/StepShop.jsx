@@ -55,7 +55,7 @@ export const StepShop = () => {
 
                                     <div className="shop-badges">
                                         <span className="badge">Grayscale: ₹{bwRate}/pg</span>
-                                        <span className="badge">Color (Single Side): ₹{colorRate}/pg</span>
+                                        <span className="badge">Color: ₹{colorRate}/pg</span>
                                         {s.isDeliveryAvailable && <span className="badge delivery-badge">Delivery Available</span>}
                                     </div>
                                 </div>

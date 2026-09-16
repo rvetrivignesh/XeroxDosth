@@ -26,7 +26,7 @@ export const OrderPriceSummary = ({ isSidebar = true }) => {
         }
     }
 
-    const { bwSingleRate = 0, bwDoubleRate = 0, colourSingleRate = 0 } = rates;
+    const { bwSingleRate = 0, bwDoubleRate = 0, colourSingleRate = 0, colourDoubleRate = 0 } = rates;
 
     return (
         <div className={`summary-sidebar card ${isSidebar ? '' : 'summary-full-width'}`}>
@@ -99,6 +99,20 @@ export const OrderPriceSummary = ({ isSidebar = true }) => {
                         </div>
                         <strong style={{ color: 'var(--text-primary)', fontSize: '0.85rem' }}>
                             ₹{(priceDetails.singleColourSheetsTotal * colourSingleRate).toFixed(2)}
+                        </strong>
+                    </div>
+                )}
+
+                {priceDetails.doubleColourSheetsTotal > 0 && (
+                    <div className="review-cost-row" style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '0.4rem', borderBottom: '1px solid var(--border-color)' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Double-Sided Color</span>
+                            <small style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                                {priceDetails.doubleColourSheetsTotal * 2} page(s) → {priceDetails.doubleColourSheetsTotal} sheet(s) × ₹{colourDoubleRate.toFixed(2)}
+                            </small>
+                        </div>
+                        <strong style={{ color: 'var(--text-primary)', fontSize: '0.85rem' }}>
+                            ₹{(priceDetails.doubleColourSheetsTotal * colourDoubleRate).toFixed(2)}
                         </strong>
                     </div>
                 )}
