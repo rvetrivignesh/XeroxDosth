@@ -11,6 +11,18 @@ const formatEstimatedTime = (timeStr) => {
     return formatDateTime(timeStr);
 };
 
+const truncateDocName = (name, max = 25) => {
+    if (!name) return 'Doc';
+    if (name.length <= max) return name;
+    const extIdx = name.lastIndexOf('.');
+    if (extIdx > 0 && name.length - extIdx <= 6) {
+        const ext = name.slice(extIdx);
+        const front = name.slice(0, Math.max(6, max - ext.length - 3));
+        return `${front}...${ext}`;
+    }
+    return `${name.slice(0, max - 3)}...`;
+};
+
 export const MyOrders = () => {
     const { showToast } = useToast();
     const navigate = useNavigate();
@@ -190,8 +202,8 @@ export const MyOrders = () => {
                                     <div>📄 <strong>{order.documents?.length || 0} Document(s)</strong></div>
                                     <div>🖨️ {order.totalPages} pages ({order.bwPages || 0} B&W, {order.colorPages || 0} Color) &times; {order.copies} copies</div>
                                     {order.colorPages > 0 && order.documents?.some(d => d.colorPageNumbersText) && (
-                                        <div style={{ color: '#6366f1', fontSize: '0.8rem' }}>
-                                            🎨 Color pages: {order.documents.filter(d => d.colorPageNumbersText).map(d => `${d.originalName || 'Doc'}: p. ${d.colorPageNumbersText}`).join(' | ')}
+                                        <div style={{ color: '#6366f1', fontSize: '0.8rem', wordBreak: 'break-word', overflowWrap: 'anywhere', lineHeight: 1.4 }}>
+                                            🎨 Color pages: {order.documents.filter(d => d.colorPageNumbersText).map(d => `${truncateDocName(d.originalName || 'Doc', 22)}: p. ${d.colorPageNumbersText}`).join(' | ')}
                                         </div>
                                     )}
                                     <div>📦 {order.printSide.replace(/_/g, ' ')} • {order.binding} Binding</div>
@@ -220,7 +232,7 @@ export const MyOrders = () => {
                                     </Link>
                                 )}
 
-                                <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                                <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap', width: '100%' }}>
                                     {canCancelImmediately && (
                                         <button className="btn btn-danger btn-sm" onClick={(e) => { e.stopPropagation(); handleCancelImmediately(order._id); }}>
                                             Cancel Order

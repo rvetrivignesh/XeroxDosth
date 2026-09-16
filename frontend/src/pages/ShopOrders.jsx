@@ -7,6 +7,18 @@ import PageDetailsSummary from '../components/PageDetailsSummary';
 import { formatDateDDMMYYYY, formatDateTime } from '../utils/dateFormatter';
 import './Order.css';
 
+const truncateDocName = (name, max = 25) => {
+    if (!name) return 'Doc';
+    if (name.length <= max) return name;
+    const extIdx = name.lastIndexOf('.');
+    if (extIdx > 0 && name.length - extIdx <= 6) {
+        const ext = name.slice(extIdx);
+        const front = name.slice(0, Math.max(6, max - ext.length - 3));
+        return `${front}...${ext}`;
+    }
+    return `${name.slice(0, max - 3)}...`;
+};
+
 export const ShopOrders = () => {
     const navigate = useNavigate();
     const { showToast } = useToast();
@@ -490,8 +502,8 @@ export const ShopOrders = () => {
                                             {order.bwPages} B&W, {order.colorPages} Color ({order.totalPages} Total) &times; {order.copies} copies
                                         </div>
                                         {order.colorPages > 0 && order.documents?.some(d => d.colorPageNumbersText) && (
-                                            <div style={{ color: '#6366f1', fontSize: '0.8rem', marginTop: '0.2rem' }}>
-                                                🎨 Color: {order.documents.filter(d => d.colorPageNumbersText).map(d => `${d.originalName || 'Doc'}: p. ${d.colorPageNumbersText}`).join(' | ')}
+                                            <div style={{ color: '#6366f1', fontSize: '0.8rem', marginTop: '0.2rem', wordBreak: 'break-word', overflowWrap: 'anywhere', lineHeight: 1.4 }}>
+                                                🎨 Color: {order.documents.filter(d => d.colorPageNumbersText).map(d => `${truncateDocName(d.originalName || 'Doc', 22)}: p. ${d.colorPageNumbersText}`).join(' | ')}
                                             </div>
                                         )}
                                     </div>
