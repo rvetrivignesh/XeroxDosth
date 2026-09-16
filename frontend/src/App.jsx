@@ -13,11 +13,13 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Profile from './pages/Profile';
-// import ApplyShop from './pages/ApplyShop';
-// import ApplyAdmin from './pages/ApplyAdmin';
-// import ApplicationStatus from './pages/ApplicationStatus';
 import UpdateShop from './pages/UpdateShop';
 import PlaceOrder from './pages/PlaceOrder';
+import StepService from './pages/order-steps/StepService';
+import StepShop from './pages/order-steps/StepShop';
+import StepConfigureFiles from './pages/order-steps/StepConfigureFiles';
+import StepOrderDetails from './pages/order-steps/StepOrderDetails';
+import StepReview from './pages/order-steps/StepReview';
 import MyOrders from './pages/MyOrders';
 import ShopOrders from './pages/ShopOrders';
 import AdminApplications from './pages/AdminApplications';
@@ -39,7 +41,7 @@ export function App() {
                             <Navbar />
                             <main className="main-content">
                                 <Routes>
-                                    {/* Public Only Routes (Redirect to /dashboard if logged in) */}
+                                    {/* Public Only Routes */}
                                     <Route path="/" element={<PublicOnlyRoute><Home /></PublicOnlyRoute>} />
                                     <Route path="/login" element={<PublicOnlyRoute><Login /></PublicOnlyRoute>} />
                                     <Route path="/register" element={<PublicOnlyRoute><Register /></PublicOnlyRoute>} />
@@ -47,17 +49,22 @@ export function App() {
                                     {/* Protected Routes */}
                                     <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
                                     <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-                                    <Route path="/place-order" element={<ProtectedRoute><PlaceOrder /></ProtectedRoute>} />
+                                    
+                                    {/* Place Order Wizard with Sub-Routes */}
+                                    <Route path="/place-order" element={<ProtectedRoute><PlaceOrder /></ProtectedRoute>}>
+                                        <Route index element={<Navigate to="/place-order/service" replace />} />
+                                        <Route path="service" element={<StepService />} />
+                                        <Route path="shop" element={<StepShop />} />
+                                        <Route path="configure-files" element={<StepConfigureFiles />} />
+                                        <Route path="order-details" element={<StepOrderDetails />} />
+                                        <Route path="review" element={<StepReview />} />
+                                    </Route>
+
                                     <Route path="/my-orders" element={<ProtectedRoute><MyOrders /></ProtectedRoute>} />
                                     <Route path="/order/:orderId" element={<ProtectedRoute><OrderDetail /></ProtectedRoute>} />
                                     <Route path="/shops" element={<ProtectedRoute><Shops /></ProtectedRoute>} />
                                     <Route path="/payment-request/:orderId" element={<ProtectedRoute><PaymentRequest /></ProtectedRoute>} />
                                     <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
-                                    
-                                    {/* <Route path="/apply-shop" element={<ProtectedRoute><ApplyShop /></ProtectedRoute>} />
-                                    <Route path="/apply-admin" element={<ProtectedRoute><ApplyAdmin /></ProtectedRoute>} />
-                                    <Route path="/application-status" element={<ProtectedRoute><ApplicationStatus /></ProtectedRoute>} />
-                                    <Route path="/my-shop-application" element={<Navigate to="/application-status" replace />} /> */}
                                     
                                     {/* Shop Owner Routes */}
                                     <Route path="/update-shop" element={<ProtectedRoute><UpdateShop /></ProtectedRoute>} />

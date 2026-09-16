@@ -98,8 +98,8 @@ export const Shops = () => {
                                     justifyContent: 'space-between',
                                     border: '1px solid var(--border-color)'
                                 }}>
-                                    <div>🖤 B&W: <strong>₹{shop.printingRates?.bwSingle ?? shop.pricing?.bwPerPage}/pg</strong></div>
-                                    <div>❤️ Color: <strong>₹{shop.printingRates?.colourSingle ?? shop.pricing?.colorPerPage}/pg</strong></div>
+                                    <div>🖤 Grayscale: <strong>₹{shop.printingRates?.bwSingle ?? shop.pricing?.bwPerPage}/pg</strong></div>
+                                    <div>❤️ Color (Single Side): <strong>₹{shop.printingRates?.colourSingle ?? shop.pricing?.colorPerPage}/pg</strong></div>
                                 </div>
                             </div>
 
@@ -177,7 +177,7 @@ export const Shops = () => {
                             <strong style={{ fontSize: '0.95rem' }}>Printing Rates (₹)</strong>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '0.5rem' }}>
                                 <div style={{ backgroundColor: 'var(--bg-input)', padding: '0.75rem', borderRadius: 'var(--radius-sm)', fontSize: '0.85rem', border: '1px solid var(--border-color)' }}>
-                                    <div style={{ fontWeight: 600, borderBottom: '1px solid var(--border-color)', paddingBottom: '0.25rem', marginBottom: '0.25rem' }}>🖤 Black & White</div>
+                                    <div style={{ fontWeight: 600, borderBottom: '1px solid var(--border-color)', paddingBottom: '0.25rem', marginBottom: '0.25rem' }}>🖤 Grayscale</div>
                                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                         <span>Single Side:</span>
                                         <strong>₹{selectedShop.printingRates?.bwSingle ?? selectedShop.pricing?.bwPerPage}/pg</strong>

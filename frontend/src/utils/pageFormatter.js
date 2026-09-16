@@ -96,117 +96,63 @@ export const formatPageRanges = (pagesInput, totalDocPages = 0, options = {}) =>
 };
 
 /**
- * Normalizes document settings (advanced or regular mode) into structured categories.
+ * Normalizes document settings into structured categories.
  */
 export const getPageDetails = (doc = {}) => {
     const pageCount = Number(doc.pageCount || 1);
     const copies = Number(doc.copies || 1);
     const binding = doc.binding || 'NONE';
-    const isAdvanced = doc.printingMode === 'advanced';
 
     const categories = [];
 
-    if (isAdvanced) {
-        const bwSingle = parsePageList(doc.bwSinglePages || doc.bwSinglePagesText);
-        const bwDouble = parsePageList(doc.bwDoublePages || doc.bwDoublePagesText);
-        const colSingle = parsePageList(doc.colorSinglePages || doc.colorSinglePagesText);
-        const colDouble = parsePageList(doc.colorDoublePages || doc.colorDoublePagesText);
+    const startPage = Number(doc.startPage || 1);
+    const lastPage = Number(doc.lastPage || pageCount || 1);
+    const totalSelectedInRange = Math.max(1, lastPage - startPage + 1);
 
-        if (bwSingle.length > 0) {
-            categories.push({
-                key: 'bwSingle',
-                colorMode: 'B&W',
-                printSide: 'Single-sided',
-                count: bwSingle.length,
-                pages: bwSingle,
-                rangeText: formatPageRanges(bwSingle, pageCount),
-                isAllPages: bwSingle.length === pageCount && bwSingle[0] === 1 && bwSingle[bwSingle.length - 1] === pageCount
-            });
-        }
-        if (bwDouble.length > 0) {
-            categories.push({
-                key: 'bwDouble',
-                colorMode: 'B&W',
-                printSide: 'Double-sided',
-                count: bwDouble.length,
-                pages: bwDouble,
-                rangeText: formatPageRanges(bwDouble, pageCount),
-                isAllPages: bwDouble.length === pageCount && bwDouble[0] === 1 && bwDouble[bwDouble.length - 1] === pageCount
-            });
-        }
-        if (colSingle.length > 0) {
-            categories.push({
-                key: 'colorSingle',
-                colorMode: 'Color',
-                printSide: 'Single-sided',
-                count: colSingle.length,
-                pages: colSingle,
-                rangeText: formatPageRanges(colSingle, pageCount),
-                isAllPages: colSingle.length === pageCount && colSingle[0] === 1 && colSingle[colSingle.length - 1] === pageCount
-            });
-        }
-        if (colDouble.length > 0) {
-            categories.push({
-                key: 'colorDouble',
-                colorMode: 'Color',
-                printSide: 'Double-sided',
-                count: colDouble.length,
-                pages: colDouble,
-                rangeText: formatPageRanges(colDouble, pageCount),
-                isAllPages: colDouble.length === pageCount && colDouble[0] === 1 && colDouble[colDouble.length - 1] === pageCount
-            });
-        }
-    } else {
-        const startPage = Number(doc.startPage || 1);
-        const lastPage = Number(doc.lastPage || pageCount || 1);
-        const totalSelectedInRange = Math.max(1, lastPage - startPage + 1);
+    const colorPagesCount = Number(doc.colorPages || 0);
+    const bwPagesCount = doc.bwPages !== undefined ? Number(doc.bwPages) : Math.max(0, totalSelectedInRange - colorPagesCount);
 
-        const colorPagesCount = Number(doc.colorPages || 0);
-        const bwPagesCount = doc.bwPages !== undefined ? Number(doc.bwPages) : Math.max(0, totalSelectedInRange - colorPagesCount);
+    const rootPrintSide = doc.printSide === 'DOUBLE_SIDE' ? 'Double-sided' : 'Single-sided';
 
-        const rootPrintSide = doc.printSide === 'DOUBLE_SIDE' ? 'Double-sided' : 'Single-sided';
-        const colorPrintSide = doc.printColorDoubleSide ? 'Double-sided' : 'Single-sided';
-
-        let colorPagesList = [];
-        if (colorPagesCount > 0) {
-            colorPagesList = parsePageList(doc.colorPageNumbersText);
-            if (colorPagesList.length === 0) {
-                for (let p = startPage; p < startPage + colorPagesCount && p <= lastPage; p++) {
-                    colorPagesList.push(p);
-                }
+    let colorPagesList = [];
+    if (colorPagesCount > 0) {
+        colorPagesList = parsePageList(doc.colorPageNumbersText);
+        if (colorPagesList.length === 0) {
+            for (let p = startPage; p < startPage + colorPagesCount && p <= lastPage; p++) {
+                colorPagesList.push(p);
             }
         }
+    }
 
-        const selectedRangePages = [];
-        for (let p = startPage; p <= lastPage; p++) {
-            selectedRangePages.push(p);
-        }
+    const selectedRangePages = [];
+    for (let p = startPage; p <= lastPage; p++) {
+        selectedRangePages.push(p);
+    }
 
-        const bwPagesList = selectedRangePages.filter(p => !colorPagesList.includes(p));
+    const bwPagesList = selectedRangePages.filter(p => !colorPagesList.includes(p));
 
-        if (bwPagesCount > 0 && bwPagesList.length > 0) {
-            categories.push({
-                key: 'bw',
-                colorMode: 'B&W',
-                printSide: rootPrintSide,
-                count: bwPagesList.length,
-                pages: bwPagesList,
-                rangeText: formatPageRanges(bwPagesList, pageCount),
-                isAllPages: bwPagesList.length === pageCount && bwPagesList[0] === 1 && bwPagesList[bwPagesList.length - 1] === pageCount
-            });
-        }
+    if (bwPagesCount > 0 && bwPagesList.length > 0) {
+        categories.push({
+            key: 'bw',
+            colorMode: 'Grayscale',
+            printSide: rootPrintSide,
+            count: bwPagesList.length,
+            pages: bwPagesList,
+            rangeText: formatPageRanges(bwPagesList, pageCount),
+            isAllPages: bwPagesList.length === pageCount && bwPagesList[0] === 1 && bwPagesList[bwPagesList.length - 1] === pageCount
+        });
+    }
 
-        if (colorPagesCount > 0 && colorPagesList.length > 0) {
-            categories.push({
-                key: 'color',
-                colorMode: 'Color',
-                printSide: colorPrintSide,
-                count: colorPagesList.length,
-                pages: colorPagesList,
-                rangeText: formatPageRanges(colorPagesList, pageCount),
-                isAllPages: colorPagesList.length === pageCount && colorPagesList[0] === 1 && colorPagesList[colorPagesList.length - 1] === pageCount
-            });
-        }
+    if (colorPagesCount > 0 && colorPagesList.length > 0) {
+        categories.push({
+            key: 'color',
+            colorMode: 'Color',
+            printSide: 'Single-sided',
+            count: colorPagesList.length,
+            pages: colorPagesList,
+            rangeText: formatPageRanges(colorPagesList, pageCount),
+            isAllPages: colorPagesList.length === pageCount && colorPagesList[0] === 1 && colorPagesList[colorPagesList.length - 1] === pageCount
+        });
     }
 
     const totalSelectedPages = categories.reduce((sum, c) => sum + c.count, 0);
@@ -216,7 +162,6 @@ export const getPageDetails = (doc = {}) => {
         pageCount,
         copies,
         binding,
-        isAdvanced,
         categories,
         totalSelectedPages,
         isAllPagesDoc
@@ -236,4 +181,11 @@ export const formatDocSummaryLines = (doc = {}) => {
     });
 
     return lines;
+};
+
+export default {
+    parsePageList,
+    formatPageRanges,
+    getPageDetails,
+    formatDocSummaryLines
 };

@@ -19,19 +19,11 @@ export const PageDetailsSummary = ({ doc, document: propDoc, defaultExpanded = f
     }
 
     // Group categories by color mode
-    const bwCategories = categories.filter(c => c.colorMode === 'B&W');
+    const bwCategories = categories.filter(c => c.colorMode === 'Grayscale' || c.colorMode === 'B&W');
     const bwTotalPages = bwCategories.reduce((sum, c) => sum + c.count, 0);
 
     const colorCategories = categories.filter(c => c.colorMode === 'Color');
     const colorTotalPages = colorCategories.reduce((sum, c) => sum + c.count, 0);
-
-    // Determine if selection is complex (has multiple ranges or multiple categories)
-    const isComplex = categories.some(c => c.rangeText && c.rangeText.includes(',')) || categories.length > 1 || (totalSelectedPages > 15 && !isAllPagesDoc);
-
-    const inlineSummaryText = categories.map(c => {
-        const pageLabel = c.isAllPages ? `All pages · 1–${pageCount}` : `${c.count} pg${c.count > 1 ? 's' : ''} (${c.rangeText})`;
-        return `${c.colorMode} · ${c.printSide} · ${pageLabel}`;
-    }).join(' • ');
 
     return (
         <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
@@ -51,7 +43,7 @@ export const PageDetailsSummary = ({ doc, document: propDoc, defaultExpanded = f
                             color: '#6366f1',
                             border: '1px solid rgba(99, 102, 241, 0.25)'
                         }}>
-                            🎨 {colorTotalPages} Color Page{colorTotalPages > 1 ? 's' : ''}
+                            🎨 {colorTotalPages} Color (Single Side)
                         </span>
                     )}
                     {bwTotalPages > 0 && (
@@ -67,7 +59,7 @@ export const PageDetailsSummary = ({ doc, document: propDoc, defaultExpanded = f
                             color: 'var(--text-secondary)',
                             border: '1px solid var(--border-color)'
                         }}>
-                            📄 {bwTotalPages} B&W Page{bwTotalPages > 1 ? 's' : ''}
+                            📄 {bwTotalPages} Grayscale Page{bwTotalPages > 1 ? 's' : ''}
                         </span>
                     )}
                     <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
@@ -90,7 +82,7 @@ export const PageDetailsSummary = ({ doc, document: propDoc, defaultExpanded = f
                         backgroundColor: 'var(--bg-hover, rgba(59, 130, 246, 0.08))'
                     }}
                 >
-                    {isExpanded ? 'Hide page breakdown ▲' : 'View page breakdown ▼'}
+                    {isExpanded ? 'Hide breakdown ▲' : 'View breakdown ▼'}
                 </button>
             </div>
 
@@ -115,11 +107,11 @@ export const PageDetailsSummary = ({ doc, document: propDoc, defaultExpanded = f
                         }}>
                             <div style={{ fontWeight: 700, color: '#6366f1', display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.25rem' }}>
                                 <span>🎨</span>
-                                <span>Color Pages ({colorTotalPages} total)</span>
+                                <span>Color Pages ({colorTotalPages} total · Single-sided)</span>
                             </div>
                             {colorCategories.map((cat, i) => (
                                 <div key={i} style={{ paddingLeft: '1.25rem', color: 'var(--text-primary)', fontSize: '0.8rem' }}>
-                                    • <strong>{cat.printSide}</strong>: {cat.count} page(s) — {cat.isAllPages ? `All pages (1–${pageCount})` : `Page(s) ${cat.rangeText}`}
+                                    • <strong>Single-sided</strong>: {cat.count} page(s) — {cat.isAllPages ? `All pages (1–${pageCount})` : `Page(s) ${cat.rangeText}`}
                                 </div>
                             ))}
                         </div>
@@ -134,7 +126,7 @@ export const PageDetailsSummary = ({ doc, document: propDoc, defaultExpanded = f
                         }}>
                             <div style={{ fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.25rem' }}>
                                 <span>📄</span>
-                                <span>Black & White Pages ({bwTotalPages} total)</span>
+                                <span>Grayscale Pages ({bwTotalPages} total)</span>
                             </div>
                             {bwCategories.map((cat, i) => (
                                 <div key={i} style={{ paddingLeft: '1.25rem', color: 'var(--text-primary)', fontSize: '0.8rem' }}>
