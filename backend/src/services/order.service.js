@@ -155,10 +155,6 @@ export const createOrder = async (userId, orderData, io) => {
                 const docBw = Number(doc.bwPages || 0);
                 const docColor = Number(doc.colorPages || 0);
 
-                if (docPrintSide === 'DOUBLE_SIDE' && docColor > 0) {
-                    throw new ApiError(400, 'Color printing is only available for single-sided printing.');
-                }
-
                 totalBwPages += docBw * docCopies;
                 totalColorPages += docColor * docCopies;
 
@@ -169,7 +165,9 @@ export const createOrder = async (userId, orderData, io) => {
                     docBwCost = docBw * bwSingleRate * docCopies;
                 }
                 let docColorCost = 0;
-                if (doc.printColorDoubleSide && docColor >= 2) {
+                if (docPrintSide === 'DOUBLE_SIDE') {
+                    docColorCost = (Math.floor(docColor / 2) * colourDoubleRate + (docColor % 2) * colourSingleRate) * docCopies;
+                } else if (doc.printColorDoubleSide && docColor >= 2) {
                     const { doubleSheets, singlePages } = groupConsecutivePages(doc.colorPageNumbersText);
                     docColorCost = (doubleSheets * colourDoubleRate + singlePages * colourSingleRate) * docCopies;
                 } else {
@@ -192,10 +190,6 @@ export const createOrder = async (userId, orderData, io) => {
         totalCopies = Number(orderData.copies || 1);
         const rootPrintSide = orderData.printSide || 'SINGLE_SIDE';
 
-        if (rootPrintSide === 'DOUBLE_SIDE' && totalColorPages > 0) {
-            throw new ApiError(400, 'Color printing is only available for single-sided printing.');
-        }
-
         let rootBwCost = 0;
         if (rootPrintSide === 'DOUBLE_SIDE') {
             rootBwCost = (Math.floor(totalBwPages / 2) * bwDoubleRate + (totalBwPages % 2) * bwSingleRate) * totalCopies;
@@ -203,7 +197,9 @@ export const createOrder = async (userId, orderData, io) => {
             rootBwCost = totalBwPages * bwSingleRate * totalCopies;
         }
         let rootColorCost = 0;
-        if (orderData.printColorDoubleSide && totalColorPages >= 2) {
+        if (rootPrintSide === 'DOUBLE_SIDE') {
+            rootColorCost = (Math.floor(totalColorPages / 2) * colourDoubleRate + (totalColorPages % 2) * colourSingleRate) * totalCopies;
+        } else if (orderData.printColorDoubleSide && totalColorPages >= 2) {
             const { doubleSheets, singlePages } = groupConsecutivePages(orderData.colorPageNumbersText);
             rootColorCost = (doubleSheets * colourDoubleRate + singlePages * colourSingleRate) * totalCopies;
         } else {

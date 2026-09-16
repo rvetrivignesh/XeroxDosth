@@ -158,7 +158,7 @@ export const getPageDetails = (doc = {}) => {
         const bwPagesCount = doc.bwPages !== undefined ? Number(doc.bwPages) : Math.max(0, totalSelectedInRange - colorPagesCount);
 
         const rootPrintSide = doc.printSide === 'DOUBLE_SIDE' ? 'Double-sided' : 'Single-sided';
-        const colorPrintSide = doc.printColorDoubleSide ? 'Double-sided' : 'Single-sided';
+        const colorPrintSide = (doc.printColorDoubleSide || doc.printSide === 'DOUBLE_SIDE') ? 'Double-sided' : 'Single-sided';
 
         let colorPagesList = [];
         if (colorPagesCount > 0) {

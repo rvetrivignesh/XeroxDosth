@@ -100,10 +100,6 @@ export const createOrderValidator = [
                             throw new Error(`Document at index ${i}: Double-sided pages must be entered as continuous pairs, e.g. 2,3,6,7,9,10.`);
                         }
                     }
-                } else {
-                    if (doc.printSide === 'DOUBLE_SIDE' && (doc.colorPages || 0) > 0) {
-                        throw new Error(`Document at index ${i}: Color printing is only available for single-sided printing.`);
-                    }
                 }
                 const isPhysical = doc.publicId?.startsWith('PHYSICAL_DOC_') || doc.url === 'N/A' || doc.url?.includes('physical-doc.pdf');
                 if (!isPhysical) {
@@ -148,14 +144,7 @@ export const createOrderValidator = [
     body('printSide')
         .trim()
         .notEmpty().withMessage('Print side is required')
-        .isIn(VALID_PRINT_SIDES).withMessage(`Print side must be one of: ${VALID_PRINT_SIDES.join(', ')}`)
-        .custom((printSide, { req }) => {
-            const colorPages = req.body.colorPages !== undefined ? Number(req.body.colorPages) : 0;
-            if (printSide === 'DOUBLE_SIDE' && colorPages > 0) {
-                throw new Error('Color printing is only available for single-sided printing.');
-            }
-            return true;
-        }),
+        .isIn(VALID_PRINT_SIDES).withMessage(`Print side must be one of: ${VALID_PRINT_SIDES.join(', ')}`),
 
     body('binding')
         .trim()
