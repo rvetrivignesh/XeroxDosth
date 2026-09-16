@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { getPageDetails } from '../utils/pageFormatter';
 
-export const PageDetailsSummary = ({ doc, document: propDoc, defaultExpanded = false }) => {
-    const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+export const PageDetailsSummary = ({ doc, document: propDoc, defaultExpanded }) => {
     const targetDoc = doc || propDoc;
 
     if (!targetDoc) return null;
@@ -13,7 +12,7 @@ export const PageDetailsSummary = ({ doc, document: propDoc, defaultExpanded = f
     if (categories.length === 0) {
         return (
             <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                ⚙️ <strong>Settings:</strong> {pageCount} page(s) • {copies} copy(ies) • Binding: {binding}
+                ⚙️ <strong>Settings:</strong> {pageCount} page(s) • {copies > 1 ? `${copies} copies` : `${copies} copy`} • Binding: {binding}
             </div>
         );
     }
@@ -21,9 +20,14 @@ export const PageDetailsSummary = ({ doc, document: propDoc, defaultExpanded = f
     // Group categories by color mode
     const bwCategories = categories.filter(c => c.colorMode === 'Grayscale' || c.colorMode === 'B&W');
     const bwTotalPages = bwCategories.reduce((sum, c) => sum + c.count, 0);
+    const bwRangeText = bwCategories.map(c => c.isAllPages ? `All (1–${pageCount})` : c.rangeText).join(', ');
 
     const colorCategories = categories.filter(c => c.colorMode === 'Color');
     const colorTotalPages = colorCategories.reduce((sum, c) => sum + c.count, 0);
+    const colorRangeText = colorCategories.map(c => c.isAllPages ? `All (1–${pageCount})` : c.rangeText).join(', ');
+
+    const isMixed = colorTotalPages > 0 && bwTotalPages > 0;
+    const [isExpanded, setIsExpanded] = useState(typeof defaultExpanded === 'boolean' ? defaultExpanded : isMixed);
 
     return (
         <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
@@ -43,7 +47,7 @@ export const PageDetailsSummary = ({ doc, document: propDoc, defaultExpanded = f
                             color: '#6366f1',
                             border: '1px solid rgba(99, 102, 241, 0.25)'
                         }}>
-                            🎨 {colorTotalPages} Color Page{colorTotalPages > 1 ? 's' : ''}
+                            🎨 {colorTotalPages} Color Page{colorTotalPages > 1 ? 's' : ''} {colorRangeText && !colorCategories[0]?.isAllPages ? `(p. ${colorRangeText})` : ''}
                         </span>
                     )}
                     {bwTotalPages > 0 && (
@@ -59,11 +63,11 @@ export const PageDetailsSummary = ({ doc, document: propDoc, defaultExpanded = f
                             color: 'var(--text-secondary)',
                             border: '1px solid var(--border-color)'
                         }}>
-                            📄 {bwTotalPages} Grayscale Page{bwTotalPages > 1 ? 's' : ''}
+                            📄 {bwTotalPages} Grayscale Page{bwTotalPages > 1 ? 's' : ''} {bwRangeText && !bwCategories[0]?.isAllPages ? `(p. ${bwRangeText})` : ''}
                         </span>
                     )}
                     <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
-                        • {copies} copy{copies > 1 ? 'ies' : ''} • Binding: {binding}
+                        • {copies > 1 ? `${copies} copies` : `${copies} copy`} • Binding: {binding}
                     </span>
                 </div>
                 

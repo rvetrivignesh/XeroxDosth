@@ -4,18 +4,11 @@ import API from '../services/api';
 import Modal from '../components/Modal';
 import { useToast } from '../context/ToastContext';
 import PageDetailsSummary from '../components/PageDetailsSummary';
+import { formatDateDDMMYYYY, formatDateTime } from '../utils/dateFormatter';
 
 const formatEstimatedTime = (timeStr) => {
     if (!timeStr) return '';
-    const date = new Date(timeStr);
-    return isNaN(date.getTime()) ? timeStr : date.toLocaleString('en-US', {
-        weekday: 'short',
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-    });
+    return formatDateTime(timeStr);
 };
 
 export const MyOrders = () => {
@@ -196,18 +189,26 @@ export const MyOrders = () => {
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
                                     <div>📄 <strong>{order.documents?.length || 0} Document(s)</strong></div>
                                     <div>🖨️ {order.totalPages} pages ({order.bwPages || 0} B&W, {order.colorPages || 0} Color) &times; {order.copies} copies</div>
+                                    {order.colorPages > 0 && order.documents?.some(d => d.colorPageNumbersText) && (
+                                        <div style={{ color: '#6366f1', fontSize: '0.8rem' }}>
+                                            🎨 Color pages: {order.documents.filter(d => d.colorPageNumbersText).map(d => `${d.originalName || 'Doc'}: p. ${d.colorPageNumbersText}`).join(' | ')}
+                                        </div>
+                                    )}
                                     <div>📦 {order.printSide.replace(/_/g, ' ')} • {order.binding} Binding</div>
-                                    <div>⏰ Deadline: <strong>{new Date(order.requiredBy).toLocaleString()}</strong></div>
+                                    <div>⏰ Deadline: <strong>{formatDateDDMMYYYY(order.requiredBy, true)}</strong></div>
                                     {order.estimatedDeliveryTime && (
                                         <div style={{ color: 'var(--accent-color)', fontWeight: 600 }}>⏰ Shop Delivery Time: {formatEstimatedTime(order.estimatedDeliveryTime)}</div>
                                     )}
                                     <div style={{ borderTop: '1px dashed var(--border-color)', paddingTop: '0.5rem', marginTop: '0.25rem', fontWeight: 600 }}>
                                         Price: {order.finalPrice ? `₹${order.finalPrice} (Exact)` : `₹${order.estimatedCost} (Est.)`}
                                     </div>
+                                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                                        📅 Ordered on: <strong>{formatDateDDMMYYYY(order.createdAt)}</strong>
+                                    </div>
                                 </div>
                             </div>
 
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem', marginTop: '0.25rem' }}>
                                 {isAwaitingPayment && (
                                     <Link 
                                         to={`/payment-request/${order._id}`} 
@@ -219,26 +220,20 @@ export const MyOrders = () => {
                                     </Link>
                                 )}
 
-                                <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.5rem', borderTop: '1px solid var(--border-color)', paddingTop: '0.75rem' }}>
-                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                                        {new Date(order.createdAt).toLocaleDateString()}
-                                    </span>
-                                    
-                                    <div style={{ display: 'flex', gap: '0.4rem' }}>
-                                        {canCancelImmediately && (
-                                            <button className="btn btn-danger btn-sm" onClick={(e) => { e.stopPropagation(); handleCancelImmediately(order._id); }}>
-                                                Cancel Order
-                                            </button>
-                                        )}
-                                        {canRequestCancellation && (
-                                            <button className="btn btn-danger btn-sm" onClick={(e) => { e.stopPropagation(); triggerCancellationModal(order._id); }}>
-                                                Request Cancel
-                                            </button>
-                                        )}
-                                        <button className="btn btn-secondary btn-sm" onClick={(e) => { e.stopPropagation(); navigate(`/order/${order._id}`); }}>
-                                            View Details →
+                                <div style={{ display: 'flex', gap: '0.4rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                                    {canCancelImmediately && (
+                                        <button className="btn btn-danger btn-sm" onClick={(e) => { e.stopPropagation(); handleCancelImmediately(order._id); }}>
+                                            Cancel Order
                                         </button>
-                                    </div>
+                                    )}
+                                    {canRequestCancellation && (
+                                        <button className="btn btn-danger btn-sm" onClick={(e) => { e.stopPropagation(); triggerCancellationModal(order._id); }}>
+                                            Request Cancel
+                                        </button>
+                                    )}
+                                    <button className="btn btn-secondary btn-sm" onClick={(e) => { e.stopPropagation(); navigate(`/order/${order._id}`); }}>
+                                        View Details →
+                                    </button>
                                 </div>
                             </div>
                         </div>

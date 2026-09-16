@@ -397,7 +397,7 @@ export const StepConfigureFiles = () => {
                                                         )}
                                                         {(fileObj.colorPages || 0) > 0 && (
                                                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', color: '#6366f1' }}>
-                                                                🎨 <strong>{fileObj.colorPages}</strong> Color page(s) ({fileObj.printSide === 'DOUBLE_SIDE' ? 'Double Sided' : 'Single Sided'}) · ₹{getFileColorCost(fileObj).toFixed(2)}
+                                                                🎨 <strong>{fileObj.colorPages}</strong> Color page(s) {fileObj.colorPageNumbersText ? `(p. ${fileObj.colorPageNumbersText})` : ''} ({fileObj.printSide === 'DOUBLE_SIDE' ? 'Double Sided' : 'Single Sided'}) · ₹{getFileColorCost(fileObj).toFixed(2)}
                                                             </span>
                                                         )}
                                                         {fileObj.binding && fileObj.binding !== 'NONE' && (

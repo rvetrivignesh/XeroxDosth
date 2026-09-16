@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import Modal from '../components/Modal';
 import PageDetailsSummary from '../components/PageDetailsSummary';
+import { formatDateDDMMYYYY, formatDateTime } from '../utils/dateFormatter';
 import './Order.css';
 
 const formatCurrency = (amount) => {
@@ -14,15 +15,7 @@ const formatCurrency = (amount) => {
 
 const formatEstimatedTime = (timeStr) => {
     if (!timeStr) return '';
-    const date = new Date(timeStr);
-    return isNaN(date.getTime()) ? timeStr : date.toLocaleString('en-US', {
-        weekday: 'short',
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-    });
+    return formatDateTime(timeStr);
 };
 
 export const OrderDetail = () => {
@@ -522,12 +515,12 @@ export const OrderDetail = () => {
                             #{order._id.slice(-6).toUpperCase()}
                         </h1>
                         <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', margin: '0 0 0.35rem 0' }}>
-                            Placed on {new Date(order.createdAt).toLocaleString(undefined, { dateStyle: 'full', timeStyle: 'short' })}
+                            Placed on {formatDateDDMMYYYY(order.createdAt, true)}
                         </p>
                         <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', margin: 0, display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
                             <span>⏰ Deadline:</span>
                             <span style={{ color: 'var(--text-primary)', fontWeight: 600, backgroundColor: 'var(--bg-input)', padding: '0.15rem 0.5rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
-                                {order.requiredBy ? new Date(order.requiredBy).toLocaleString(undefined, { dateStyle: 'full', timeStyle: 'short' }) : 'Not specified'}
+                                {order.requiredBy ? formatDateDDMMYYYY(order.requiredBy, true) : 'Not specified'}
                             </span>
                         </p>
                     </div>
@@ -788,7 +781,7 @@ export const OrderDetail = () => {
                             <div>
                                 <small style={{ color: 'var(--text-muted)', display: 'block' }}>Customer Deadline</small>
                                 <strong style={{ color: 'var(--text-primary)' }}>
-                                    ⏰ {order.requiredBy ? new Date(order.requiredBy).toLocaleString(undefined, { dateStyle: 'full', timeStyle: 'short' }) : 'N/A'}
+                                    ⏰ {order.requiredBy ? formatDateDDMMYYYY(order.requiredBy, true) : 'N/A'}
                                 </strong>
                             </div>
                             {order.estimatedDeliveryTime && (

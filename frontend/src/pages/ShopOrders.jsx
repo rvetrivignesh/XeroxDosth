@@ -4,6 +4,7 @@ import API from '../services/api';
 import { useToast } from '../context/ToastContext';
 import Modal from '../components/Modal';
 import PageDetailsSummary from '../components/PageDetailsSummary';
+import { formatDateDDMMYYYY, formatDateTime } from '../utils/dateFormatter';
 import './Order.css';
 
 export const ShopOrders = () => {
@@ -391,7 +392,10 @@ export const ShopOrders = () => {
                                             </span>
                                         )}
                                         <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'block', marginTop: '0.2rem', fontWeight: 500 }}>
-                                            ⏰ Deadline: <strong style={{ color: 'var(--text-primary)' }}>{order.requiredBy ? new Date(order.requiredBy).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : 'N/A'}</strong>
+                                            ⏰ Deadline: <strong style={{ color: 'var(--text-primary)' }}>{order.requiredBy ? formatDateDDMMYYYY(order.requiredBy, true) : 'N/A'}</strong>
+                                        </span>
+                                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginTop: '0.2rem' }}>
+                                            📅 Placed on: {formatDateDDMMYYYY(order.createdAt, true)}
                                         </span>
                                     </div>
 
@@ -406,6 +410,17 @@ export const ShopOrders = () => {
                                                     Reject Order
                                                 </button>
                                             </>
+                                        )}
+
+                                        {isAwaitingPayment && (
+                                            <span className="badge" style={{ backgroundColor: '#f59e0b22', color: '#d97706', fontWeight: 600 }}>
+                                                Awaiting Payment
+                                            </span>
+                                        )}
+                                        {isPaid && (
+                                            <span className="badge" style={{ backgroundColor: '#10b98122', color: '#10b981', fontWeight: 600 }}>
+                                                ✓ Paid ({order.paymentMethod || 'Online'})
+                                            </span>
                                         )}
 
                                         {order.status === 'PAYMENT_COMPLETED' && (
@@ -474,6 +489,11 @@ export const ShopOrders = () => {
                                         <div style={{ fontWeight: 500 }}>
                                             {order.bwPages} B&W, {order.colorPages} Color ({order.totalPages} Total) &times; {order.copies} copies
                                         </div>
+                                        {order.colorPages > 0 && order.documents?.some(d => d.colorPageNumbersText) && (
+                                            <div style={{ color: '#6366f1', fontSize: '0.8rem', marginTop: '0.2rem' }}>
+                                                🎨 Color: {order.documents.filter(d => d.colorPageNumbersText).map(d => `${d.originalName || 'Doc'}: p. ${d.colorPageNumbersText}`).join(' | ')}
+                                            </div>
+                                        )}
                                     </div>
 
                                     <div>
@@ -486,7 +506,7 @@ export const ShopOrders = () => {
                                     <div>
                                         <small style={{ color: 'var(--text-muted)' }}>Required Deadline</small>
                                         <div style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
-                                            ⏰ {order.requiredBy ? new Date(order.requiredBy).toLocaleString() : 'N/A'}
+                                            ⏰ {order.requiredBy ? formatDateDDMMYYYY(order.requiredBy, true) : 'N/A'}
                                         </div>
                                     </div>
 
