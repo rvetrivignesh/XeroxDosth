@@ -151,7 +151,13 @@ export const getShopDashboardData = async (userId, query) => {
                 _id: null,
                 totalOrders: { $sum: 1 },
                 totalRevenue: {
-                    $sum: { $ifNull: ["$totalAmount", { $ifNull: ["$finalPrice", 0] }] }
+                    $sum: {
+                        $cond: [
+                            { $eq: ["$status", "COMPLETED"] },
+                            { $ifNull: ["$finalPrice", { $ifNull: ["$totalAmount", { $ifNull: ["$estimatedCost", 0] }] }] },
+                            0
+                        ]
+                    }
                 },
                 completedOrders: {
                     $sum: {
@@ -165,9 +171,9 @@ export const getShopDashboardData = async (userId, query) => {
     const currentStats = currentStatsAgg[0] || { totalOrders: 0, totalRevenue: 0, completedOrders: 0 };
 
     const totalOrders = currentStats.totalOrders;
-    const totalRevenue = Number(currentStats.totalRevenue.toFixed(2));
-    const averageOrderValue = totalOrders > 0 ? Number((totalRevenue / totalOrders).toFixed(2)) : 0;
     const completedOrders = currentStats.completedOrders;
+    const totalRevenue = Number(currentStats.totalRevenue.toFixed(2));
+    const averageOrderValue = completedOrders > 0 ? Number((totalRevenue / completedOrders).toFixed(2)) : 0;
     const completionRate = totalOrders > 0 ? Number(((completedOrders / totalOrders) * 100).toFixed(1)) : 0;
 
     // 3. Fetch previous period metrics (for comparison)
@@ -191,7 +197,13 @@ export const getShopDashboardData = async (userId, query) => {
                     _id: null,
                     totalOrders: { $sum: 1 },
                     totalRevenue: {
-                        $sum: { $ifNull: ["$totalAmount", { $ifNull: ["$finalPrice", 0] }] }
+                        $sum: {
+                            $cond: [
+                                { $eq: ["$status", "COMPLETED"] },
+                                { $ifNull: ["$finalPrice", { $ifNull: ["$totalAmount", { $ifNull: ["$estimatedCost", 0] }] }] },
+                                0
+                            ]
+                        }
                     },
                     completedOrders: {
                         $sum: {
@@ -204,9 +216,10 @@ export const getShopDashboardData = async (userId, query) => {
 
         const prevStats = prevStatsAgg[0] || { totalOrders: 0, totalRevenue: 0, completedOrders: 0 };
         const prevTotalOrders = prevStats.totalOrders;
+        const prevCompletedOrders = prevStats.completedOrders;
         const prevTotalRevenue = prevStats.totalRevenue;
-        const prevAOV = prevTotalOrders > 0 ? prevTotalRevenue / prevTotalOrders : 0;
-        const prevCompletionRate = prevTotalOrders > 0 ? (prevStats.completedOrders / prevTotalOrders) * 100 : 0;
+        const prevAOV = prevCompletedOrders > 0 ? prevTotalRevenue / prevCompletedOrders : 0;
+        const prevCompletionRate = prevTotalOrders > 0 ? (prevCompletedOrders / prevTotalOrders) * 100 : 0;
 
         comparison = {
             ordersChange: calculatePercentageChange(totalOrders, prevTotalOrders),
@@ -251,7 +264,13 @@ export const getShopDashboardData = async (userId, query) => {
                 dateSample: { $first: "$createdAt" },
                 orders: { $sum: 1 },
                 revenue: {
-                    $sum: { $ifNull: ["$totalAmount", { $ifNull: ["$finalPrice", 0] }] }
+                    $sum: {
+                        $cond: [
+                            { $eq: ["$status", "COMPLETED"] },
+                            { $ifNull: ["$finalPrice", { $ifNull: ["$totalAmount", { $ifNull: ["$estimatedCost", 0] }] }] },
+                            0
+                        ]
+                    }
                 }
             }
         },
@@ -382,6 +401,7 @@ export const getShopDashboardData = async (userId, query) => {
         {
             $match: {
                 shop: shopId,
+                status: "COMPLETED",
                 createdAt: { $gte: currentStart, $lte: currentEnd }
             }
         },
@@ -409,7 +429,7 @@ export const getShopDashboardData = async (userId, query) => {
                     $sum: { $ifNull: ["$deliveryCharge", 0] }
                 },
                 totalRev: {
-                    $sum: { $ifNull: ["$totalAmount", { $ifNull: ["$finalPrice", 0] }] }
+                    $sum: { $ifNull: ["$finalPrice", { $ifNull: ["$totalAmount", { $ifNull: ["$estimatedCost", 0] }] }] }
                 }
             }
         }

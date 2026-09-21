@@ -275,24 +275,24 @@ export const ShopOrders = () => {
 
             {/* Cancellation Requests Alerts Panel */}
             {cancellationRequests.length > 0 && (
-                <div className="card" style={{ border: '1px solid #ef4444', backgroundColor: '#ef44440c', padding: '1.25rem', marginBottom: '2rem' }}>
-                    <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <div className="card" style={{ border: '1px solid #ef4444', backgroundColor: '#ef44440c', padding: '1.25rem', marginBottom: '2rem', width: '100%', boxSizing: 'border-box' }}>
+                    <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.1rem', color: '#ef4444', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                         <span>⚠️</span> Customer Cancellation Requests ({cancellationRequests.length})
                     </h3>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%' }}>
                         {cancellationRequests.map((order) => (
-                            <div key={order._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-secondary)', padding: '1rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '1rem' }}>
-                                <div>
-                                    <strong style={{ display: 'block' }}>Order #{order._id.slice(-6).toUpperCase()} - {order.customer?.name}</strong>
-                                    <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                            <div key={order._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--bg-secondary)', padding: '1rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '0.75rem', width: '100%', boxSizing: 'border-box' }}>
+                                <div style={{ minWidth: 0, flex: '1 1 200px' }}>
+                                    <strong style={{ display: 'block', wordBreak: 'break-word' }}>Order #{order._id.slice(-6).toUpperCase()} - {order.customer?.name}</strong>
+                                    <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', wordBreak: 'break-word', display: 'block', marginTop: '0.2rem' }}>
                                         Reason: <em>"{order.cancellationReason || 'No reason provided'}"</em>
                                     </span>
                                 </div>
-                                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                    <button className="btn btn-danger btn-sm" onClick={() => handleApproveCancellation(order._id)} disabled={updatingId === order._id}>
+                                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', width: '100%' }}>
+                                    <button className="btn btn-danger btn-sm" style={{ flex: '1 1 140px', whiteSpace: 'normal', textAlign: 'center' }} onClick={() => handleApproveCancellation(order._id)} disabled={updatingId === order._id}>
                                         Approve Cancellation
                                     </button>
-                                    <button className="btn btn-secondary btn-sm" onClick={() => handleRejectCancellation(order._id)} disabled={updatingId === order._id}>
+                                    <button className="btn btn-secondary btn-sm" style={{ flex: '1 1 140px', whiteSpace: 'normal', textAlign: 'center' }} onClick={() => handleRejectCancellation(order._id)} disabled={updatingId === order._id}>
                                         Deny & Print
                                     </button>
                                 </div>

@@ -442,22 +442,23 @@ export const OrderDetail = () => {
                             border: '1px solid #ef444455',
                             borderRadius: 'var(--radius-sm)',
                             display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            flexWrap: 'wrap',
-                            gap: '0.75rem'
+                            flexDirection: 'column',
+                            gap: '0.75rem',
+                            width: '100%',
+                            boxSizing: 'border-box'
                         }}>
-                            <div>
-                                <strong style={{ color: '#ef4444', display: 'block' }}>⚠️ Customer has requested to cancel this order</strong>
-                                <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                            <div style={{ minWidth: 0, width: '100%' }}>
+                                <strong style={{ color: '#ef4444', display: 'block', wordBreak: 'break-word' }}>⚠️ Customer has requested to cancel this order</strong>
+                                <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', wordBreak: 'break-word', marginTop: '0.2rem', display: 'block' }}>
                                     Reason: <em>"{order.cancellationReason || 'No reason provided'}"</em>
                                 </span>
                             </div>
-                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', width: '100%' }}>
                                 <button
                                     className="btn btn-danger btn-sm"
                                     onClick={handleApproveCancellation}
                                     disabled={actionLoading}
+                                    style={{ flex: '1 1 140px', whiteSpace: 'normal', textAlign: 'center' }}
                                 >
                                     Approve Cancellation
                                 </button>
@@ -465,6 +466,7 @@ export const OrderDetail = () => {
                                     className="btn btn-secondary btn-sm"
                                     onClick={handleRejectCancellation}
                                     disabled={actionLoading}
+                                    style={{ flex: '1 1 160px', whiteSpace: 'normal', textAlign: 'center' }}
                                 >
                                     Deny & Continue Printing
                                 </button>

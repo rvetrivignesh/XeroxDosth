@@ -1395,3 +1395,29 @@ input[type="datetime-local"] {
     }
 }
 
+/* Global Mobile View Overflow Prevention for Orders & Dashboards */
+@media (max-width: 600px) {
+    .page-container {
+        padding: 1rem 0.75rem !important;
+        max-width: 100vw;
+        box-sizing: border-box;
+        overflow-x: hidden;
+    }
+
+    .card {
+        padding: 1rem !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    .btn {
+        max-width: 100%;
+        word-break: break-word;
+    }
+
+    .btn-sm, .btn-xs {
+        white-space: normal !important;
+    }
+}
+
+
