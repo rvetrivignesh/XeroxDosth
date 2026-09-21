@@ -7,14 +7,12 @@ export const PageDetailsSummary = ({ doc, document: propDoc, defaultExpanded }) 
     if (!targetDoc) return null;
 
     const details = getPageDetails(targetDoc);
-    const { pageCount, copies, binding, coverColor, categories, totalSelectedPages, isAllPagesDoc } = details;
-    const finalCoverColor = coverColor || targetDoc.coverColor;
-    const bindingDisplay = binding !== 'NONE' && finalCoverColor ? `${binding} (${finalCoverColor} Cover)` : binding;
+    const { pageCount, copies, binding, categories, totalSelectedPages, isAllPagesDoc } = details;
 
     if (categories.length === 0) {
         return (
             <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                ⚙️ <strong>Settings:</strong> {pageCount} page(s) • {copies > 1 ? `${copies} copies` : `${copies} copy`} • Binding: {bindingDisplay}
+                ⚙️ <strong>Settings:</strong> {pageCount} page(s) • {copies > 1 ? `${copies} copies` : `${copies} copy`} • Binding: {binding}
             </div>
         );
     }
@@ -69,7 +67,7 @@ export const PageDetailsSummary = ({ doc, document: propDoc, defaultExpanded }) 
                         </span>
                     )}
                     <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
-                        • {copies > 1 ? `${copies} copies` : `${copies} copy`} • Binding: {bindingDisplay}
+                        • {copies > 1 ? `${copies} copies` : `${copies} copy`} • Binding: {binding}
                     </span>
                 </div>
                 
@@ -145,7 +143,7 @@ export const PageDetailsSummary = ({ doc, document: propDoc, defaultExpanded }) 
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', paddingTop: '0.25rem', borderTop: '1px dashed var(--border-color)', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
                         <span>Selected: <strong>{totalSelectedPages} of {pageCount}</strong> page(s)</span>
                         <span>Copies: <strong>{copies}</strong></span>
-                        <span>Binding: <strong>{bindingDisplay}</strong></span>
+                        <span>Binding: <strong>{binding}</strong></span>
                     </div>
                 </div>
             )}

@@ -656,7 +656,7 @@ export const OrderDetail = () => {
                             </span>
                         </div>
                         <span className="badge" style={{ backgroundColor: 'var(--bg-input)', color: 'var(--text-primary)', fontWeight: 600 }}>
-                            {order.printSide === 'SINGLE_SIDE' ? 'Single Sided' : 'Double Sided'} • Binding: {order.binding}{order.binding && order.binding !== 'NONE' && order.coverColor ? ` (${order.coverColor} Cover)` : ''}
+                            {order.printSide === 'SINGLE_SIDE' ? 'Single Sided' : 'Double Sided'} • Binding: {order.binding}
                         </span>
                     </div>
 

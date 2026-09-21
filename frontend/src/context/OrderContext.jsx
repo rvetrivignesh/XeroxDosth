@@ -147,7 +147,6 @@ export const OrderProvider = ({ children }) => {
         return d.toISOString().slice(0, 16);
     });
     const [recordBindingType, setRecordBindingType] = useState(draft?.recordBindingType || 'SPIRAL');
-    const [recordCoverColor, setRecordCoverColor] = useState(draft?.recordCoverColor || 'Transparent');
     const [recordDeliveryOption, setRecordDeliveryOption] = useState(draft?.recordDeliveryOption || 'PICKUP');
     const [recordDeliveryAddress, setRecordDeliveryAddress] = useState(draft?.recordDeliveryAddress || '');
 
@@ -176,7 +175,6 @@ export const OrderProvider = ({ children }) => {
                 copies: f.copies,
                 printSide: f.printSide,
                 binding: f.binding,
-                coverColor: f.coverColor,
                 isCollapsed: f.isCollapsed
             }));
 
@@ -198,7 +196,6 @@ export const OrderProvider = ({ children }) => {
                 recordPickupLocation,
                 recordPickupTime,
                 recordBindingType,
-                recordCoverColor,
                 recordDeliveryOption,
                 recordDeliveryAddress
             };
@@ -210,7 +207,7 @@ export const OrderProvider = ({ children }) => {
         serviceType, selectedShop, shopId, files, customerContact, customerEmail,
         instructions, requiredBy, fulfillmentMethod, deliveryType, deliveryDistance,
         paymentType, fulfillmentType, deliveryAddress, recordPickupLocation,
-        recordPickupTime, recordBindingType, recordCoverColor, recordDeliveryOption, recordDeliveryAddress
+        recordPickupTime, recordBindingType, recordDeliveryOption, recordDeliveryAddress
     ]);
 
     // Pre-populate user details
@@ -413,7 +410,6 @@ export const OrderProvider = ({ children }) => {
                 copies: 1,
                 printSide: 'SINGLE_SIDE',
                 binding: 'NONE',
-                coverColor: 'Transparent',
                 isCollapsed: false
             };
             
@@ -853,7 +849,6 @@ export const OrderProvider = ({ children }) => {
                         copies: Number(f.copies || 1),
                         printSide: f.printSide,
                         binding: f.binding,
-                        coverColor: (f.binding && f.binding !== 'NONE') ? (f.coverColor || 'Transparent') : undefined,
                         printColorDoubleSide: f.printSide === 'DOUBLE_SIDE',
                         printingMode: 'regular'
                     };
@@ -870,8 +865,7 @@ export const OrderProvider = ({ children }) => {
                     colorPages: 0,
                     copies: 1,
                     printSide: 'SINGLE_SIDE',
-                    binding: recordBindingType,
-                    coverColor: recordCoverColor || 'Transparent'
+                    binding: recordBindingType
                 }];
             }
 
@@ -885,7 +879,6 @@ export const OrderProvider = ({ children }) => {
                 finalInstructions = `[Record Pickup & Binding]
 - Record Pickup Location: ${recordPickupLocation}
 - Record Pickup Time: ${new Date(recordPickupTime).toLocaleString()}
-- Binding: ${recordBindingType === 'SPIRAL' ? 'Spiral Binding' : 'Book Binding'} (${recordCoverColor || 'Transparent'} Front Cover)
 - Delivery Option: ${recordDeliveryOption === 'DELIVERY' ? 'Home Delivery' : 'Self Pickup'}
 - Instructions: ${instructions || 'None'}`;
 
@@ -909,9 +902,6 @@ export const OrderProvider = ({ children }) => {
             const rootColor = documentsPayload.reduce((sum, d) => sum + (d.colorPages || 0) * (d.copies || 1), 0);
             const rootCopies = 1;
             const rootPrintSide = documentsPayload[0]?.printSide || 'SINGLE_SIDE';
-            const rootCoverColor = serviceType === 'RECORD' 
-                ? (recordCoverColor || 'Transparent')
-                : (documentsPayload.find(d => d.binding && d.binding !== 'NONE')?.coverColor || undefined);
 
             const payload = {
                 shop: shopId.trim(),
@@ -921,7 +911,6 @@ export const OrderProvider = ({ children }) => {
                 copies: rootCopies,
                 printSide: rootPrintSide,
                 binding: finalBinding,
-                coverColor: rootCoverColor,
                 requiredBy: new Date(requiredBy).toISOString(),
                 customerContact: customerContact.trim(),
                 customerEmail: customerEmail.trim(),
@@ -968,7 +957,6 @@ export const OrderProvider = ({ children }) => {
         recordPickupLocation, setRecordPickupLocation,
         recordPickupTime, setRecordPickupTime,
         recordBindingType, setRecordBindingType,
-        recordCoverColor, setRecordCoverColor,
         recordDeliveryOption, setRecordDeliveryOption,
         recordDeliveryAddress, setRecordDeliveryAddress,
         loading, setLoading,

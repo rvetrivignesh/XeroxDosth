@@ -162,7 +162,6 @@ export const getPageDetails = (doc = {}) => {
         pageCount,
         copies,
         binding,
-        coverColor: doc.coverColor || '',
         categories,
         totalSelectedPages,
         isAllPagesDoc

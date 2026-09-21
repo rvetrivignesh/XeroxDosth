@@ -17,8 +17,6 @@ export const StepConfigureFiles = () => {
         setRecordPickupTime,
         recordBindingType,
         setRecordBindingType,
-        recordCoverColor,
-        setRecordCoverColor,
         rates,
         isAllFilesValid,
         handleFiles,
@@ -366,36 +364,13 @@ export const StepConfigureFiles = () => {
                                                         <label style={{ fontSize: '0.85rem' }}>Binding</label>
                                                         <select
                                                             value={fileObj.binding || 'NONE'}
-                                                            onChange={(e) => {
-                                                                const val = e.target.value;
-                                                                updateFileStatus(fileObj.id, { 
-                                                                    binding: val,
-                                                                    coverColor: val !== 'NONE' ? (fileObj.coverColor || 'Transparent') : undefined
-                                                                });
-                                                            }}
+                                                            onChange={(e) => updateFileStatus(fileObj.id, { binding: e.target.value })}
                                                         >
                                                             <option value="NONE">None</option>
                                                             <option value="SPIRAL">Spiral Binding (₹{rates.spiralBindingRate})</option>
                                                             <option value="BOOK">Book Binding (₹{rates.bookBindingRate})</option>
                                                         </select>
                                                     </div>
-
-                                                    {fileObj.binding && fileObj.binding !== 'NONE' && (
-                                                        <div className="form-group" style={{ marginBottom: 0 }}>
-                                                            <label style={{ fontSize: '0.85rem' }}>Front Cover Color</label>
-                                                            <select
-                                                                value={fileObj.coverColor || 'Transparent'}
-                                                                onChange={(e) => updateFileStatus(fileObj.id, { coverColor: e.target.value })}
-                                                            >
-                                                                <option value="Transparent">Transparent</option>
-                                                                <option value="Blue">Blue</option>
-                                                                <option value="Pink">Pink</option>
-                                                                <option value="Yellow">Yellow</option>
-                                                                <option value="Green">Green</option>
-                                                                <option value="Purple">Purple</option>
-                                                            </select>
-                                                        </div>
-                                                    )}
                                                 </div>
 
                                                 {/* 4. Auto-Calculated Data & Subtotal Summary (Replaces inputs & Advanced Options) */}
@@ -427,7 +402,7 @@ export const StepConfigureFiles = () => {
                                                         )}
                                                         {fileObj.binding && fileObj.binding !== 'NONE' && (
                                                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
-                                                                📘 Binding ({fileObj.binding}{fileObj.coverColor ? ` · ${fileObj.coverColor} Cover` : ''}) · ₹{getFileBindingCost(fileObj).toFixed(2)}
+                                                                📘 Binding ({fileObj.binding}) · ₹{getFileBindingCost(fileObj).toFixed(2)}
                                                             </span>
                                                         )}
                                                     </div>
@@ -492,21 +467,6 @@ export const StepConfigureFiles = () => {
                                     >
                                         <option value="SPIRAL">Spiral Binding</option>
                                         <option value="BOOK">Book Binding</option>
-                                    </select>
-                                </div>
-                                <div className="form-group">
-                                    <label htmlFor="recordCoverColor">Front Cover Color *</label>
-                                    <select 
-                                        id="recordCoverColor" 
-                                        value={recordCoverColor || 'Transparent'} 
-                                        onChange={(e) => setRecordCoverColor(e.target.value)}
-                                    >
-                                        <option value="Transparent">Transparent</option>
-                                        <option value="Blue">Blue</option>
-                                        <option value="Pink">Pink</option>
-                                        <option value="Yellow">Yellow</option>
-                                        <option value="Green">Green</option>
-                                        <option value="Purple">Purple</option>
                                     </select>
                                 </div>
                             </div>

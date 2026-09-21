@@ -511,7 +511,7 @@ export const ShopOrders = () => {
                                     <div>
                                         <small style={{ color: 'var(--text-muted)' }}>Print & Binding</small>
                                         <div style={{ fontWeight: 500 }}>
-                                            {order.printSide === 'SINGLE_SIDE' ? 'Single Sided' : 'Double Sided'}, Binding: {order.binding}{order.binding && order.binding !== 'NONE' && order.coverColor ? ` (${order.coverColor} Cover)` : ''}
+                                            {order.printSide === 'SINGLE_SIDE' ? 'Single Sided' : 'Double Sided'}, Binding: {order.binding}
                                         </div>
                                     </div>
 

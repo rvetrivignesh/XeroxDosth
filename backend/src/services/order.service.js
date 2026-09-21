@@ -74,7 +74,7 @@ const buildOrderPrintingRequirementsHtml = (order) => {
 
         if (categories.length > 0) {
             totalDocsCount++;
-            const bindingInfo = doc.binding && doc.binding !== 'NONE' ? `, Binding: ${doc.binding}${doc.coverColor ? ` (${doc.coverColor} Front Cover)` : ''}` : '';
+            const bindingInfo = doc.binding && doc.binding !== 'NONE' ? `, Binding: ${doc.binding}` : '';
             html += `<p style="margin-bottom: 5px; font-weight: bold;">📄 ${docName} (Copies: ${doc.copies || 1}${bindingInfo}):</p>`;
             html += `<div style="padding-left: 15px; margin-bottom: 10px; color: #4b5563;">${categories.join('<br/>')}</div>`;
         }
@@ -285,7 +285,6 @@ export const createOrder = async (userId, orderData, io) => {
         copies: hasDocConfigs ? 1 : totalCopies,
         printSide: orderData.printSide || 'SINGLE_SIDE',
         binding: orderData.binding || 'NONE',
-        coverColor: orderData.coverColor || '',
 
         // New fields
         fulfillmentMethod: orderData.fulfillmentMethod,
@@ -340,7 +339,7 @@ export const createOrder = async (userId, orderData, io) => {
                     <li><strong>Email:</strong> ${order.customerEmail || 'N/A'}</li>
                     <li><strong>Document Copies:</strong> ${order.copies}</li>
                     <li><strong>Pages Breakdown:</strong> ${order.bwPages} B&W, ${order.colorPages} Color (${order.totalPages} total)</li>
-                    <li><strong>Binding Preference:</strong> ${order.binding}${order.coverColor ? ` (${order.coverColor} Front Cover)` : ''}</li>
+                    <li><strong>Binding Preference:</strong> ${order.binding}</li>
                     <li><strong>Fulfillment Method:</strong> ${order.fulfillmentType}</li>
                     <li><strong>Estimated Cost:</strong> ₹${order.estimatedCost}</li>
                 </ul>
