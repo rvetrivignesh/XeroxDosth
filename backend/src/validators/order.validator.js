@@ -2,6 +2,7 @@ import { body, param } from 'express-validator';
 
 const VALID_PRINT_SIDES = ['SINGLE_SIDE', 'DOUBLE_SIDE'];
 const VALID_BINDINGS = ['NONE', 'SPIRAL', 'BOOK'];
+const VALID_COVER_COLORS = ['Transparent', 'Blue', 'Pink', 'Yellow', 'Green', 'Purple'];
 const VALID_PAYMENT_METHODS = ['ONLINE', 'COD'];
 
 export const createOrderValidator = [
@@ -101,6 +102,11 @@ export const createOrderValidator = [
                         }
                     }
                 }
+                if (doc.coverColor !== undefined && doc.coverColor !== null && doc.coverColor !== '') {
+                    if (!VALID_COVER_COLORS.includes(doc.coverColor)) {
+                        throw new Error(`Document at index ${i}: Invalid cover color. Allowed options are: ${VALID_COVER_COLORS.join(', ')}`);
+                    }
+                }
                 const isPhysical = doc.publicId?.startsWith('PHYSICAL_DOC_') || doc.url === 'N/A' || doc.url?.includes('physical-doc.pdf');
                 if (!isPhysical) {
                     try {
@@ -150,6 +156,16 @@ export const createOrderValidator = [
         .trim()
         .notEmpty().withMessage('Binding is required')
         .isIn(VALID_BINDINGS).withMessage(`Binding must be one of: ${VALID_BINDINGS.join(', ')}`),
+
+    body('coverColor')
+        .optional()
+        .trim()
+        .custom((val) => {
+            if (val && !VALID_COVER_COLORS.includes(val)) {
+                throw new Error(`Invalid cover color. Must be one of: ${VALID_COVER_COLORS.join(', ')}`);
+            }
+            return true;
+        }),
 
     body('requiredBy')
         .notEmpty().withMessage('Required by date is required')

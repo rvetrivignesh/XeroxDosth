@@ -20,6 +20,7 @@ export const StepReview = () => {
         recordPickupLocation,
         recordPickupTime,
         recordBindingType,
+        recordCoverColor,
         recordDeliveryOption,
         recordDeliveryAddress,
         loading,
@@ -107,6 +108,10 @@ export const StepReview = () => {
                                 <div className="review-grid-item">
                                     <span>Record Binding Type</span>
                                     <strong>{recordBindingType === 'SPIRAL' ? 'Spiral Binding' : 'Book Binding'}</strong>
+                                </div>
+                                <div className="review-grid-item">
+                                    <span>Front Cover Color</span>
+                                    <strong>{recordCoverColor || 'Transparent'}</strong>
                                 </div>
                             </>
                         )}

@@ -186,7 +186,7 @@ export const PaymentRequest = () => {
         );
     }
 
-    const { shop, customer, documents, bwPages, colorPages, totalPages, copies, binding, printSide, status, finalPrice, estimatedDeliveryTime, paymentStatus } = order;
+    const { shop, customer, documents, bwPages, colorPages, totalPages, copies, binding, coverColor, printSide, status, finalPrice, estimatedDeliveryTime, paymentStatus } = order;
     const isAwaitingPayment = status === 'PAYMENT_REQUESTED';
 
     return (
@@ -226,7 +226,7 @@ export const PaymentRequest = () => {
                         <div className="payment-details-col">
                             <small className="payment-details-label">Print & Binding</small>
                             <div className="payment-details-val">
-                                {printSide === 'SINGLE_SIDE' ? 'Single Sided' : 'Double Sided'}, {binding} Binding
+                                {printSide === 'SINGLE_SIDE' ? 'Single Sided' : 'Double Sided'}, {binding} Binding{binding && binding !== 'NONE' && coverColor ? ` (${coverColor} Cover)` : ''}
                             </div>
                         </div>
                         <div className="payment-details-col">

@@ -206,7 +206,7 @@ export const MyOrders = () => {
                                             🎨 Color pages: {order.documents.filter(d => d.colorPageNumbersText).map(d => `${truncateDocName(d.originalName || 'Doc', 22)}: p. ${d.colorPageNumbersText}`).join(' | ')}
                                         </div>
                                     )}
-                                    <div>📦 {order.printSide.replace(/_/g, ' ')} • {order.binding} Binding</div>
+                                    <div>📦 {order.printSide.replace(/_/g, ' ')} • {order.binding} Binding{order.binding && order.binding !== 'NONE' && order.coverColor ? ` (${order.coverColor} Cover)` : ''}</div>
                                     <div>⏰ Deadline: <strong>{formatDateDDMMYYYY(order.requiredBy, true)}</strong></div>
                                     {order.estimatedDeliveryTime && (
                                         <div style={{ color: 'var(--accent-color)', fontWeight: 600 }}>⏰ Shop Delivery Time: {formatEstimatedTime(order.estimatedDeliveryTime)}</div>
@@ -286,7 +286,7 @@ export const MyOrders = () => {
                             <div><strong>Total Pages:</strong> {selectedOrder.totalPages}</div>
                             <div><strong>Copies:</strong> {selectedOrder.copies}</div>
                             <div><strong>Print Side:</strong> {selectedOrder.printSide.replace(/_/g, ' ')}</div>
-                            <div><strong>Binding:</strong> {selectedOrder.binding}</div>
+                            <div><strong>Binding:</strong> {selectedOrder.binding}{selectedOrder.binding && selectedOrder.binding !== 'NONE' && selectedOrder.coverColor ? ` (${selectedOrder.coverColor} Cover)` : ''}</div>
                             <div><strong>Payment Method:</strong> {selectedOrder.paymentMethod || 'Not Selected'}</div>
                             <div><strong>Payment Status:</strong> {selectedOrder.paymentStatus}</div>
                             <div><strong>Estimated Price:</strong> ₹{selectedOrder.estimatedCost}</div>

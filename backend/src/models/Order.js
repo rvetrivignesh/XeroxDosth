@@ -88,6 +88,11 @@ const documentSchema = new mongoose.Schema(
             type: String,
             enum: ['NONE', 'SPIRAL', 'BOOK'],
             default: 'NONE'
+        },
+        coverColor: {
+            type: String,
+            enum: ['Transparent', 'Blue', 'Pink', 'Yellow', 'Green', 'Purple'],
+            required: false
         }
     },
     { _id: false }
@@ -155,6 +160,14 @@ const orderSchema = new mongoose.Schema(
                 values: ['NONE', 'SPIRAL', 'BOOK'],
                 message: 'Binding must be NONE, SPIRAL, or BOOK'
             }
+        },
+        coverColor: {
+            type: String,
+            enum: {
+                values: ['Transparent', 'Blue', 'Pink', 'Yellow', 'Green', 'Purple'],
+                message: 'Invalid front cover color'
+            },
+            required: false
         },
         requiredBy: {
             type: Date,
