@@ -28,6 +28,12 @@ export const StepOrderDetails = () => {
 
     const navigate = useNavigate();
 
+    React.useEffect(() => {
+        if (serviceType === 'RECORD' && recordDeliveryOption !== 'DELIVERY') {
+            setRecordDeliveryOption('DELIVERY');
+        }
+    }, [serviceType, recordDeliveryOption, setRecordDeliveryOption]);
+
     const isDelivery = (serviceType === 'DELIVERY') || 
                        (serviceType === 'RECORD' && recordDeliveryOption === 'DELIVERY');
 
@@ -47,40 +53,38 @@ export const StepOrderDetails = () => {
         <div className="step-container specs-step fade-in">
             <div className="step-header">
                 <h2>
-                    {serviceType === 'RECORD' ? 'Step 2 — Pickup / Delivery' : 'Order Details & Fulfillment'}
+                    {serviceType === 'RECORD' ? 'Step 2 — Delivery Details' : 'Order Details & Fulfillment'}
                 </h2>
                 <p>Complete your contact and delivery preferences.</p>
             </div>
 
             <div className="specs-layout-grid">
                 <div className="specs-form-container card" style={{ padding: '1.5rem' }}>
-                    {/* Fulfillment method display / selection */}
-                    {serviceType === 'RECORD' ? (
-                        <div className="form-row">
+                    {/* Fulfillment method & Delivery Option */}
+                    <div className="form-row">
+                        <div className="form-group">
+                            <label>Fulfillment Method</label>
+                            <div style={{ padding: '0.75rem', backgroundColor: 'var(--bg-hover)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', fontWeight: 600, minHeight: '44px', display: 'flex', alignItems: 'center', boxSizing: 'border-box' }}>
+                                {serviceType === 'RECORD' ? '🚚 Delivery' : (fulfillmentMethod === 'HOME_DELIVERY' ? '🚚 Home Delivery' : '🏪 Shop Pickup')}
+                            </div>
+                        </div>
+
+                        {isDelivery && (
                             <div className="form-group">
-                                <label htmlFor="recordDeliveryOption">Fulfillment Method *</label>
-                                <select 
-                                    id="recordDeliveryOption" 
-                                    value={recordDeliveryOption} 
-                                    onChange={(e) => setRecordDeliveryOption(e.target.value)}
+                                <label htmlFor="deliveryType">Delivery Option *</label>
+                                <select
+                                    id="deliveryType"
+                                    value={deliveryType}
+                                    onChange={(e) => setDeliveryType(e.target.value)}
                                 >
-                                    <option value="PICKUP">Self Pickup from Shop</option>
-                                    <option value="DELIVERY">Delivery to Location</option>
+                                    {selectedShop?.homeDelivery && <option value="STANDARD">Standard Delivery</option>}
+                                    {selectedShop?.expressPrinting && <option value="EXPRESS">Express Delivery</option>}
                                 </select>
                             </div>
-                        </div>
-                    ) : (
-                        <div className="form-row">
-                            <div className="form-group">
-                                <label>Fulfillment Method</label>
-                                <div style={{ padding: '0.75rem', backgroundColor: 'var(--bg-hover)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', fontWeight: 600 }}>
-                                    {fulfillmentMethod === 'HOME_DELIVERY' ? '🚚 Home Delivery' : '🏪 Shop Pickup'}
-                                </div>
-                            </div>
-                        </div>
-                    )}
+                        )}
+                    </div>
 
-                    {/* Delivery Type & Distance Slab (if delivery is selected) */}
+                    {/* Delivery Address & Distance Slab (if delivery is selected) */}
                     {isDelivery && (
                         <>
                             {/* Delivery Address block */}
@@ -101,69 +105,55 @@ export const StepOrderDetails = () => {
                                     required
                                 />
                             </div>
-
-                            <div className="form-row">
+                            
+                            {/* Delivery Pricing Slabs Display */}
+                            {((deliveryType === 'EXPRESS' && !selectedShop?.freeExpressDelivery) || 
+                              (deliveryType === 'STANDARD' && !selectedShop?.freeDelivery)) ? (
                                 <div className="form-group">
-                                    <label htmlFor="deliveryType">Delivery Option *</label>
-                                    <select
-                                        id="deliveryType"
-                                        value={deliveryType}
-                                        onChange={(e) => setDeliveryType(e.target.value)}
-                                    >
-                                        {selectedShop?.homeDelivery && <option value="STANDARD">Standard Delivery</option>}
-                                        {selectedShop?.expressPrinting && <option value="EXPRESS">Express Delivery</option>}
-                                    </select>
-                                </div>
-                                
-                                {/* Delivery Pricing Slabs Display */}
-                                {((deliveryType === 'EXPRESS' && !selectedShop?.freeExpressDelivery) || 
-                                  (deliveryType === 'STANDARD' && !selectedShop?.freeDelivery)) ? (
-                                    <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-                                        <label>Delivery Rate Slabs (Shop Pricing)</label>
-                                        {((deliveryType === 'EXPRESS' ? selectedShop?.expressDeliveryCharges : selectedShop?.deliveryCharges)?.length > 0) ? (
-                                            <div style={{
-                                                padding: '0.85rem 1rem',
-                                                backgroundColor: 'var(--bg-hover)',
-                                                borderRadius: 'var(--radius-sm)',
-                                                border: '1px solid var(--border-color)',
-                                                fontSize: '0.88rem'
-                                            }}>
-                                                <div style={{ fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                    <span>{deliveryType === 'EXPRESS' ? '⚡ Express Delivery Charges' : '🚚 Standard Delivery Charges'}</span>
-                                                </div>
-                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                                                    {(deliveryType === 'EXPRESS' ? selectedShop?.expressDeliveryCharges : selectedShop?.deliveryCharges)?.map((slab, idx) => (
-                                                        <div key={idx} style={{
-                                                            padding: '0.4rem 0.75rem',
-                                                            backgroundColor: 'var(--bg-card)',
-                                                            border: '1px solid var(--border-color)',
-                                                            borderRadius: 'var(--radius-xs)',
-                                                            fontSize: '0.82rem',
-                                                            fontWeight: 500
-                                                        }}>
-                                                            {slab.from} - {slab.to} KM: <strong>₹{slab.charge}</strong>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                                <small style={{ display: 'block', marginTop: '0.5rem', color: 'var(--text-secondary)' }}>
-                                                    ℹ️ Delivery charge will be finalized by shop based on actual address distance.
-                                                </small>
+                                    <label>Delivery Rate Slabs (Shop Pricing)</label>
+                                    {((deliveryType === 'EXPRESS' ? selectedShop?.expressDeliveryCharges : selectedShop?.deliveryCharges)?.length > 0) ? (
+                                        <div style={{
+                                            padding: '0.85rem 1rem',
+                                            backgroundColor: 'var(--bg-hover)',
+                                            borderRadius: 'var(--radius-sm)',
+                                            border: '1px solid var(--border-color)',
+                                            fontSize: '0.88rem'
+                                        }}>
+                                            <div style={{ fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                <span>{deliveryType === 'EXPRESS' ? '⚡ Express Delivery Charges' : '🚚 Standard Delivery Charges'}</span>
                                             </div>
-                                        ) : (
-                                            <div style={{ padding: '0.75rem', backgroundColor: '#fef2f2', color: '#ef4444', border: '1px solid #fca5a5', borderRadius: 'var(--radius-sm)', fontSize: '0.85rem', fontWeight: 600 }}>
-                                                ⚠️ No pricing slabs configured by shop
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                                                {(deliveryType === 'EXPRESS' ? selectedShop?.expressDeliveryCharges : selectedShop?.deliveryCharges)?.map((slab, idx) => (
+                                                    <div key={idx} style={{
+                                                        padding: '0.4rem 0.75rem',
+                                                        backgroundColor: 'var(--bg-card)',
+                                                        border: '1px solid var(--border-color)',
+                                                        borderRadius: 'var(--radius-xs)',
+                                                        fontSize: '0.82rem',
+                                                        fontWeight: 500
+                                                    }}>
+                                                        {slab.from} - {slab.to} KM: <strong>₹{slab.charge}</strong>
+                                                    </div>
+                                                ))}
                                             </div>
-                                        )}
-                                    </div>
-                                ) : (
-                                    <div className="form-group">
-                                        <label>Delivery Cost</label>
-                                        <div style={{ padding: '0.75rem', backgroundColor: 'var(--bg-hover)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', color: 'var(--success-color)', fontWeight: 600 }}>
-                                            🆓 Free Delivery Included
+                                            <small style={{ display: 'block', marginTop: '0.5rem', color: 'var(--text-secondary)' }}>
+                                                ℹ️ Delivery charge will be finalized by shop based on actual address distance.
+                                            </small>
                                         </div>
+                                    ) : (
+                                        <div style={{ padding: '0.75rem', backgroundColor: '#fef2f2', color: '#ef4444', border: '1px solid #fca5a5', borderRadius: 'var(--radius-sm)', fontSize: '0.85rem', fontWeight: 600 }}>
+                                            ⚠️ No pricing slabs configured by shop
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="form-group">
+                                    <label>Delivery Cost</label>
+                                    <div style={{ padding: '0.75rem', backgroundColor: 'var(--bg-hover)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', color: 'var(--success-color)', fontWeight: 600 }}>
+                                        🆓 Free Delivery Included
                                     </div>
-                                )}
-                            </div>
+                                </div>
+                            )}
                         </>
                     )}
 
@@ -194,7 +184,7 @@ export const StepOrderDetails = () => {
                         </div>
                     </div>
 
-                    {/* Payment Method Selector */}
+                    {/* Payment Method & Deadline */}
                     <div className="form-row">
                         <div className="form-group">
                             <label htmlFor="paymentType">Intended Payment Method *</label>
@@ -210,11 +200,7 @@ export const StepOrderDetails = () => {
                                 Note: You will pay after the shop reviews and accepts the order.
                             </small>
                         </div>
-                    </div>
-
-                    {/* Deadline Picker */}
-                    <div className="form-row">
-                        <div className="form-group deadline-row-full">
+                        <div className="form-group">
                             <label htmlFor="requiredBy">Required Completion Deadline *</label>
                             <input
                                 id="requiredBy"
@@ -226,7 +212,7 @@ export const StepOrderDetails = () => {
                         </div>
                     </div>
 
-                    <div className="specs-actions" style={{ marginTop: '2rem' }}>
+                    <div className="specs-actions">
                         <button type="button" className="btn btn-secondary" onClick={() => navigate('/place-order/configure-files')}>
                             ← Back
                         </button>
