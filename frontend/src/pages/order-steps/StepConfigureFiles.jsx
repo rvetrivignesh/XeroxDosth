@@ -17,6 +17,8 @@ export const StepConfigureFiles = () => {
         setRecordPickupTime,
         recordBindingType,
         setRecordBindingType,
+        recordCoverColor,
+        setRecordCoverColor,
         rates,
         isAllFilesValid,
         handleFiles,
@@ -308,13 +310,13 @@ export const StepConfigureFiles = () => {
                                                             onChange={(e) => handleColorNumbersChange(fileObj, e.target.value)}
                                                         />
                                                         <small className="field-help" style={{ fontSize: '0.75rem' }}>
-                                                            Specify color page numbers separated by commas. Remaining pages in range will be printed in Grayscale.
+                                                            Specify color page numbers or ranges separated by commas (e.g. 1, 2, 10-15). Remaining pages in range will be printed in Grayscale.
                                                         </small>
                                                     </div>
                                                 )}
 
                                                 {/* 3. General Print Configs */}
-                                                <div className="form-row" style={{ marginBottom: '1.25rem' }}>
+                                                <div className="form-row" style={{ marginBottom: '1rem' }}>
                                                     <div className="form-group" style={{ marginBottom: 0 }}>
                                                         <label style={{ fontSize: '0.85rem' }}>Copies</label>
                                                         <input
@@ -359,19 +361,64 @@ export const StepConfigureFiles = () => {
                                                             )}
                                                         </select>
                                                     </div>
+                                                </div>
 
-                                                    <div className="form-group" style={{ marginBottom: 0 }}>
+                                                {fileObj.binding && fileObj.binding !== 'NONE' ? (
+                                                    <div className="form-row" style={{ marginBottom: '1rem' }}>
+                                                        <div className="form-group" style={{ marginBottom: 0 }}>
+                                                            <label style={{ fontSize: '0.85rem' }}>Binding</label>
+                                                            <select
+                                                                value={fileObj.binding || 'NONE'}
+                                                                onChange={(e) => {
+                                                                    const newBinding = e.target.value;
+                                                                    updateFileStatus(fileObj.id, { 
+                                                                        binding: newBinding,
+                                                                        frontCoverColor: newBinding === 'NONE' ? '' : (fileObj.frontCoverColor || 'Transparent')
+                                                                    });
+                                                                }}
+                                                            >
+                                                                <option value="NONE">None</option>
+                                                                <option value="SPIRAL">Spiral Binding (₹{rates.spiralBindingRate})</option>
+                                                                <option value="BOOK">Book Binding (₹{rates.bookBindingRate})</option>
+                                                            </select>
+                                                        </div>
+
+                                                        <div className="form-group" style={{ marginBottom: 0 }}>
+                                                            <label style={{ fontSize: '0.85rem' }}>Front Cover Color</label>
+                                                            <select
+                                                                value={fileObj.frontCoverColor || 'Transparent'}
+                                                                onChange={(e) => {
+                                                                    const val = e.target.value;
+                                                                    updateFileStatus(fileObj.id, { frontCoverColor: val });
+                                                                }}
+                                                            >
+                                                                <option value="Transparent">Transparent</option>
+                                                                <option value="Blue">Blue</option>
+                                                                <option value="Yellow">Yellow</option>
+                                                                <option value="Pink">Pink</option>
+                                                                <option value="Green">Green</option>
+                                                            </select>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div className="form-group" style={{ marginBottom: '1rem' }}>
                                                         <label style={{ fontSize: '0.85rem' }}>Binding</label>
                                                         <select
                                                             value={fileObj.binding || 'NONE'}
-                                                            onChange={(e) => updateFileStatus(fileObj.id, { binding: e.target.value })}
+                                                            onChange={(e) => {
+                                                                const newBinding = e.target.value;
+                                                                updateFileStatus(fileObj.id, { 
+                                                                    binding: newBinding,
+                                                                    frontCoverColor: newBinding === 'NONE' ? '' : (fileObj.frontCoverColor || 'Transparent')
+                                                                });
+                                                            }}
                                                         >
                                                             <option value="NONE">None</option>
                                                             <option value="SPIRAL">Spiral Binding (₹{rates.spiralBindingRate})</option>
                                                             <option value="BOOK">Book Binding (₹{rates.bookBindingRate})</option>
                                                         </select>
                                                     </div>
-                                                </div>
+                                                )}
 
                                                 {/* 4. Auto-Calculated Data & Subtotal Summary (Replaces inputs & Advanced Options) */}
                                                 <div style={{
@@ -402,7 +449,7 @@ export const StepConfigureFiles = () => {
                                                         )}
                                                         {fileObj.binding && fileObj.binding !== 'NONE' && (
                                                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
-                                                                📘 Binding ({fileObj.binding}) · ₹{getFileBindingCost(fileObj).toFixed(2)}
+                                                                📘 Binding ({fileObj.binding === 'SPIRAL' ? 'Spiral' : 'Book'}) · ₹{getFileBindingCost(fileObj).toFixed(2)}{fileObj.frontCoverColor ? ` · Cover: ${fileObj.frontCoverColor}` : ''}
                                                             </span>
                                                         )}
                                                     </div>
@@ -432,7 +479,7 @@ export const StepConfigureFiles = () => {
 
                     {/* Additional fields for Record Pickup (Step 1 fields) */}
                     {serviceType === 'RECORD' && (
-                        <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem', marginTop: '1.5rem' }}>
+                        <div className="order-section-block">
                             <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem' }}>Record Pickup Details</h3>
                             
                             <div className="form-group">
@@ -447,19 +494,20 @@ export const StepConfigureFiles = () => {
                                 />
                             </div>
 
+                            <div className="form-group">
+                                <label htmlFor="recordPickupTime">Preferred Pickup Time *</label>
+                                <input
+                                    id="recordPickupTime"
+                                    type="datetime-local"
+                                    value={recordPickupTime}
+                                    onChange={(e) => setRecordPickupTime(e.target.value)}
+                                    required
+                                />
+                            </div>
+
                             <div className="form-row">
                                 <div className="form-group">
-                                    <label htmlFor="recordPickupTime">Preferred Pickup Time *</label>
-                                    <input
-                                        id="recordPickupTime"
-                                        type="datetime-local"
-                                        value={recordPickupTime}
-                                        onChange={(e) => setRecordPickupTime(e.target.value)}
-                                        required
-                                    />
-                                </div>
-                                <div className="form-group">
-                                    <label htmlFor="recordBindingType">Record Binding Selection *</label>
+                                    <label htmlFor="recordBindingType">Record Binding Type *</label>
                                     <select 
                                         id="recordBindingType" 
                                         value={recordBindingType} 
@@ -469,12 +517,30 @@ export const StepConfigureFiles = () => {
                                         <option value="BOOK">Book Binding</option>
                                     </select>
                                 </div>
+                                <div className="form-group">
+                                    <label htmlFor="recordCoverColor">Front Cover Color *</label>
+                                    <select 
+                                        id="recordCoverColor" 
+                                        value={recordCoverColor} 
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            setRecordCoverColor(val);
+                                            setFiles(prev => prev.map(f => ({ ...f, frontCoverColor: val })));
+                                        }}
+                                    >
+                                        <option value="Transparent">Transparent</option>
+                                        <option value="Blue">Blue</option>
+                                        <option value="Yellow">Yellow</option>
+                                        <option value="Pink">Pink</option>
+                                        <option value="Green">Green</option>
+                                    </select>
+                                </div>
                             </div>
                         </div>
                     )}
 
                     {/* Special Instructions */}
-                    <div className="form-group" style={{ marginTop: '1.5rem', borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem' }}>
+                    <div className="order-section-block form-group">
                         <label htmlFor="instructions" style={{ fontWeight: 600 }}>Special Instructions (Optional)</label>
                         <textarea
                             id="instructions"
@@ -485,7 +551,7 @@ export const StepConfigureFiles = () => {
                         />
                     </div>
 
-                    <div className="specs-actions" style={{ marginTop: '2rem' }}>
+                    <div className="specs-actions">
                         <button type="button" className="btn btn-secondary" onClick={() => navigate('/place-order/shop')}>
                             ← Back
                         </button>

@@ -143,7 +143,8 @@ export const OrderProvider = ({ children }) => {
         return d.toISOString().slice(0, 16);
     });
     const [recordBindingType, setRecordBindingType] = useState(draft?.recordBindingType || 'SPIRAL');
-    const [recordDeliveryOption, setRecordDeliveryOption] = useState(draft?.recordDeliveryOption || 'PICKUP');
+    const [recordCoverColor, setRecordCoverColor] = useState(draft?.recordCoverColor || 'Transparent');
+    const [recordDeliveryOption, setRecordDeliveryOption] = useState(draft?.recordDeliveryOption || 'DELIVERY');
     const [recordDeliveryAddress, setRecordDeliveryAddress] = useState(draft?.recordDeliveryAddress || '');
 
     const [loading, setLoading] = useState(false);
@@ -171,6 +172,7 @@ export const OrderProvider = ({ children }) => {
                 copies: f.copies,
                 printSide: f.printSide,
                 binding: f.binding,
+                frontCoverColor: f.frontCoverColor || 'Transparent',
                 isCollapsed: f.isCollapsed
             }));
 
@@ -192,6 +194,7 @@ export const OrderProvider = ({ children }) => {
                 recordPickupLocation,
                 recordPickupTime,
                 recordBindingType,
+                recordCoverColor,
                 recordDeliveryOption,
                 recordDeliveryAddress
             };
@@ -203,7 +206,7 @@ export const OrderProvider = ({ children }) => {
         serviceType, selectedShop, shopId, files, customerContact, customerEmail,
         instructions, requiredBy, fulfillmentMethod, deliveryType, deliveryDistance,
         paymentType, fulfillmentType, deliveryAddress, recordPickupLocation,
-        recordPickupTime, recordBindingType, recordDeliveryOption, recordDeliveryAddress
+        recordPickupTime, recordBindingType, recordCoverColor, recordDeliveryOption, recordDeliveryAddress
     ]);
 
     // Pre-populate user details
@@ -406,6 +409,7 @@ export const OrderProvider = ({ children }) => {
                 copies: 1,
                 printSide: 'SINGLE_SIDE',
                 binding: 'NONE',
+                frontCoverColor: recordCoverColor || 'Transparent',
                 isCollapsed: false
             };
             
@@ -857,6 +861,7 @@ export const OrderProvider = ({ children }) => {
                         copies: Number(f.copies || 1),
                         printSide: f.printSide,
                         binding: f.binding,
+                        frontCoverColor: f.frontCoverColor || recordCoverColor || 'Transparent',
                         printColorDoubleSide: f.printSide === 'DOUBLE_SIDE',
                         printingMode: 'regular'
                     };
@@ -887,6 +892,8 @@ export const OrderProvider = ({ children }) => {
                 finalInstructions = `[Record Pickup & Binding]
 - Record Pickup Location: ${recordPickupLocation}
 - Record Pickup Time: ${new Date(recordPickupTime).toLocaleString()}
+- Record Binding Type: ${recordBindingType === 'SPIRAL' ? 'Spiral Binding' : 'Book Binding'}
+- Front Cover Color: ${recordCoverColor || 'Transparent'}
 - Delivery Option: ${recordDeliveryOption === 'DELIVERY' ? 'Home Delivery' : 'Self Pickup'}
 - Instructions: ${instructions || 'None'}`;
 
@@ -928,7 +935,8 @@ export const OrderProvider = ({ children }) => {
                 deliveryDistance: Number(deliveryDistance || 0),
                 paymentType: paymentType,
                 fulfillmentType: isDelivery ? 'DELIVERY' : 'PICKUP',
-                deliveryAddress: finalAddress
+                deliveryAddress: finalAddress,
+                frontCoverColor: (serviceType === 'RECORD' ? (recordCoverColor || 'Transparent') : (documentsPayload[0]?.frontCoverColor || recordCoverColor || 'Transparent'))
             };
 
             await API.post('/orders', payload);
@@ -965,6 +973,7 @@ export const OrderProvider = ({ children }) => {
         recordPickupLocation, setRecordPickupLocation,
         recordPickupTime, setRecordPickupTime,
         recordBindingType, setRecordBindingType,
+        recordCoverColor, setRecordCoverColor,
         recordDeliveryOption, setRecordDeliveryOption,
         recordDeliveryAddress, setRecordDeliveryAddress,
         loading, setLoading,

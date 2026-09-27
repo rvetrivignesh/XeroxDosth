@@ -304,6 +304,7 @@ export const createOrder = async (userId, orderData, io) => {
         instructions: orderData.instructions || '',
         customerContact: orderData.customerContact || '',
         customerEmail: orderData.customerEmail || '',
+        frontCoverColor: orderData.frontCoverColor || '',
         status: 'PENDING_SHOP_ACCEPTANCE',
         estimatedCost: totalAmount
     });

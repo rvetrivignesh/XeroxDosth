@@ -88,6 +88,10 @@ const documentSchema = new mongoose.Schema(
             type: String,
             enum: ['NONE', 'SPIRAL', 'BOOK'],
             default: 'NONE'
+        },
+        frontCoverColor: {
+            type: String,
+            default: ''
         }
     },
     { _id: false }
@@ -305,6 +309,10 @@ const orderSchema = new mongoose.Schema(
             default: ''
         },
         rejectionReason: {
+            type: String,
+            default: ''
+        },
+        frontCoverColor: {
             type: String,
             default: ''
         }

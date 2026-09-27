@@ -20,6 +20,7 @@ export const StepReview = () => {
         recordPickupLocation,
         recordPickupTime,
         recordBindingType,
+        recordCoverColor,
         recordDeliveryOption,
         recordDeliveryAddress,
         loading,
@@ -108,6 +109,24 @@ export const StepReview = () => {
                                     <span>Record Binding Type</span>
                                     <strong>{recordBindingType === 'SPIRAL' ? 'Spiral Binding' : 'Book Binding'}</strong>
                                 </div>
+                                <div className="review-grid-item">
+                                    <span>Front Cover Color</span>
+                                    <strong>{recordCoverColor || 'Transparent'}</strong>
+                                </div>
+                            </>
+                        )}
+                        {serviceType !== 'RECORD' && files.some(f => f.binding && f.binding !== 'NONE') && (
+                            <>
+                                <div className="review-grid-item">
+                                    <span>Document Binding</span>
+                                    <strong>
+                                        {[...new Set(files.filter(f => f.binding && f.binding !== 'NONE').map(f => f.binding === 'SPIRAL' ? 'Spiral Binding' : 'Book Binding'))].join(', ')}
+                                    </strong>
+                                </div>
+                                <div className="review-grid-item">
+                                    <span>Front Cover Color</span>
+                                    <strong>{files.find(f => f.binding && f.binding !== 'NONE')?.frontCoverColor || 'Transparent'}</strong>
+                                </div>
                             </>
                         )}
                         <div className="review-grid-item">
@@ -187,7 +206,7 @@ export const StepReview = () => {
                 </div>
 
                 {/* Bottom checkout buttons */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', marginTop: '1.5rem' }}>
+                <div className="review-actions-bar">
                     <button 
                         type="button" 
                         className="btn btn-secondary" 
