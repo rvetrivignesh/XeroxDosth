@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import API from '../services/api';
 import Modal from '../components/Modal';
@@ -28,6 +28,7 @@ export const MyOrders = () => {
     const navigate = useNavigate();
 
     const [orders, setOrders] = useState([]);
+    const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     
@@ -70,6 +71,38 @@ export const MyOrders = () => {
             }
         }
     }, [loading, orders]);
+
+    const filteredOrders = useMemo(() => {
+        if (!searchQuery.trim()) return orders;
+        const q = searchQuery.trim().toLowerCase();
+        return orders.filter((order) => {
+            const shortId = order._id ? order._id.slice(-6).toLowerCase() : '';
+            const fullId = (order._id || '').toLowerCase();
+            const shopName = (order.shop?.shopName || '').toLowerCase();
+            const status = (order.status || '').toLowerCase().replace(/_/g, ' ');
+            const paymentStatus = (order.paymentStatus || '').toLowerCase();
+            const paymentMethod = (order.paymentMethod || order.paymentType || '').toLowerCase();
+            const instructions = (order.instructions || '').toLowerCase();
+            const docNames = (order.documents || []).map(d => d.originalName || '').join(' ').toLowerCase();
+            const created = order.createdAt ? `${formatDateDDMMYYYY(order.createdAt)} ${new Date(order.createdAt).toLocaleDateString()}`.toLowerCase() : '';
+            const deadline = order.requiredBy ? `${formatDateDDMMYYYY(order.requiredBy, true)} ${new Date(order.requiredBy).toLocaleDateString()}`.toLowerCase() : '';
+            const address = (order.deliveryAddress || '').toLowerCase();
+
+            return (
+                shortId.includes(q) ||
+                fullId.includes(q) ||
+                shopName.includes(q) ||
+                status.includes(q) ||
+                paymentStatus.includes(q) ||
+                paymentMethod.includes(q) ||
+                instructions.includes(q) ||
+                docNames.includes(q) ||
+                created.includes(q) ||
+                deadline.includes(q) ||
+                address.includes(q)
+            );
+        });
+    }, [orders, searchQuery]);
 
     const handleCancelImmediately = async (orderId) => {
         if (!window.confirm('Are you sure you want to cancel this order immediately?')) return;
@@ -157,9 +190,94 @@ export const MyOrders = () => {
                 </Link>
             </div>
 
+            {/* Search Input Bar */}
+            <div style={{ marginBottom: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem', width: '100%', boxSizing: 'border-box' }}>
+                <div style={{ position: 'relative', width: '100%', boxSizing: 'border-box' }}>
+                    <span style={{
+                        position: 'absolute',
+                        left: '1rem',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        color: 'var(--text-muted)',
+                        fontSize: '1rem',
+                        pointerEvents: 'none'
+                    }}>
+                        🔍
+                    </span>
+                    <input 
+                        type="text"
+                        placeholder="Search for an order..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        style={{
+                            width: '100%',
+                            minHeight: '44px',
+                            padding: '0.75rem 2.5rem 0.75rem 2.6rem',
+                            borderRadius: 'var(--radius-md)',
+                            border: '1px solid var(--border-color)',
+                            backgroundColor: 'var(--bg-card)',
+                            color: 'var(--text-primary)',
+                            fontSize: '0.9rem',
+                            outline: 'none',
+                            transition: 'border-color var(--transition-fast), box-shadow var(--transition-fast)',
+                            boxSizing: 'border-box'
+                        }}
+                        onFocus={(e) => {
+                            e.target.style.borderColor = 'var(--accent-color)';
+                            e.target.style.boxShadow = '0 0 0 3px rgba(16, 163, 127, 0.12)';
+                        }}
+                        onBlur={(e) => {
+                            e.target.style.borderColor = 'var(--border-color)';
+                            e.target.style.boxShadow = 'none';
+                        }}
+                    />
+                    {searchQuery && (
+                        <button
+                            type="button"
+                            onClick={() => setSearchQuery('')}
+                            style={{
+                                position: 'absolute',
+                                right: '0.75rem',
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                background: 'transparent',
+                                border: 'none',
+                                color: 'var(--text-muted)',
+                                cursor: 'pointer',
+                                fontSize: '1rem',
+                                padding: '0.4rem',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                            }}
+                            title="Clear search"
+                        >
+                            ✕
+                        </button>
+                    )}
+                </div>
+                {searchQuery.trim() && (
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                        Found {filteredOrders.length} {filteredOrders.length === 1 ? 'order' : 'orders'} matching "{searchQuery}"
+                    </div>
+                )}
+            </div>
+
             {/* Orders Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.5rem' }}>
-                {orders.map((order) => {
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))', gap: '1.5rem', width: '100%', boxSizing: 'border-box' }}>
+                {filteredOrders.length === 0 && (
+                    <div className="card text-center" style={{ padding: '3rem 1.5rem', gridColumn: '1 / -1' }}>
+                        <p style={{ fontSize: '2rem', margin: '0 0 0.5rem 0' }}>🔍</p>
+                        <h3 style={{ fontSize: '1.15rem', color: 'var(--text-primary)', marginBottom: '0.25rem' }}>No matching orders found</h3>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1rem' }}>
+                            We couldn't find any orders matching "{searchQuery}".
+                        </p>
+                        <button className="btn btn-secondary btn-sm" onClick={() => setSearchQuery('')}>
+                            Clear Search
+                        </button>
+                    </div>
+                )}
+                {filteredOrders.map((order) => {
                     const isPendingAcceptance = order.status === 'PENDING_SHOP_ACCEPTANCE';
                     const isAwaitingPayment = order.status === 'PAYMENT_REQUESTED';
                     const isCancelled = ['CANCELLED', 'CANCELLED_BY_USER', 'CANCELLATION_APPROVED'].includes(order.status);
@@ -206,7 +324,7 @@ export const MyOrders = () => {
                                             🎨 Color pages: {order.documents.filter(d => d.colorPageNumbersText).map(d => `${truncateDocName(d.originalName || 'Doc', 22)}: p. ${d.colorPageNumbersText}`).join(' | ')}
                                         </div>
                                     )}
-                                    <div>📦 {order.printSide.replace(/_/g, ' ')} • {order.binding} Binding</div>
+                                    <div>📦 {order.printSide.replace(/_/g, ' ')} • {order.binding} Binding{order.binding !== 'NONE' && order.frontCoverColor ? ` • ${order.frontCoverColor} Cover` : ''}</div>
                                     <div>⏰ Deadline: <strong>{formatDateDDMMYYYY(order.requiredBy, true)}</strong></div>
                                     {order.estimatedDeliveryTime && (
                                         <div style={{ color: 'var(--accent-color)', fontWeight: 600 }}>⏰ Shop Delivery Time: {formatEstimatedTime(order.estimatedDeliveryTime)}</div>
@@ -286,7 +404,7 @@ export const MyOrders = () => {
                             <div><strong>Total Pages:</strong> {selectedOrder.totalPages}</div>
                             <div><strong>Copies:</strong> {selectedOrder.copies}</div>
                             <div><strong>Print Side:</strong> {selectedOrder.printSide.replace(/_/g, ' ')}</div>
-                            <div><strong>Binding:</strong> {selectedOrder.binding}</div>
+                            <div><strong>Binding:</strong> {selectedOrder.binding}{selectedOrder.binding !== 'NONE' && selectedOrder.frontCoverColor ? ` (${selectedOrder.frontCoverColor} Cover)` : ''}</div>
                             <div><strong>Payment Method:</strong> {selectedOrder.paymentMethod || 'Not Selected'}</div>
                             <div><strong>Payment Status:</strong> {selectedOrder.paymentStatus}</div>
                             <div><strong>Estimated Price:</strong> ₹{selectedOrder.estimatedCost}</div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import API from '../services/api';
 import { useToast } from '../context/ToastContext';
@@ -23,6 +23,7 @@ export const ShopOrders = () => {
     const navigate = useNavigate();
     const { showToast } = useToast();
     const [orders, setOrders] = useState([]);
+    const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(true);
     const [updatingId, setUpdatingId] = useState(null);
     const [activeTab, setActiveTab] = useState('PENDING');
@@ -257,6 +258,54 @@ export const ShopOrders = () => {
         return new Date(b.createdAt) - new Date(a.createdAt);
     });
 
+    const SHOP_TABS = [
+        { id: 'PENDING', label: 'Approvals' },
+        { id: 'PAYMENT', label: 'Awaiting Payment' },
+        { id: 'PRINTING', label: 'Printing' },
+        { id: 'READY', label: 'Ready/Dispatched' },
+        { id: 'COMPLETED', label: 'Completed' },
+        { id: 'CANCELLED', label: 'Cancelled/Rejected' }
+    ];
+
+    const activeTabLabel = SHOP_TABS.find(t => t.id === activeTab)?.label || 'section';
+
+    // Search strictly within the current section/tab
+    const displayedOrders = useMemo(() => {
+        if (!searchQuery.trim()) return filteredOrders;
+        const q = searchQuery.trim().toLowerCase();
+        return filteredOrders.filter((order) => {
+            const shortId = order._id ? order._id.slice(-6).toLowerCase() : '';
+            const fullId = (order._id || '').toLowerCase();
+            const customerName = (order.customer?.name || '').toLowerCase();
+            const contact = (order.customerContact || order.customer?.phone || '').toLowerCase();
+            const email = (order.customerEmail || order.customer?.email || '').toLowerCase();
+            const address = (order.deliveryAddress || '').toLowerCase();
+            const instructions = (order.instructions || '').toLowerCase();
+            const status = (order.status || '').toLowerCase().replace(/_/g, ' ');
+            const paymentStatus = (order.paymentStatus || '').toLowerCase();
+            const paymentMethod = (order.paymentMethod || order.paymentType || '').toLowerCase();
+            const docNames = (order.documents || []).map(d => d.originalName || '').join(' ').toLowerCase();
+            const created = order.createdAt ? `${formatDateDDMMYYYY(order.createdAt)} ${new Date(order.createdAt).toLocaleDateString()}`.toLowerCase() : '';
+            const deadline = order.requiredBy ? `${formatDateDDMMYYYY(order.requiredBy, true)} ${new Date(order.requiredBy).toLocaleDateString()}`.toLowerCase() : '';
+
+            return (
+                shortId.includes(q) ||
+                fullId.includes(q) ||
+                customerName.includes(q) ||
+                contact.includes(q) ||
+                email.includes(q) ||
+                address.includes(q) ||
+                instructions.includes(q) ||
+                status.includes(q) ||
+                paymentStatus.includes(q) ||
+                paymentMethod.includes(q) ||
+                docNames.includes(q) ||
+                created.includes(q) ||
+                deadline.includes(q)
+            );
+        });
+    }, [filteredOrders, searchQuery]);
+
     if (loading) {
         return (
             <div className="page-loading">
@@ -303,15 +352,8 @@ export const ShopOrders = () => {
             )}
 
             {/* Filter Tabs */}
-            <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', marginBottom: '1.5rem', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-                {[
-                    { id: 'PENDING', label: 'Approvals' },
-                    { id: 'PAYMENT', label: 'Awaiting Payment' },
-                    { id: 'PRINTING', label: 'Printing' },
-                    { id: 'READY', label: 'Ready/Dispatched' },
-                    { id: 'COMPLETED', label: 'Completed' },
-                    { id: 'CANCELLED', label: 'Cancelled/Rejected' }
-                ].map((tab) => (
+            <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', marginBottom: '1.25rem', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                {SHOP_TABS.map((tab) => (
                     <button
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id)}
@@ -333,14 +375,96 @@ export const ShopOrders = () => {
                 ))}
             </div>
 
-            {filteredOrders.length === 0 ? (
+            {/* Search Input for Current Section */}
+            <div style={{ marginBottom: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.4rem', width: '100%', boxSizing: 'border-box' }}>
+                <div style={{ position: 'relative', width: '100%', boxSizing: 'border-box' }}>
+                    <span style={{
+                        position: 'absolute',
+                        left: '1rem',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        color: 'var(--text-muted)',
+                        fontSize: '1rem',
+                        pointerEvents: 'none'
+                    }}>
+                        🔍
+                    </span>
+                    <input 
+                        type="text"
+                        placeholder="Search for an order..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        style={{
+                            width: '100%',
+                            minHeight: '44px',
+                            padding: '0.75rem 2.5rem 0.75rem 2.6rem',
+                            borderRadius: 'var(--radius-md)',
+                            border: '1px solid var(--border-color)',
+                            backgroundColor: 'var(--bg-card)',
+                            color: 'var(--text-primary)',
+                            fontSize: '0.9rem',
+                            outline: 'none',
+                            transition: 'border-color var(--transition-fast), box-shadow var(--transition-fast)',
+                            boxSizing: 'border-box'
+                        }}
+                        onFocus={(e) => {
+                            e.target.style.borderColor = 'var(--accent-color)';
+                            e.target.style.boxShadow = '0 0 0 3px rgba(16, 163, 127, 0.12)';
+                        }}
+                        onBlur={(e) => {
+                            e.target.style.borderColor = 'var(--border-color)';
+                            e.target.style.boxShadow = 'none';
+                        }}
+                    />
+                    {searchQuery && (
+                        <button
+                            type="button"
+                            onClick={() => setSearchQuery('')}
+                            style={{
+                                position: 'absolute',
+                                right: '0.75rem',
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                background: 'transparent',
+                                border: 'none',
+                                color: 'var(--text-muted)',
+                                cursor: 'pointer',
+                                fontSize: '1rem',
+                                padding: '0.4rem',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                            }}
+                            title="Clear search"
+                        >
+                            ✕
+                        </button>
+                    )}
+                </div>
+                {searchQuery.trim() && (
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                        Found {displayedOrders.length} {displayedOrders.length === 1 ? 'order' : 'orders'} in {activeTabLabel}
+                    </div>
+                )}
+            </div>
+
+            {displayedOrders.length === 0 ? (
                 <div className="empty-state card">
-                    <h3>No Orders</h3>
-                    <p>There are no customer orders in this category.</p>
+                    <h3>{searchQuery.trim() ? 'No Matching Orders' : 'No Orders'}</h3>
+                    <p>
+                        {searchQuery.trim() 
+                            ? `No orders matching "${searchQuery}" found in ${activeTabLabel}.` 
+                            : 'There are no customer orders in this category.'}
+                    </p>
+                    {searchQuery.trim() && (
+                        <button className="btn btn-secondary btn-sm" style={{ marginTop: '0.5rem' }} onClick={() => setSearchQuery('')}>
+                            Clear Search
+                        </button>
+                    )}
                 </div>
             ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                    {filteredOrders.map((order) => {
+                    {displayedOrders.map((order) => {
                         const isPending = order.status === 'PENDING_SHOP_ACCEPTANCE';
                         const isAwaitingPayment = order.status === 'PAYMENT_REQUESTED';
                         const isPaid = order.paymentStatus === 'PAID';
@@ -511,7 +635,7 @@ export const ShopOrders = () => {
                                     <div>
                                         <small style={{ color: 'var(--text-muted)' }}>Print & Binding</small>
                                         <div style={{ fontWeight: 500 }}>
-                                            {order.printSide === 'SINGLE_SIDE' ? 'Single Sided' : 'Double Sided'}, Binding: {order.binding}
+                                            {order.printSide === 'SINGLE_SIDE' ? 'Single Sided' : 'Double Sided'}, Binding: {order.binding}{order.binding !== 'NONE' && order.frontCoverColor ? `, Cover: ${order.frontCoverColor}` : ''}
                                         </div>
                                     </div>
 
