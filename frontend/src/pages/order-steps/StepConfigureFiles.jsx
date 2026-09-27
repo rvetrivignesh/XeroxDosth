@@ -303,7 +303,7 @@ export const StepConfigureFiles = () => {
                                                         <label style={{ fontSize: '0.85rem' }}>Color Page Numbers</label>
                                                         <input
                                                             type="text"
-                                                            placeholder="e.g. 5, 12, 27"
+                                                            placeholder="e.g. 1, 2, 10-15"
                                                             value={fileObj.colorPageNumbersText || ''}
                                                             onChange={(e) => handleColorNumbersChange(fileObj, e.target.value)}
                                                         />

@@ -4,7 +4,7 @@ import User from '../models/users/user.model.js';
 import ApiError from '../utils/ApiError.js';
 import { sendEmail } from './mail.service.js';
 import { createNotification } from './notification.service.js';
-import { getPageDetails } from '../utils/pageFormatter.js';
+import { getPageDetails, parsePageList } from '../utils/pageFormatter.js';
 
 const buildFrontendUrl = (subPath) => {
     const raw = process.env.FRONTEND_URL || 'https://rvetrivignesh.github.io/XeroxDosth/#';
@@ -18,10 +18,7 @@ const buildFrontendUrl = (subPath) => {
 
 const groupConsecutivePages = (text) => {
     if (!text || !text.trim()) return { doubleSheets: 0, singlePages: 0 };
-    const pages = text.split(',')
-        .map(p => parseInt(p.trim(), 10))
-        .filter(p => !isNaN(p))
-        .sort((a, b) => a - b);
+    const pages = parsePageList(text);
 
     let doubleSheets = 0;
     let singlePages = 0;

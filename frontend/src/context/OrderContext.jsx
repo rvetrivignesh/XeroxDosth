@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import API from '../services/api';
 import { useToast } from './ToastContext';
 import { useAuth } from './AuthContext';
+import { parsePageList } from '../utils/pageFormatter';
 
 const OrderContext = createContext();
 
@@ -76,12 +77,7 @@ const detectPdfPages = async (file) => {
 };
 
 export const parseColorPageNumbers = (text) => {
-    if (!text || !text.trim()) return [];
-    return text.split(',')
-        .map(p => p.trim())
-        .filter(Boolean)
-        .map(p => parseInt(p, 10))
-        .filter(num => !isNaN(num));
+    return parsePageList(text);
 };
 
 const ALLOWED_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png', 'webp'];
@@ -518,11 +514,23 @@ export const OrderProvider = ({ children }) => {
             
             for (const part of parts) {
                 if (!part) continue;
-                const num = parseInt(part, 10);
-                if (isNaN(num) || num.toString() !== part) {
-                    return `Invalid page number format: "${part}". Must be valid integers.`;
+                const rangeMatch = part.match(/^(\d+)\s*[\-–]\s*(\d+)$/);
+                if (rangeMatch) {
+                    const startRange = parseInt(rangeMatch[1], 10);
+                    const endRange = parseInt(rangeMatch[2], 10);
+                    if (isNaN(startRange) || isNaN(endRange) || startRange > endRange) {
+                        return `Invalid page range: "${part}". Start page cannot be greater than end page.`;
+                    }
+                    for (let p = startRange; p <= endRange; p++) {
+                        pageNumbers.push(p);
+                    }
+                } else {
+                    const num = parseInt(part, 10);
+                    if (isNaN(num) || num.toString() !== part) {
+                        return `Invalid page number format: "${part}". Must be valid integers or ranges (e.g. 1, 2, 10-15).`;
+                    }
+                    pageNumbers.push(num);
                 }
-                pageNumbers.push(num);
             }
 
             const uniquePages = [...new Set(pageNumbers)];
@@ -530,13 +538,13 @@ export const OrderProvider = ({ children }) => {
                 return "Duplicate color page numbers are not allowed.";
             }
 
-            for (const num of pageNumbers) {
+            for (const num of uniquePages) {
                 if (num < start || num > last) {
                     return `Color page number ${num} is outside the selected print range [${start}-${last}].`;
                 }
             }
 
-            if (pageNumbers.length > printedPages) {
+            if (uniquePages.length > printedPages) {
                 return "Number of color pages exceeds total printed pages.";
             }
         }
